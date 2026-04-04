@@ -1,0 +1,19 @@
+{
+  "name": "team-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test 'tests/**/*.mjs'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "sortablejs": "^1.15.7"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}
