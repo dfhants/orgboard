@@ -1,0 +1,12 @@
+Name,Role,Location,Timezone,Manager
+Pat Nakamura,CEO,San Francisco,PST (UTC−8),
+Alex Mercer,VP Engineering,San Francisco,PST (UTC−8),Pat Nakamura
+Jordan Lee,VP Product,New York,EST (UTC−5),Pat Nakamura
+Morgan Taylor,VP Design,London,GMT (UTC+0),Pat Nakamura
+Sam Ortiz,Senior Engineer,Austin,CST (UTC−6),Alex Mercer
+Jamie Kwon,Senior Engineer,Seattle,PST (UTC−8),Alex Mercer
+Robin Das,Junior Engineer,Denver,MST (UTC−7),Alex Mercer
+Chris Petrov,Product Manager,New York,EST (UTC−5),Jordan Lee
+Dana Reeves,Product Analyst,Chicago,CST (UTC−6),Jordan Lee
+Taylor Singh,Lead Designer,London,GMT (UTC+0),Morgan Taylor
+Avery Chen,UX Researcher,Berlin,CET (UTC+1),Morgan Taylor

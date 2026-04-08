@@ -1,0 +1,103 @@
+/* ─── Landing page ─── */
+
+.landing-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 40px 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-grid:has(.landing-page) {
+  width: 100%;
+  height: 100%;
+  align-items: stretch;
+}
+
+.landing-content {
+  text-align: center;
+  max-width: 640px;
+  width: 100%;
+}
+
+.landing-logo {
+  margin-bottom: 20px;
+}
+
+.landing-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+
+.landing-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-soft);
+  margin: 0 0 32px;
+}
+
+.landing-options {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 24px;
+  min-width: 160px;
+  flex: 1 1 160px;
+  max-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+  color: var(--text);
+  font: inherit;
+}
+
+.landing-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow), 0 0 0 3px var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+.landing-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.landing-card-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.landing-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.landing-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+

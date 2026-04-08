@@ -1,0 +1,25 @@
+Employee ID,Full Name,Position,Department,Supervisor,Location,Cost Center,Worker Type
+WD-100201,Rebecca Thornton,Chief Technology Officer,Executive Leadership,,San Francisco HQ,CC-1000,Regular
+WD-100342,Marcus Webb,VP of Engineering,Engineering - All,Rebecca Thornton,San Francisco HQ,CC-2000,Regular
+WD-100587,Priya Chandrasekaran,VP of Product,Product - All,Rebecca Thornton,New York Office,CC-3000,Regular
+WD-101023,David Kim,Senior Engineering Manager,Platform Engineering,Marcus Webb,Seattle Office,CC-2100,Regular
+WD-101156,Ana Lucia Vega,Engineering Manager,Client Engineering,Marcus Webb,Austin Office,CC-2200,Regular
+WD-101289,James Okafor,Engineering Manager,Data Engineering,Marcus Webb,London Office,CC-2300,Regular
+WD-102001,Sarah Mitchell,Staff Software Engineer,Platform Engineering,David Kim,Seattle Office,CC-2100,Regular
+WD-102034,Tomohiro Sato,Senior Software Engineer,Platform Engineering,David Kim,Tokyo Office,CC-2100,Regular
+WD-102067,Elena Popescu,Software Engineer,Platform Engineering,David Kim,Bucharest Office,CC-2100,Regular
+WD-102089,Rashid Al-Farsi,Software Engineer,Platform Engineering,David Kim,Dubai Office,CC-2100,Regular
+WD-102112,Mei-Ling Wu,Junior Software Engineer,Platform Engineering,David Kim,Singapore Office,CC-2100,Contingent
+WD-103001,Oliver Hansen,Senior Frontend Engineer,Client Engineering,Ana Lucia Vega,Copenhagen Office,CC-2200,Regular
+WD-103034,Fatima Benali,Frontend Engineer,Client Engineering,Ana Lucia Vega,Paris Office,CC-2200,Regular
+WD-103067,Ryan O'Sullivan,Mobile Engineer,Client Engineering,Ana Lucia Vega,Dublin Office,CC-2200,Regular
+WD-103089,Isabela Costa,QA Engineer,Client Engineering,Ana Lucia Vega,São Paulo Office,CC-2200,Regular
+WD-104001,Amara Diop,Senior Data Engineer,Data Engineering,James Okafor,London Office,CC-2300,Regular
+WD-104034,Nikolai Ivanov,Data Scientist,Data Engineering,James Okafor,Berlin Office,CC-2300,Regular
+WD-104067,Grace Achieng,ML Engineer,Data Engineering,James Okafor,Nairobi Office,CC-2300,Regular
+WD-104089,Liam Fitzgerald,Data Analyst,Data Engineering,James Okafor,London Office,CC-2300,Contingent
+WD-105001,Karen Yamamoto,Senior Product Manager,Product - Core,Priya Chandrasekaran,New York Office,CC-3100,Regular
+WD-105034,Michael Torres,Product Manager,Product - Growth,Priya Chandrasekaran,Chicago Office,CC-3200,Regular
+WD-105067,Anika Strand,UX Designer,Product - Core,Karen Yamamoto,Stockholm Office,CC-3100,Regular
+WD-105089,Dwayne Richards,UX Researcher,Product - Growth,Michael Torres,Atlanta Office,CC-3200,Regular
+WD-105112,Yoon-Seo Park,Product Analyst,Product - Core,Karen Yamamoto,Seoul Office,CC-3100,Regular

@@ -1,0 +1,165 @@
+/* ─── CSV Import modal ─── */
+
+.csv-import-panel {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.csv-import-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.csv-file-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.csv-file-label:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.csv-file-label svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.csv-file-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  margin: 10px 0 4px;
+}
+
+.csv-file-name svg {
+  width: 14px;
+  height: 14px;
+}
+
+.csv-preview-scroll {
+  overflow-x: auto;
+  margin-top: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.csv-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.csv-preview-table th,
+.csv-preview-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+}
+
+.csv-preview-table th {
+  background: var(--panel-muted);
+  font-weight: 600;
+  color: var(--text-soft);
+  position: sticky;
+  top: 0;
+}
+
+.csv-preview-table td {
+  color: var(--text);
+}
+
+.csv-preview-area {
+  margin-top: 12px;
+}
+
+.csv-error {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin: 8px 0 0;
+}
+
+.csv-step-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  margin: 0 0 10px;
+}
+
+.csv-mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.csv-mapping-label {
+  flex: 0 0 80px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+.csv-mapping-label em {
+  color: #ef4444;
+  font-style: normal;
+}
+
+.csv-mapping-select {
+  flex: 1;
+  font-size: 0.8rem;
+}
+
+.csv-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.csv-mode-option:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.csv-mode-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.csv-mode-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.csv-mode-option strong {
+  font-size: 0.85rem;
+}
+
+.csv-mode-option small {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+

@@ -1,0 +1,6 @@
+{
+  "rules": {
+    "declaration-block-no-redundant-longhand-properties": true,
+    "shorthand-property-no-redundant-values": true
+  }
+}

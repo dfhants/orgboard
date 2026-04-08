@@ -1,0 +1,118 @@
+/* ─── Unassigned drawer ─── */
+
+.unassigned-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 40px;
+  z-index: 100;
+  border-top: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
+  padding: 14px 28px;
+  max-height: 200px;
+  overflow: hidden;
+  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease;
+}
+
+.unassigned-bar.is-collapsed {
+  max-height: 52px;
+  overflow: hidden;
+  box-shadow: 0 -1px 8px rgba(0, 0, 0, 0.03);
+}
+
+.unassigned-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: background-color var(--transition);
+}
+
+.unassigned-bar-header:hover {
+  background: var(--accent-soft);
+}
+
+.unassigned-bar-header strong {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-soft);
+}
+
+.unassigned-count {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  min-width: 22px;
+  text-align: center;
+}
+
+.unassigned-bar .roster-cards-wrapper {
+  position: relative;
+  margin-top: 14px;
+}
+
+.unassigned-bar .roster-cards-wrapper::before,
+.unassigned-bar .roster-cards-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.unassigned-bar .roster-cards-wrapper::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.88), transparent);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+.unassigned-bar .roster-cards-wrapper::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.88), transparent);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+.unassigned-bar .roster-cards-wrapper.can-scroll-left::before,
+.unassigned-bar .roster-cards-wrapper.can-scroll-right::after {
+  opacity: 1;
+}
+
+.unassigned-bar .roster-cards {
+  min-height: 80px; /* shorter than the general drop-zone 140px — the bar is secondary UI */
+  flex-wrap: nowrap;
+  overflow: auto hidden;
+  width: auto;
+  scrollbar-width: thin;
+}
+
+.unassigned-bar .roster-cards > * {
+  flex-shrink: 0;
+}
+
+.unassigned-bar .roster-cards::-webkit-scrollbar {
+  height: 6px;
+}
+
+.unassigned-bar .roster-cards::-webkit-scrollbar-thumb {
+  background: var(--line-soft);
+  border-radius: 3px;
+}
+
+.unassigned-bar .roster-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+

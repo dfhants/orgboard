@@ -1,0 +1,9 @@
+Name,Role,Location,Timezone,Team,Manager
+Sarah Chen,Engineering Manager,San Francisco,PST (UTC−8),Platform,
+Jake Rivera,Senior Engineer,San Francisco,PST (UTC−8),Platform,Sarah Chen
+Maria Santos,Backend Engineer,Austin,CST (UTC−6),Platform,Sarah Chen
+Amir Patel,Frontend Engineer,New York,EST (UTC−5),Platform,Sarah Chen
+Lisa Wong,Design Lead,London,GMT (UTC+0),Design,
+Tom Bradley,UX Designer,London,GMT (UTC+0),Design,Lisa Wong
+Yuki Tanaka,Visual Designer,Tokyo,JST (UTC+9),Design,Lisa Wong
+Priya Sharma,UX Researcher,Berlin,CET (UTC+1),Design,Lisa Wong

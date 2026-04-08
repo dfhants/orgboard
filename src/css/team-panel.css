@@ -1,0 +1,299 @@
+/* ─── Team panel ─── */
+
+.team {
+  width: max-content;
+  min-width: 220px; /* expanded team panel — wide enough for the titlebar + controls */
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+  background: var(--panel);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: flex-start;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+}
+
+.team:hover {
+  box-shadow: var(--shadow);
+}
+
+.team::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--team-accent, var(--panel-muted));
+  filter: brightness(0.85) saturate(1.4);
+}
+
+.team[data-view="collapsed"] {
+  min-width: 200px; /* collapsed team — slightly narrower since body content is compact */
+}
+
+.team-titlebar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: background-color var(--transition);
+}
+
+.team-titlebar:hover {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+.team-titlebar:has(.team-control-button:hover, .team-handle:hover):hover {
+  background: none;
+}
+
+.team-titlebar:focus-visible {
+  outline: 2px solid rgba(79, 110, 247, 0.5);
+  outline-offset: 2px;
+}
+
+.team-handle {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--line);
+  transition: all var(--transition);
+}
+
+.team-handle:hover {
+  color: var(--text-soft);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.drag-image-proxy {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.team-titleblock {
+  flex: 1;
+  min-width: 0; /* allow text truncation inside flex child */
+}
+
+.team-name-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.team-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.team-name {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.team-name-text {
+  cursor: text;
+}
+
+.team-name-input {
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.team-control-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--line);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all var(--transition);
+}
+
+.team-control-button:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.team-control-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.team-handle svg {
+  width: 16px;
+  height: 16px;
+}
+
+
+
+.team-chevron {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: rotate(0deg);
+}
+
+.team-chevron.is-expanded {
+  transform: rotate(90deg);
+}
+
+.drawer-chevron {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: rotate(180deg);
+}
+
+.drawer-chevron.is-expanded {
+  transform: rotate(0deg);
+}
+
+.member-facepile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.facepile-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  flex: 0 0 auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.facepile-overflow {
+  background: var(--panel-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  color: var(--text-soft);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.facepile-empty {
+  background: transparent;
+  border: 1.5px dashed rgba(0, 0, 0, 0.15);
+}
+
+.drag-preview-dot {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.team-delete-button,
+.board-create-button {
+  flex: 0 0 auto;
+}
+
+.team-caption {
+  margin: 2px 0 0;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.team-body {
+  display: grid;
+  gap: 10px;
+  width: max-content;
+}
+
+.team-body.horizontal {
+  grid-template-columns: max-content max-content;
+  align-items: start;
+}
+
+.team-body.vertical {
+  grid-template-columns: max-content;
+}
+
+.slot {
+  position: relative;
+  border: 1.5px dashed rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.015);
+  padding: 10px;
+  width: max-content;
+  min-width: 0; /* base reset — specific slot types override below */
+}
+
+/* 143px ≈ one person-card with padding — keeps slots a consistent square
+   minimum so they don't jump around during drag operations */
+.manager-slot,
+.member-slot {
+  min-height: 143px;
+  min-width: 143px;
+  transition: all var(--transition);
+}
+
+.member-slot {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-content: flex-start;
+  align-items: flex-start;
+}
+
+
+.member-entry {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.member-slot.layout-vertical {
+  flex-flow: row wrap;
+}
+
+.member-slot.layout-horizontal {
+  flex-flow: column wrap;
+}
+
+.team[data-view="collapsed"] .team-body {
+  gap: 8px;
+  grid-template-columns: max-content max-content;
+  align-items: start;
+}
+
+/* Collapsed teams shrink slots to content — facepile dots are tiny,
+   so the expanded 143px minimums would waste space */
+.team[data-view="collapsed"] .member-slot,
+.team[data-view="collapsed"] .manager-slot {
+  min-width: 0;
+  min-height: 0;
+}
+
+.child-team {
+  width: max-content;
+}
+

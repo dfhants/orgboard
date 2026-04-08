@@ -2,18 +2,25 @@
   "name": "team-demo",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.html",
   "scripts": {
-    "test": "node --test 'tests/**/*.mjs'"
+    "build:css": "lightningcss --bundle src/css/main.css -o src/styles.css",
+    "watch:css": "lightningcss --bundle src/css/main.css -o src/styles.css --watch",
+    "dev": "npm run watch:css & python3 -m http.server 4173",
+    "lint:css": "stylelint \"src/css/**/*.css\"",
+    "lint:css:fix": "stylelint \"src/css/**/*.css\" --fix",
+    "test": "node --test 'tests/**/*.mjs'",
+    "test:ui": "npx playwright test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
-    "sortablejs": "^1.15.7"
-  },
   "devDependencies": {
-    "playwright": "^1.59.1"
+    "@playwright/test": "^1.59.1",
+    "fast-check": "^4.6.0",
+    "lightningcss-cli": "^1.32.0",
+    "playwright": "^1.59.1",
+    "stylelint": "^16.25.0"
   }
 }

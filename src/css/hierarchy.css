@@ -1,0 +1,252 @@
+/* ── Hierarchy tree modal ── */
+
+.hierarchy-modal-panel {
+  width: auto;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  min-width: 400px;
+}
+
+.hierarchy-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hierarchy-modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.hierarchy-edit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+}
+
+.hierarchy-edit-toggle.is-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+
+.hierarchy-edit-banner {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin: -8px 0 0;
+  font-weight: 600;
+}
+
+/* ── CSS org-chart tree ── */
+
+.tree-container {
+  overflow-x: auto;
+  padding: 16px 0;
+}
+
+.tree-root,
+.tree-children {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.tree-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding-top: 20px;
+}
+
+/* Remove top connector from the very root */
+.tree-root > .tree-branch {
+  padding-top: 0;
+}
+
+/* Vertical connector line from parent down */
+.tree-branch::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: var(--line-soft);
+}
+
+.tree-root > .tree-branch::before {
+  display: none;
+}
+
+/* Horizontal connector line across siblings */
+.tree-children > .tree-branch::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 2px;
+  background: var(--line-soft);
+}
+
+.tree-children > .tree-branch:first-child::after {
+  left: 50%;
+}
+
+.tree-children > .tree-branch:last-child::after {
+  right: 50%;
+}
+
+.tree-children > .tree-branch:not(:first-child):not(:last-child)::after {
+  left: 0;
+  width: 100%;
+}
+
+.tree-children > .tree-branch:only-child::after {
+  display: none;
+}
+
+/* Override branch: dashed connectors */
+
+.tree-branch-override::before {
+  background: none;
+  border-left: 2px dashed var(--accent);
+}
+
+.tree-branch-override::after {
+  background: none;
+  border-top: 2px dashed var(--accent);
+  height: 0 !important;
+}
+
+/* ── Tree nodes ── */
+
+.tree-node {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  min-width: 120px;
+  max-width: 180px;
+  text-align: center;
+  margin: 0 8px 4px;
+  position: relative;
+  transition: all var(--transition);
+}
+
+.tree-node-manager {
+  border-width: 2px;
+  border-color: var(--node-accent, var(--accent));
+  font-weight: 600;
+}
+
+.tree-node-empty {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.tree-node-override {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.tree-node-color {
+  width: 24px;
+  height: 6px;
+  border-radius: 3px;
+  margin: 0 auto 6px;
+}
+
+.tree-node-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.tree-node-role {
+  font-size: 0.68rem;
+  color: var(--text-soft);
+  margin-top: 2px;
+}
+
+.tree-node-team {
+  font-size: 0.62rem;
+  color: var(--text-soft);
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Edit mode */
+
+.tree-node--editable {
+  cursor: pointer;
+}
+
+.tree-node--editable:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ── Tree override popover ── */
+
+.tree-override-popover {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  min-width: 180px;
+  max-width: 260px;
+  animation: modal-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tree-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tree-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  font: inherit;
+  text-align: left;
+  font-size: 0.78rem;
+}
+
+.tree-popover-item:hover {
+  background: var(--accent-soft);
+}
+
+.tree-popover-item.is-active {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.tree-popover-reset {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 2px;
+  padding-top: 8px;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+}

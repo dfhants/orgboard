@@ -1,0 +1,224 @@
+import { test, expect } from "./fixtures";
+
+test.describe("Initial Render", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+  });
+
+  test("toolbar renders with logo, title, and add-person button", async ({
+    page,
+  }) => {
+    await expect(page.locator(".app-toolbar")).toBeVisible();
+    await expect(page.locator(".app-toolbar")).toContainText("TeamBoard");
+    await expect(page.locator("#add-person-btn")).toBeVisible();
+  });
+
+  test("two root teams render with correct names", async ({ page }) => {
+    const teams = page.locator(".root-dropzone > .team");
+    await expect(teams).toHaveCount(2);
+    await expect(
+      teams.nth(0).locator("> .team-titlebar .team-name-text")
+    ).toHaveText("Product");
+    await expect(
+      teams.nth(1).locator("> .team-titlebar .team-name-text")
+    ).toHaveText("Operations");
+  });
+
+  test("nested teams render inside parent teams", async ({ page }) => {
+    // Research is nested inside Product
+    const productTeam = page.locator('.team[data-team-id="t1"]');
+    await expect(
+      productTeam.locator('.team[data-team-id="t3"] .team-name-text').first()
+    ).toHaveText("Research");
+
+    // Field is nested inside Operations
+    const opsTeam = page.locator('.team[data-team-id="t2"]');
+    await expect(
+      opsTeam.locator('.team[data-team-id="t4"] .team-name-text').first()
+    ).toHaveText("Field");
+  });
+
+  test("assigned employees show correct person card details", async ({
+    page,
+  }) => {
+    // Check Ava Richardson in Product manager slot
+    const avaCard = page.locator(
+      '.team[data-team-id="t1"] .manager-slot .person-card'
+    );
+    await expect(avaCard.locator(".person-name")).toHaveText("Ava Richardson");
+    await expect(avaCard.locator(".person-role")).toContainText(
+      "Product Director"
+    );
+    await expect(avaCard.locator(".person-location")).toHaveText(
+      "San Francisco, CA"
+    );
+    await expect(avaCard.locator(".person-timezone")).toHaveText("PST (UTC−8)");
+  });
+
+  test("manager slots are populated correctly", async ({ page }) => {
+    // Product manager: Ava
+    await expect(
+      page.locator(
+        '.team[data-team-id="t1"] > .team-body > .manager-slot .person-name'
+      )
+    ).toHaveText("Ava Richardson");
+
+    // Operations manager: Noah
+    await expect(
+      page.locator(
+        '.team[data-team-id="t2"] > .team-body > .manager-slot .person-name'
+      )
+    ).toHaveText("Noah Tremblay");
+
+    // Research (t3) starts collapsed — manager shown as facepile dot, not full card
+    // Verify research team exists and has a manager slot
+    await expect(
+      page.locator('.team[data-team-id="t3"] .manager-slot')
+    ).toBeVisible();
+
+    // Field has no manager — empty slot
+    const fieldManagerSlot = page.locator(
+      '.team[data-team-id="t4"] .manager-slot'
+    );
+    await expect(
+      fieldManagerSlot.locator(".person-card")
+    ).toHaveCount(0);
+  });
+
+  test("unassigned bar renders with 2 employees and correct count", async ({
+    page,
+  }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    await expect(drawer).toBeVisible();
+    await expect(drawer.locator(".unassigned-count")).toHaveText("2");
+
+    const rosterCards = drawer.locator(".roster-cards .person-card");
+    await expect(rosterCards).toHaveCount(2);
+
+    const names = await rosterCards.locator(".person-name").allTextContents();
+    expect(names).toContain("Eli Vasquez");
+    expect(names).toContain("Nia Ramaswamy");
+  });
+
+  test("layout classes are applied correctly", async ({ page }) => {
+    // Product has horizontal child layout
+    await expect(
+      page.locator('.team[data-team-id="t1"] > .team-body > .member-slot')
+    ).toHaveClass(/layout-horizontal/);
+
+    // Operations has vertical child layout
+    await expect(
+      page.locator('.team[data-team-id="t2"] > .team-body > .member-slot')
+    ).toHaveClass(/layout-vertical/);
+  });
+
+  test("team control buttons have correct interactive styling", async ({
+    page,
+  }) => {
+    // From inspect-manager-slot.js: title-bar action buttons should have
+    // pointer cursor and hover rules in the stylesheet.
+    const btn = page.locator(".team-control-button").first();
+
+    const cursor = await btn.evaluate(
+      (el) => window.getComputedStyle(el).cursor
+    );
+    expect(cursor).toBe("pointer");
+
+    // Verify hover CSS rules exist in the stylesheet (Playwright headless
+    // doesn't reliably apply :hover pseudo-class on evaluate)
+    const hoverRuleExists = await page.evaluate(() => {
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of sheet.cssRules) {
+            if (
+              rule instanceof CSSStyleRule &&
+              rule.selectorText?.includes("team-control-button") &&
+              rule.selectorText?.includes("hover")
+            ) {
+              return true;
+            }
+          }
+        } catch (_) {
+          /* cross-origin sheets */
+        }
+      }
+      return false;
+    });
+    expect(hoverRuleExists).toBe(true);
+  });
+
+  test("all expanded team slots have non-zero dimensions", async ({
+    page,
+  }) => {
+    // From inspect-slots.js: verify every expanded team's member-slot and
+    // manager-slot are actually laid out (non-zero width/height).
+    const dims = await page.evaluate(() => {
+      const teams = document.querySelectorAll(".team");
+      return [...teams].map((team) => {
+        const name =
+          team.querySelector(".team-name-text")?.textContent ?? "";
+        const view = (team as HTMLElement).dataset.view || "expanded";
+        const memSlot = team.querySelector(
+          ":scope > .team-body > .member-slot"
+        );
+        const mgrSlot = team.querySelector(
+          ":scope > .team-body > .manager-slot"
+        );
+        const memR = memSlot?.getBoundingClientRect();
+        const mgrR = mgrSlot?.getBoundingClientRect();
+        return {
+          name,
+          view,
+          memW: memR ? Math.round(memR.width) : null,
+          memH: memR ? Math.round(memR.height) : null,
+          mgrW: mgrR ? Math.round(mgrR.width) : null,
+          mgrH: mgrR ? Math.round(mgrR.height) : null,
+        };
+      });
+    });
+
+    for (const t of dims) {
+      if (t.view !== "expanded") continue;
+      // Every expanded team's member-slot should have non-zero size
+      if (t.memW !== null) {
+        expect(t.memW, `${t.name} member-slot width`).toBeGreaterThan(0);
+        expect(t.memH, `${t.name} member-slot height`).toBeGreaterThan(0);
+      }
+      // Manager slots should be present and have width
+      if (t.mgrW !== null) {
+        expect(t.mgrW, `${t.name} manager-slot width`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("empty team member slot shows placeholder text", async ({ page }) => {
+    // Add a new root team (it starts empty)
+    await page.locator('[data-action="add-root-team"]').click();
+
+    // Find the newest team (last in root-dropzone)
+    const newTeam = page.locator(".root-dropzone > .team").last();
+    const memberSlot = newTeam.locator("> .team-body > .member-slot");
+    await expect(memberSlot.locator(".empty-note")).toContainText(
+      "Drop people or teams here"
+    );
+  });
+
+  test("person cards have timezone-based background colors", async ({
+    page,
+  }) => {
+    // Ava (PST) and Milo (GMT) should have different background colors
+    const avaColor = await page
+      .locator('.person-card[data-id="p1"]')
+      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+    const miloColor = await page
+      .locator('.person-card[data-id="p2"]')
+      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+
+    // Both should have non-empty background colors
+    expect(avaColor).toBeTruthy();
+    expect(miloColor).toBeTruthy();
+    // Different timezones should produce different colors
+    expect(avaColor).not.toBe(miloColor);
+  });
+});

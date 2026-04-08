@@ -1,0 +1,89 @@
+/* ─── Drop zones ─── */
+
+.roster-cards {
+  min-height: 140px; /* base drop-zone height — tall enough to be an obvious drag target */
+  border: 1.5px dashed var(--line-soft);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-content: flex-start;
+  align-items: flex-start;
+  transition: all var(--transition);
+  width: max-content;
+}
+
+.root-dropzone {
+  min-height: 140px;
+  border: 1.5px dashed transparent;
+  border-radius: var(--radius-lg);
+  padding: 0;
+  display: flex;
+  gap: 12px;
+  align-content: flex-start;
+  align-items: flex-start;
+  transition: all var(--transition);
+  flex-grow: 1;
+  min-width: 100%;
+}
+
+.root-dropzone[data-layout="vertical"] {
+  flex-flow: column nowrap;
+}
+
+.root-dropzone[data-layout="horizontal"] {
+  flex-flow: row nowrap;
+}
+
+.dropzone.is-over,
+.manager-slot.is-over,
+.member-slot.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(79, 110, 247, 0.1);
+}
+
+.empty-note {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  margin: 0;
+  font-style: italic;
+}
+
+.slot > .empty-note {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.65rem;
+}
+
+.slot > .empty-note:has(~ .drag-preview-entry),
+.slot > .drag-preview-entry ~ .empty-note {
+  display: none;
+}
+
+/* ─── Drag previews ─── */
+
+.drag-preview-entry {
+  position: relative;
+  flex: 0 0 auto;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+}
+
+.drag-preview-entry::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed rgba(79, 110, 247, 0.2);
+  border-radius: var(--radius);
+}
+
+.dragging-source {
+  display: none !important;
+}
+

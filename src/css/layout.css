@@ -1,0 +1,276 @@
+/* ─── Page shell ─── */
+
+.page-shell {
+  padding: 12px;
+  overflow: auto;
+  height: calc(100vh - 52px - 52px);
+  margin-left: 0;
+  margin-right: 40px;
+}
+
+/* ─── App toolbar ─── */
+
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 28px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+}
+
+.app-toolbar::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line-soft);
+  z-index: 0;
+}
+
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbar-logo {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 1px 2px rgba(79, 110, 247, 0.25));
+}
+
+.toolbar-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbar-button:hover {
+  background: var(--panel-muted);
+  box-shadow: var(--shadow);
+  border-color: var(--line);
+}
+
+.toolbar-button:active {
+  transform: scale(0.97);
+}
+
+.toolbar-button svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.team-control-button.is-active {
+  background: var(--accent);
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Scenario tab bar ─── */
+
+.scenario-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: clip visible;
+  padding: 0 8px;
+  scrollbar-width: none;
+  align-self: stretch;
+}
+
+.scenario-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.scenario-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 14px 10px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  white-space: nowrap;
+  position: relative;
+  flex-shrink: 0;
+  margin-bottom: -1px;
+  min-height: 44px;
+}
+
+.scenario-tab:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.scenario-tab.is-active {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--bg);
+  border-color: var(--line-soft);
+  z-index: 1;
+}
+
+.scenario-tab-name {
+  cursor: text;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scenario-tab-input {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  padding: 0;
+  min-width: 40px;
+  border-bottom: 1px solid var(--accent);
+}
+
+.scenario-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+  opacity: 0;
+  margin-left: 2px;
+}
+
+.scenario-tab-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.scenario-tab:hover .scenario-tab-close {
+  opacity: 0.6;
+}
+
+.scenario-tab-close:hover {
+  opacity: 1 !important;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+.scenario-tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+  margin-bottom: 12px;
+  margin-left: 2px;
+}
+
+.scenario-tab-add svg {
+  width: 14px;
+  height: 14px;
+}
+
+.scenario-tab-add:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+/* ─── App grid ─── */
+
+.app-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: flex-start;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* ─── Floating action bar ─── */
+
+.action-bar {
+  position: fixed;
+  bottom: 212px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--shadow);
+  transition: bottom 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body:has(.unassigned-bar.is-collapsed) .action-bar {
+  bottom: 64px;
+}
+
+.action-bar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--line-soft);
+  margin: 0 4px;
+}
+

@@ -1,0 +1,51 @@
+Name,Role,Location,Timezone,Team,Level,Manager
+Nadia Kovacs,CTO,San Francisco,PST (UTC−8),Leadership,10,
+Derek Yoo,VP Engineering,San Francisco,PST (UTC−8),Leadership,9,Nadia Kovacs
+Simone Achille,VP Product,New York,EST (UTC−5),Leadership,9,Nadia Kovacs
+Wei Zhang,Engineering Manager,Seattle,PST (UTC−8),Platform,8,Derek Yoo
+Amara Osei,Engineering Manager,Austin,CST (UTC−6),Mobile,8,Derek Yoo
+Liam O'Connor,Engineering Manager,Dublin,GMT (UTC+0),Infrastructure,8,Derek Yoo
+Sakura Ito,Product Manager,Tokyo,JST (UTC+9),Platform,7,Simone Achille
+Tom Andersen,Product Manager,Copenhagen,CET (UTC+1),Mobile,7,Simone Achille
+Rachel Adams,Senior Engineer,Seattle,PST (UTC−8),Platform,7,Wei Zhang
+Mateo Ruiz,Senior Engineer,San Francisco,PST (UTC−8),Platform,7,Wei Zhang
+Ananya Patel,Backend Engineer,Bengaluru,IST (UTC+5:30),Platform,5,Wei Zhang
+Jin-Ho Park,Frontend Engineer,Seoul,KST (UTC+9),Platform,5,Wei Zhang
+Lucas Ferreira,Full-Stack Engineer,São Paulo,BRT (UTC−3),Platform,5,Wei Zhang
+Elena Voronova,DevOps Engineer,Berlin,CET (UTC+1),Platform,6,Wei Zhang
+Kofi Mensah,QA Engineer,Accra,GMT (UTC+0),Platform,4,Wei Zhang
+Isabella Cruz,Junior Engineer,Austin,CST (UTC−6),Platform,3,Wei Zhang
+Tariq Hassan,iOS Engineer,Dubai,GST (UTC+4),Mobile,6,Amara Osei
+Sophie Laurent,Android Engineer,Paris,CET (UTC+1),Mobile,6,Amara Osei
+Noah Williams,Mobile Engineer,Austin,CST (UTC−6),Mobile,5,Amara Osei
+Priya Sundaram,Mobile Engineer,Bengaluru,IST (UTC+5:30),Mobile,5,Amara Osei
+Carlos Mendez,QA Engineer,Mexico City,CST (UTC−6),Mobile,4,Amara Osei
+Zara Ahmed,UX Designer,London,GMT (UTC+0),Mobile,5,Amara Osei
+Owen Mitchell,iOS Intern,Austin,CST (UTC−6),Mobile,2,Amara Osei
+Fatou Diallo,Senior SRE,Dakar,GMT (UTC+0),Infrastructure,7,Liam O'Connor
+Viktor Petrov,SRE,Prague,CET (UTC+1),Infrastructure,5,Liam O'Connor
+Aiko Tanaka,Cloud Engineer,Tokyo,JST (UTC+9),Infrastructure,5,Liam O'Connor
+James Chen,Infrastructure Engineer,Vancouver,PST (UTC−8),Infrastructure,5,Liam O'Connor
+Maya Rodriguez,Database Engineer,Chicago,CST (UTC−6),Infrastructure,5,Liam O'Connor
+Hassan Ali,Security Engineer,Cairo,EET (UTC+2),Infrastructure,6,Liam O'Connor
+Emma Johansson,Network Engineer,Stockholm,CET (UTC+1),Infrastructure,4,Liam O'Connor
+Raj Kapoor,Junior SRE,Mumbai,IST (UTC+5:30),Infrastructure,3,Liam O'Connor
+Olivia Grant,UX Researcher,London,GMT (UTC+0),Design,6,Simone Achille
+Daniel Kim,Visual Designer,Seoul,KST (UTC+9),Design,5,Olivia Grant
+Camille Moreau,UI Designer,Lyon,CET (UTC+1),Design,5,Olivia Grant
+Andre Santos,Interaction Designer,Lisbon,WET (UTC+0),Design,5,Olivia Grant
+Nina Volkov,Design Intern,Berlin,CET (UTC+1),Design,2,Olivia Grant
+Grace Abara,Data Scientist,Lagos,WAT (UTC+1),Data,6,Simone Achille
+Yuki Sato,Data Engineer,Osaka,JST (UTC+9),Data,5,Grace Abara
+Ben Taylor,ML Engineer,Toronto,EST (UTC−5),Data,6,Grace Abara
+Ling Huang,Data Analyst,Singapore,SGT (UTC+8),Data,4,Grace Abara
+Marco Bianchi,Analytics Engineer,Milan,CET (UTC+1),Data,5,Grace Abara
+Anika Johansen,Technical Writer,Oslo,CET (UTC+1),Docs,5,Simone Achille
+Miguel Torres,Developer Advocate,Madrid,CET (UTC+1),Docs,5,Simone Achille
+Sarah Okonkwo,Community Manager,Nairobi,EAT (UTC+3),Docs,4,Simone Achille
+Dmitri Volkov,Release Manager,Moscow,MSK (UTC+3),Platform,6,Wei Zhang
+Eva Lindström,Accessibility Engineer,Gothenburg,CET (UTC+1),Design,5,Olivia Grant
+Pierre Dupont,Performance Engineer,Marseille,CET (UTC+1),Infrastructure,5,Liam O'Connor
+Kenji Watanabe,Security Analyst,Nagoya,JST (UTC+9),Infrastructure,4,Hassan Ali
+Aaliya Rahman,AI Engineer,Dhaka,BST (UTC+6),Data,5,Grace Abara
+Chen Wei,Backend Engineer,Shenzhen,CST (UTC+8),Platform,5,Wei Zhang

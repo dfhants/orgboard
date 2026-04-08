@@ -1,0 +1,17 @@
+/* TeamBoard — CSS entry point */
+
+@import "tokens.css";           /* Design tokens & resets */
+@import "scrollbar.css";        /* Custom scrollbar */
+@import "layout.css";           /* Page shell, toolbar, tabs, grid, action bar */
+@import "unassigned.css";       /* Unassigned drawer */
+@import "drag-drop.css";        /* Drop zones & drag previews */
+@import "person-card.css";      /* Person cards & card UI */
+@import "form-controls.css";    /* Modal textarea, switch, manager override & picker */
+@import "team-panel.css";       /* Team containers, titlebar, slots */
+@import "modals.css";           /* Modal overlay, panel, inputs, actions */
+@import "landing.css";          /* Landing / welcome page */
+@import "csv-import.css";       /* CSV import wizard */
+@import "notes-panel.css";      /* Notes sidebar panel */
+@import "stats-panel.css";      /* Stats & checks sidebar panel */
+@import "responsive.css";       /* Default transitions & media queries */
+@import "hierarchy.css";        /* Hierarchy tree modal & org chart */

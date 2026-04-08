@@ -1,0 +1,7 @@
+Full Name,Job Title,City,Time Zone,Department,Reports To,Grade,Comments
+Alice Nguyen,Staff Engineer,Seattle,PST (UTC−8),Infrastructure,Bob Franklin,7,Platform architecture lead
+Bob Franklin,VP Engineering,San Francisco,PST (UTC−8),Infrastructure,,9,Runs the infra org
+Carlos Diaz,Site Reliability Engineer,Austin,CST (UTC−6),Infrastructure,Alice Nguyen,5,On-call rotation lead
+Diana Ross,Product Manager,New York,EST (UTC−5),Product,,6,Core product roadmap
+Ethan Park,Data Analyst,Chicago,CST (UTC−6),Product,Diana Ross,4,Dashboard and metrics
+Fatima Al-Hassan,Technical Writer,Remote,GMT (UTC+0),Product,Diana Ross,4,API documentation

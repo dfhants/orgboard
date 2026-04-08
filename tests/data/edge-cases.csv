@@ -1,0 +1,11 @@
+Name,Role,Location,Timezone,Team,Level,Manager,Notes
+"O'Brien, Kelly",Senior Engineer,"Portland, OR",PST (UTC−8),Backend,6,,"Handles auth, payments, and billing"
+,,,,,,,,
+"",Phantom Role,Nowhere,,,3,,Should be skipped — empty name
+José García,Ingeniero Principal,Ciudad de México,CST (UTC−6),Backend,5,,"O'Brien, Kelly"
+"Li ""Leo"" Wei",Staff Engineer,Shanghai,CST (UTC+8),Backend,7,,Uses quoted nickname
+Müller Straße,Designer,München,CET (UTC+1),Frontend,abc,,Non-numeric level value
+Aarav Krishnamurthy,Intern,Bengaluru,IST (UTC+5:30),Frontend,1,Nobody McFakename,Manager does not exist
+Chloé Dubois,Product Manager,Paris,CET (UTC+1),Frontend,6,,
+,,,,,,,Another blank name row
+Олена Коваленко,QA Engineer,Kyiv,EET (UTC+2),Backend,4,José García,Ukrainian name
