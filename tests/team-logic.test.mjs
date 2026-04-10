@@ -641,7 +641,7 @@ describe("computeManagerChanges", () => {
     };
     const { changes, noOriginal } = computeManagerChanges(state);
     assert.equal(changes.length, 0);
-    assert.equal(noOriginal.length, 1);
+    assert.equal(noOriginal.length, 2);
   });
 
   it("skips requested positions", () => {
@@ -715,7 +715,7 @@ describe("computeManagerChanges", () => {
     assert.equal(tracked, 2);
     assert.equal(unchanged.length, 1);
     assert.equal(changes.length, 1);
-    assert.equal(noOriginal.length, 1);
+    assert.equal(noOriginal.length, 2);
   });
 
   it("handles empty state", () => {

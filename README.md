@@ -1,8 +1,8 @@
-# TeamBoard
+# OrgBoard
 
-A drag-and-drop team organizer built with vanilla JavaScript — no frameworks, no JS build step. CSS is authored as modular files and bundled by [lightningcss](https://lightningcss.dev/).
+A drag-and-drop team organizer built with vanilla JavaScript — no frameworks. Bundled and served by [Vite](https://vite.dev/) with [lightningcss](https://lightningcss.dev/) for CSS processing.
 
-![TeamBoard](https://img.shields.io/badge/vanilla-JS-f7df1e) ![Playwright](https://img.shields.io/badge/tests-Playwright-45ba63)
+![OrgBoard](https://img.shields.io/badge/vanilla-JS-f7df1e) ![Playwright](https://img.shields.io/badge/tests-Playwright-45ba63)
 
 ## Features
 
@@ -29,8 +29,7 @@ A drag-and-drop team organizer built with vanilla JavaScript — no frameworks, 
 
 ### Prerequisites
 
-- Python 3 (for the static file server)
-- Node.js 18+ (for running tests and CSS build)
+- Node.js 18+
 
 ### Install Dependencies
 
@@ -41,17 +40,17 @@ npm install
 ### Run the App
 
 ```sh
-# Development (CSS watcher + HTTP server)
+# Development (Vite dev server with HMR)
 npm run dev
 
-# Or manually:
-npm run watch:css          # terminal 1 — rebuild CSS on change
-python3 -m http.server 4173  # terminal 2 — serve static files
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
 Then open [http://localhost:4173](http://localhost:4173).
-
-To do a one-off CSS build: `npm run build:css`.
 
 ### Run Tests
 
@@ -60,29 +59,34 @@ To do a one-off CSS build: `npm run build:css`.
 npm test
 
 # UI tests (Playwright — headless)
-npx playwright test
+npm run test:ui
 
 # UI tests (visible browser)
 npx playwright test --headed
 ```
 
-Playwright auto-starts the server if it isn't already running.
+Playwright auto-starts the Vite dev server if it isn't already running.
 
 ## Project Structure
 
 ```
 index.html              Entry point (loads src/app.js as ES module)
 src/
-  app.js                Orchestrator — rendering, events, drag-drop, modals, CSV import
-  state.mjs             Centralized state management with mutable exports and setters
+  app.js                Orchestrator — bootstraps app, wires modules together
+  state.mjs             Centralized state with mutable exports and setters
+  render.mjs            Templates & rendering (teams, cards, modals, panels)
+  events.mjs            Event delegation and UI event handlers
+  drag-drop.mjs         HTML5 drag event handlers, drop preview, copy-mode
+  operations.mjs        Move/copy/delete operations on employees and teams
+  scenarios.mjs         Scenario lifecycle (create, switch, rename, close, export)
+  csv-import.mjs        CSV parsing and import logic
   checks.mjs            Pluggable validation engine (11 check types)
   db.mjs                SQLite persistence via sql.js (WASM) + IndexedDB
-  packing.mjs           Pure function for computing member-slot dimensions
+  packing.mjs           Pure function for horizontal column packing
   team-logic.mjs        Team hierarchy operations, nesting, stats
   utils.mjs             Colors, timezone math, HTML escaping, hashing
-  styles.css            Compiled CSS output (do not edit directly)
   css/
-    main.css            CSS entry point — @imports 15 modular stylesheets
+    main.css            CSS entry point — @imports modular stylesheets
     tokens.css          Design tokens & resets
     layout.css          Grid, toolbar, tabs, action bar
     drag-drop.css       Drop zones & drag previews
@@ -91,27 +95,27 @@ src/
     modals.css          Overlays, panels, inputs
     ...                 + landing, csv-import, notes-panel, stats-panel, etc.
 tests/
-  packing.test.mjs      Unit tests for packing logic
+  packing.test.mjs      Unit tests for column packing
   checks.test.mjs       Unit tests for validation engine
   team-logic.test.mjs   Unit tests for hierarchy operations
   utils.test.mjs        Unit tests for utilities
   property.test.mjs     Property-based tests (fast-check)
   data/
-    *.csv               7 CSV fixtures for import testing
+    *.csv               CSV fixtures for import testing
   ui/
     fixtures.ts         Shared test fixture (DB reset, landing dismissal)
     helpers.ts          Drag-and-drop test helpers
-    *.spec.ts           Playwright UI tests (21 spec files)
+    *.spec.ts           Playwright UI tests
 playwright.config.ts    Playwright config — Chromium only, baseURL localhost:4173
+vite.config.js          Vite config — dev server, lightningcss, esnext build target
 ```
 
 ## Architecture
 
 - **No framework** — vanilla JS with ES modules
-- **No JS build step** — served as static files
-- **CSS build** — modular CSS in `src/css/` bundled by [lightningcss](https://lightningcss.dev/) into `src/styles.css`
-- **No external runtime dependencies** — only Lucide icons, Google Fonts, and sql.js loaded from CDN
-- **State** is a module-scoped object in `src/state.mjs`; the app re-renders by replacing `innerHTML` and calling `lucide.createIcons()`
+- **Vite** — dev server with HMR, production bundling, CSS processing via lightningcss
+- **Runtime dependencies** — Lucide icons and sql.js installed via npm; Google Fonts loaded from CDN
+- **State** is a module-scoped object in `src/state.mjs`; the app re-renders by replacing `innerHTML` and calling `createIcons()`
 - **HTML** is built with template literals; user input is escaped via `escapeHtml()`
 - **Persistence** — sql.js (WASM) SQLite database stored in IndexedDB with debounced 300ms flush
 

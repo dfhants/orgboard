@@ -83,7 +83,7 @@ test.describe("Checks Panel", () => {
     await page.click(".checks-strip");
     await page.click(".checks-add-button");
     const cards = page.locator(".check-type-card");
-    await expect(cards).toHaveCount(11);
+    await expect(cards).toHaveCount(12);
     // Verify first card label
     await expect(cards.first().locator(".check-type-card-label")).toHaveText("Team size");
   });
@@ -108,13 +108,13 @@ test.describe("Checks Panel", () => {
     await page.click(".checks-strip");
     await page.click(".checks-add-button");
 
-    // Add all 11 check types
+    // Add all 12 check types
     const cards = page.locator(".check-type-card");
     const count = await cards.count();
     for (let i = 0; i < count; i++) {
       await cards.nth(i).click();
     }
-    await expect(page.locator(".check-instance")).toHaveCount(11);
+    await expect(page.locator(".check-instance")).toHaveCount(12);
 
     // The instance list should use a two-column grid
     const list = page.locator(".check-instance-list");
@@ -413,7 +413,7 @@ test.describe("Checks Panel – Level Field", () => {
     await page.fill("#ep-level", "10");
     await page.click("#edit-person-submit");
 
-    const updatedCard = page.locator('.person-card', { hasText: personName!.trim() });
+    const updatedCard = page.locator('.person-card', { hasText: personName!.trim() }).first();
     await expect(updatedCard.locator(".person-level")).toHaveText("L10");
   });
 });

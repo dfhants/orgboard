@@ -24,9 +24,12 @@ test.describe("Delete", () => {
     const team = page.locator('.team[data-team-id="t3"]');
     await expect(team).toBeVisible();
 
-    // Click delete button on team titlebar
+    // Delete via team menu
     await page
-      .locator('[data-action="delete-team"][data-id="t3"]')
+      .locator('.team[data-team-id="t3"] [data-action="open-team-menu"]')
+      .click();
+    await page
+      .locator('.team-menu-item[data-menu-action="delete"][data-team-id="t3"]')
       .click();
 
     // Team should be gone

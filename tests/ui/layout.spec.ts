@@ -1,68 +1,5 @@
 import { test, expect } from "./fixtures";
 
-test.describe("Layout Toggle", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
-  test("toggle team child layout from horizontal to vertical", async ({
-    page,
-  }) => {
-    const memberSlot = page.locator(
-      '.team[data-team-id="t1"] > .team-body > .member-slot'
-    );
-    await expect(memberSlot).toHaveClass(/layout-horizontal/);
-
-    // Click the layout toggle button
-    await page
-      .locator(
-        '[data-action="toggle-child-layout"][data-team-id="t1"]'
-      )
-      .click();
-
-    await expect(memberSlot).toHaveClass(/layout-vertical/);
-    await expect(memberSlot).not.toHaveClass(/layout-horizontal/);
-  });
-
-  test("toggle layout back to original", async ({ page }) => {
-    const memberSlot = page.locator(
-      '.team[data-team-id="t1"] > .team-body > .member-slot'
-    );
-
-    // Toggle to vertical
-    const toggleBtn = page.locator(
-      '[data-action="toggle-child-layout"][data-team-id="t1"]'
-    );
-    await toggleBtn.click();
-    await expect(memberSlot).toHaveClass(/layout-vertical/);
-
-    // Toggle back to horizontal
-    await toggleBtn.click();
-    await expect(memberSlot).toHaveClass(/layout-horizontal/);
-  });
-
-  test("toggle root layout from horizontal to vertical", async ({ page }) => {
-    const rootDropzone = page.locator(".root-dropzone");
-    await expect(rootDropzone).toHaveAttribute("data-layout", "horizontal");
-
-    await page.locator('[data-action="toggle-root-layout"]').click();
-
-    await expect(rootDropzone).toHaveAttribute("data-layout", "vertical");
-  });
-
-  test("toggle root layout back to horizontal", async ({ page }) => {
-    const rootDropzone = page.locator(".root-dropzone");
-    const toggleBtn = page.locator('[data-action="toggle-root-layout"]');
-
-    await toggleBtn.click();
-    await expect(rootDropzone).toHaveAttribute("data-layout", "vertical");
-
-    await toggleBtn.click();
-    await expect(rootDropzone).toHaveAttribute("data-layout", "horizontal");
-  });
-});
-
 test.describe("Floating Action Bar", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -72,10 +9,18 @@ test.describe("Floating Action Bar", () => {
   test("action bar is visible and contains all buttons", async ({ page }) => {
     const bar = page.locator(".action-bar");
     await expect(bar).toBeVisible();
-    await expect(bar.locator('[data-action="toggle-root-layout"]')).toBeVisible();
     await expect(bar.locator('[data-action="add-root-person"]')).toBeVisible();
     await expect(bar.locator('[data-action="add-root-team"]')).toBeVisible();
+    await expect(bar.locator('#action-bar-import-csv')).toBeVisible();
     await expect(bar.locator('[data-action="view-hierarchy"]')).toBeVisible();
+  });
+
+  test("action bar import CSV button opens import modal", async ({ page }) => {
+    await page.locator("#action-bar-import-csv").click();
+    await expect(page.locator("#csv-import-modal")).toBeVisible();
+    await expect(page.locator(".csv-import-panel .modal-title")).toHaveText(
+      "Import from CSV"
+    );
   });
 
   test("action bar is positioned above unassigned drawer", async ({ page }) => {
@@ -108,52 +53,6 @@ test.describe("Floating Action Bar", () => {
     await expect(page.locator("section.board")).toHaveCount(0);
     // Teams should be direct children of root-dropzone
     await expect(page.locator(".root-dropzone > .team")).toHaveCount(2);
-  });
-});
-
-test.describe("Horizontal Layout Flow", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
-  test("teams flow in a single row in horizontal layout", async ({ page }) => {
-    const rootDropzone = page.locator(".root-dropzone");
-    await expect(rootDropzone).toHaveAttribute("data-layout", "horizontal");
-
-    // Add extra teams so total width exceeds viewport
-    for (let i = 0; i < 5; i++) {
-      await page.locator('[data-action="add-root-team"]').click();
-    }
-    await page.waitForTimeout(300);
-
-    // All teams should sit on the same row (same top offset)
-    const result = await rootDropzone.evaluate((el) => {
-      const teams = el.querySelectorAll(":scope > .team");
-      const tops = new Set(
-        [...teams].map((t) => Math.round(t.getBoundingClientRect().top))
-      );
-      return { rowCount: tops.size };
-    });
-    expect(result.rowCount).toBe(1);
-  });
-
-  test("page-shell scrolls horizontally when teams overflow", async ({
-    page,
-  }) => {
-    // Add extra teams to exceed viewport width
-    for (let i = 0; i < 5; i++) {
-      await page.locator('[data-action="add-root-team"]').click();
-    }
-    await page.waitForTimeout(300);
-
-    const pageShell = page.locator(".page-shell");
-    const overflow = await pageShell.evaluate((el) => ({
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-    }));
-    // Content should overflow — scrollbar available
-    expect(overflow.scrollWidth).toBeGreaterThan(overflow.clientWidth);
   });
 });
 
@@ -201,10 +100,10 @@ test.describe("Root Dropzone Fills Viewport", () => {
     expect(dims.dropzoneWidth).toBeGreaterThanOrEqual(availableWidth - 2);
   });
 
-  test("root dropzone expands beyond viewport when content overflows", async ({
+  test("root dropzone expands beyond viewport when content overflows vertically", async ({
     page,
   }) => {
-    // Switch to vertical layout so teams stack and grow height
+    // Switch to vertical layout so teams stack downward
     await page.locator('[data-action="toggle-root-layout"]').click();
     await page.waitForTimeout(200);
 
@@ -222,36 +121,36 @@ test.describe("Root Dropzone Fills Viewport", () => {
         dropzoneHeight: dropzone.getBoundingClientRect().height,
       };
     });
-    // With many teams stacked vertically, dropzone should exceed visible area
+    // With many teams stacked, dropzone should exceed visible area
     expect(dims.dropzoneHeight).toBeGreaterThan(dims.shellClientHeight);
   });
+});
 
-  test("root dropzone expands horizontally to cover all teams", async ({
+test.describe("People Group Structure", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+  });
+
+  test("employee entries are wrapped in a people-group container", async ({
     page,
   }) => {
-    // Default layout is horizontal — add teams to force overflow
-    for (let i = 0; i < 5; i++) {
-      await page.locator('[data-action="add-root-team"]').click();
-    }
-    await page.waitForTimeout(300);
+    // t1 has employees — they should be inside .people-group
+    const peopleGroup = page.locator(
+      '.team[data-team-id="t1"] .member-slot .people-group'
+    );
+    await expect(peopleGroup).toBeAttached();
 
-    const dims = await page.evaluate(() => {
-      const shell = document.querySelector(".page-shell")!;
-      const dropzone = document.querySelector(".root-dropzone")!;
-      const teams = dropzone.querySelectorAll(":scope > .team");
-      const lastTeam = teams[teams.length - 1];
-      const dzRect = dropzone.getBoundingClientRect();
-      const lastRect = lastTeam.getBoundingClientRect();
-      return {
-        shellScrollsHorizontally: shell.scrollWidth > shell.clientWidth,
-        dropzoneWidth: dzRect.width,
-        lastTeamRight: lastRect.right,
-        dropzoneRight: dzRect.right,
-      };
-    });
-    // Page should scroll horizontally
-    expect(dims.shellScrollsHorizontally).toBe(true);
-    // Dropzone must extend at least to the last team's right edge
-    expect(dims.dropzoneRight).toBeGreaterThanOrEqual(dims.lastTeamRight - 1);
+    // Employee entries should be inside people-group
+    const employeeEntries = peopleGroup.locator('.member-entry[data-member-type="employee"]');
+    await expect(employeeEntries).toHaveCount(2); // p2 and p3
+  });
+
+  test("nested team entries are outside people-group", async ({ page }) => {
+    // t1 has a nested team t3 — it should be a direct child of member-slot, not inside people-group
+    const teamEntry = page.locator(
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .member-entry[data-member-type="team"]'
+    );
+    await expect(teamEntry).toHaveCount(1);
   });
 });

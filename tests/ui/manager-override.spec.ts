@@ -38,10 +38,10 @@ test.describe("Manager Override", () => {
     // Modal should close
     await expect(modal).not.toBeVisible();
 
-    // Card should now show a manager-override-pill
-    await expect(
-      page.locator('.person-card[data-id="p2"] .manager-override-pill')
-    ).toBeVisible();
+    // Card should now show a manager-override-pill with split icon
+    const pill = page.locator('.person-card[data-id="p2"] .manager-override-pill');
+    await expect(pill).toBeVisible();
+    await expect(pill.locator('[data-lucide="split"]')).toBeAttached();
   });
 
   test("cancel button on picker closes without applying override", async ({

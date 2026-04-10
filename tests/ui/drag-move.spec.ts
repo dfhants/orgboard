@@ -249,6 +249,40 @@ test.describe("Drag and Drop — Move", () => {
     expect(namesAfter.length).toBe(namesBefore.length);
   });
 
+  test("forward reorder moves employee to the correct position", async ({
+    page,
+  }) => {
+    // Product (t1) has Milo (p2) and Zuri (p3) as members.
+    // Drag Milo (first) onto Zuri (second) — Milo should end up after Zuri.
+    const memberSlot = page.locator(
+      '.team[data-team-id="t1"] > .team-body > .member-slot'
+    );
+
+    const idsBefore = await memberSlot
+      .locator(".people-group > .member-entry .person-card")
+      .evaluateAll((cards) => cards.map((c) => c.getAttribute("data-id")));
+    expect(idsBefore.length).toBeGreaterThanOrEqual(2);
+    const [firstId, secondId] = idsBefore;
+
+    // Drop on the second card — cursor lands at center, which is past the
+    // midpoint boundary, so the first card should move after the second.
+    await dragAndDrop(
+      page,
+      `.person-card[data-id="${firstId}"]`,
+      `.person-card[data-id="${secondId}"]`
+    );
+
+    const idsAfter = await memberSlot
+      .locator(".people-group > .member-entry .person-card")
+      .evaluateAll((cards) => cards.map((c) => c.getAttribute("data-id")));
+    expect(idsAfter.length).toBe(idsBefore.length);
+
+    // The first card should now be after the second card
+    const newFirstIdx = idsAfter.indexOf(firstId);
+    const newSecondIdx = idsAfter.indexOf(secondId);
+    expect(newSecondIdx).toBeLessThan(newFirstIdx);
+  });
+
   test("dragging manager out of nested team does not hide the team", async ({
     page,
   }) => {

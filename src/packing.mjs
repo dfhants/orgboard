@@ -1,78 +1,46 @@
 /**
- * Calculate the packed dimensions for a member slot.
+ * Compute column assignments for horizontal layout packing.
+ *
+ * Given an array of entry heights, an available container height, and a gap
+ * between entries, assign entries sequentially into columns (top to bottom,
+ * then start a new column when the next entry wouldn't fit).
  *
  * @param {Object} options
- * @param {"horizontal"|"vertical"} options.layout
- * @param {{width: number, height: number}[]} options.entries - measured sizes of each member-entry
- * @param {number} options.gap - gap between entries (used for both row and column gap)
- * @param {number} options.paddingX - left + right padding
- * @param {number} options.paddingY - top + bottom padding
- * @param {number} options.borderX - left + right border width
- * @param {number} options.borderY - top + bottom border width
- * @returns {{width: number, height: number | null}} - pixel values to set on the slot (null means don't set)
+ * @param {number[]} options.heights - measured height of each entry
+ * @param {number}   options.availableHeight - usable container height (px)
+ * @param {number}   options.gap - vertical gap between entries within a column
+ * @returns {number[][]} array of columns, each containing indices into `heights`
  */
-export function calculateSlotSize({ layout, entries, gap, paddingX, paddingY, borderX, borderY }) {
-  if (entries.length === 0) {
-    return { width: null, height: null };
+export function computeColumns({ heights, availableHeight, gap }) {
+  if (heights.length === 0) return [[]];
+
+  // If availableHeight is zero/negative or too small for even the first entry,
+  // fall back to one entry per column (no stacking possible).
+  if (availableHeight <= 0) {
+    return heights.map((_, i) => [i]);
   }
 
-  const widths = entries.map((e) => e.width);
-  const heights = entries.map((e) => e.height);
+  const columns = [];
+  let col = [];
+  let colUsed = 0;
 
-  if (layout === "horizontal") {
-    // flex-direction: column, flex-wrap: wrap
-    // Height is set to fit exactly the tallest single entry (content height).
-    const tallest = Math.max(...heights);
-    const contentHeight = tallest;
-    const height = Math.ceil(contentHeight + paddingY + borderY);
+  for (let i = 0; i < heights.length; i++) {
+    const h = heights[i];
 
-    // Simulate column wrapping: pack entries top-to-bottom into columns
-    // of the available content height, then sum up column widths.
-    const columns = [];
-    let colUsed = 0;
-    let colWidth = 0;
-
-    for (let i = 0; i < entries.length; i++) {
-      const entryH = heights[i];
-      const entryW = widths[i];
-
-      // Would this entry overflow the current column?
-      if (colUsed > 0 && colUsed + gap + entryH > contentHeight) {
-        columns.push(colWidth);
-        colUsed = 0;
-        colWidth = 0;
-      }
-
-      colUsed += (colUsed > 0 ? gap : 0) + entryH;
-      colWidth = Math.max(colWidth, entryW);
+    // Would adding this entry (plus gap if not the first in the column) overflow?
+    if (col.length > 0 && colUsed + gap + h > availableHeight) {
+      columns.push(col);
+      col = [];
+      colUsed = 0;
     }
 
-    if (colWidth > 0) {
-      columns.push(colWidth);
-    }
-
-    const totalColumnsWidth =
-      columns.reduce((sum, w) => sum + Math.ceil(w), 0) +
-      gap * Math.max(0, columns.length - 1);
-
-    const width = Math.ceil(totalColumnsWidth + paddingX + borderX);
-
-    return { width, height };
+    col.push(i);
+    colUsed += (col.length > 1 ? gap : 0) + h;
   }
 
-  if (layout === "vertical") {
-    // flex-direction: row, flex-wrap: wrap
-    // Cap at 2 columns. Width needs to fit them; height is handled by CSS.
-    const narrowest = Math.min(...widths);
-    const widest = Math.max(...widths);
-    const columnCount = Math.max(1, Math.min(entries.length, 2));
-    const contentWidth = Math.max(widest, narrowest * columnCount + gap * Math.max(0, columnCount - 1));
-    const width = Math.ceil(contentWidth + paddingX + borderX);
+  if (col.length > 0) columns.push(col);
 
-    return { width, height: null };
-  }
-
-  return { width: null, height: null };
+  return columns;
 }
 
 

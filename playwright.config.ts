@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "python3 -m http.server 4173",
+    command: "npx vite",
     port: 4173,
     reuseExistingServer: true,
   },

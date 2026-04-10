@@ -56,6 +56,16 @@
   text-align: center;
 }
 
+.delete-all-unassigned {
+  margin-left: auto;
+  transition: color var(--transition);
+  color: var(--text-muted);
+}
+
+.delete-all-unassigned:hover {
+  color: var(--danger, #e53e3e);
+}
+
 .unassigned-bar .roster-cards-wrapper {
   position: relative;
   margin-top: 14px;

@@ -19,6 +19,15 @@ export function isTeamInside(teams, draggedTeamId, targetTeamId) {
   return false;
 }
 
+export function findParentTeam(teams, teamId) {
+  for (const t of Object.values(teams)) {
+    if (t.members.some((m) => m.type === "team" && m.id === teamId)) {
+      return t;
+    }
+  }
+  return null;
+}
+
 export function normalizeInsertIndex(members, insertIndex) {
   if (typeof insertIndex !== "number" || Number.isNaN(insertIndex)) {
     return members.length;

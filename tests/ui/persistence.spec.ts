@@ -88,7 +88,7 @@ test.describe("Persistence (SQLite)", () => {
     await page.locator("#export-db-btn").click();
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toBe("teamboard.db");
+    expect(download.suggestedFilename()).toBe("orgboard.db");
   });
 
   test("recovers from corrupt IndexedDB by resetting to fresh DB", async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe("Persistence (SQLite)", () => {
     await page.evaluate(async () => {
       const garbage = new Uint8Array([0, 1, 2, 3, 4, 5]);
       await new Promise<void>((resolve, reject) => {
-        const req = indexedDB.open("teamboard", 1);
+        const req = indexedDB.open("orgboard", 1);
         req.onupgradeneeded = () => req.result.createObjectStore("database");
         req.onsuccess = () => {
           const tx = req.result.transaction("database", "readwrite");

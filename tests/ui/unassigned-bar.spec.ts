@@ -206,4 +206,89 @@ test.describe("Unassigned Bar", () => {
     // Clean up
     await page.mouse.up();
   });
+
+  test("delete-all button visible only when unassigned employees exist", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    const deleteBtn = drawer.locator(".delete-all-unassigned");
+
+    // With unassigned employees, button should exist
+    await expect(deleteBtn).toBeAttached();
+
+    // Delete all unassigned employees individually to empty the list
+    const count = Number(await drawer.locator(".unassigned-count").textContent());
+    for (let i = 0; i < count; i++) {
+      const card = drawer.locator(".person-card").first();
+      await card.hover();
+      await card.locator(".card-delete-button").click();
+    }
+
+    // Now button should not exist
+    await expect(drawer.locator(".delete-all-unassigned")).not.toBeAttached();
+  });
+
+  test("delete-all button opens confirmation modal", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    await drawer.locator(".delete-all-unassigned").click();
+
+    const modal = page.locator("#delete-all-unassigned-modal");
+    await expect(modal).toBeVisible();
+    await expect(modal.locator(".modal-title")).toHaveText("Delete unassigned employees");
+    await expect(modal.locator("#delete-all-unassigned-confirm")).toBeVisible();
+    await expect(modal.locator("#delete-all-unassigned-cancel")).toBeVisible();
+  });
+
+  test("cancel confirmation modal does not delete", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    const countBefore = Number(await drawer.locator(".unassigned-count").textContent());
+
+    await drawer.locator(".delete-all-unassigned").click();
+    await page.locator("#delete-all-unassigned-cancel").click();
+
+    // Modal dismissed
+    await expect(page.locator("#delete-all-unassigned-modal")).not.toBeAttached();
+    // Count unchanged
+    const countAfter = Number(await drawer.locator(".unassigned-count").textContent());
+    expect(countAfter).toBe(countBefore);
+  });
+
+  test("Escape dismisses confirmation modal", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    await drawer.locator(".delete-all-unassigned").click();
+    await expect(page.locator("#delete-all-unassigned-modal")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#delete-all-unassigned-modal")).not.toBeAttached();
+
+    // Employees still there
+    const count = Number(await drawer.locator(".unassigned-count").textContent());
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test("clicking overlay dismisses confirmation modal", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    await drawer.locator(".delete-all-unassigned").click();
+    const modal = page.locator("#delete-all-unassigned-modal");
+    await expect(modal).toBeVisible();
+
+    // Click the overlay (not the panel)
+    await modal.click({ position: { x: 5, y: 5 } });
+    await expect(modal).not.toBeAttached();
+  });
+
+  test("confirm deletes all unassigned employees", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+    const countBefore = Number(await drawer.locator(".unassigned-count").textContent());
+    expect(countBefore).toBeGreaterThan(0);
+
+    await drawer.locator(".delete-all-unassigned").click();
+    await page.locator("#delete-all-unassigned-confirm").click();
+
+    // Modal dismissed
+    await expect(page.locator("#delete-all-unassigned-modal")).not.toBeAttached();
+    // All unassigned removed
+    const countAfter = Number(await drawer.locator(".unassigned-count").textContent());
+    expect(countAfter).toBe(0);
+    // No person cards in unassigned
+    await expect(drawer.locator(".person-card")).toHaveCount(0);
+  });
 });

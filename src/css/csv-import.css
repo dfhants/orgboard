@@ -30,6 +30,18 @@
   background: var(--accent-soft);
 }
 
+.csv-file-label input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .csv-file-label svg {
   width: 20px;
   height: 20px;
@@ -101,28 +113,48 @@
 }
 
 .csv-mapping-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  background: var(--panel-muted);
 }
 
-.csv-mapping-label {
-  flex: 0 0 80px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text);
-  text-align: right;
-}
-
-.csv-mapping-label em {
-  color: #ef4444;
-  font-style: normal;
+.csv-mapping-cell {
+  padding: 6px 4px !important;
+  vertical-align: middle;
 }
 
 .csv-mapping-select {
-  flex: 1;
-  font-size: 0.8rem;
+  width: 100%;
+  min-width: 80px;
+  font-size: 0.7rem;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.csv-mapping-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.csv-mapping-table {
+  table-layout: auto;
+}
+
+.csv-mapping-hints {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.csv-mapping-hints svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .csv-mode-option {

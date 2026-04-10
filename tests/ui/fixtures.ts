@@ -9,10 +9,10 @@ export const test = base.extend({
   page: async ({ page }, use) => {
     // Navigate to the app origin so we can access IndexedDB
     await page.goto("/");
-    // Clear the teamboard IndexedDB database
+    // Clear the orgboard IndexedDB database
     await page.evaluate(() =>
       new Promise<void>((resolve, reject) => {
-        const req = indexedDB.deleteDatabase("teamboard");
+        const req = indexedDB.deleteDatabase("orgboard");
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
         req.onblocked = () => resolve();

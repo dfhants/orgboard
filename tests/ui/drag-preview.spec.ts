@@ -140,3 +140,209 @@ test.describe("Drag Preview — Empty Note Hiding", () => {
     await dragCancel(page, '.person-card[data-id="p8"]');
   });
 });
+
+test.describe("Drag Preview — Column Stability", () => {
+  test("people-group width is preserved when dragging within same slot", async ({
+    page,
+  }) => {
+    // Product (t1) has Milo (p2) and Zuri (p3) as members.
+    // In default vertical mode, they stack in a column within .people-group.
+    // Verify dragging one card doesn't collapse the people-group width.
+    const peopleGroup =
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .people-group';
+
+    // Verify people are in the people-group
+    const beforeLayout = await page.evaluate((sel) => {
+      const group = document.querySelector(sel)!;
+      const entries = [
+        ...group.querySelectorAll(":scope > .member-entry"),
+      ].filter(
+        (e) =>
+          !e.classList.contains("dragging-source") &&
+          e.querySelector(".person-card")
+      );
+      return {
+        count: entries.length,
+        groupWidth: Math.round(group.getBoundingClientRect().width),
+      };
+    }, peopleGroup);
+
+    expect(beforeLayout.count).toBe(2);
+    expect(beforeLayout.groupWidth).toBeGreaterThan(0);
+
+    // Drag the second person and hover over the first
+    const ids = await page.evaluate((sel) => {
+      const group = document.querySelector(sel)!;
+      const cards = [
+        ...group.querySelectorAll(
+          ":scope > .member-entry:not(.dragging-source) .person-card"
+        ),
+      ];
+      return cards.slice(0, 2).map((c) => c.getAttribute("data-id"));
+    }, peopleGroup);
+
+    await dragHover(
+      page,
+      `.person-card[data-id="${ids[1]}"]`,
+      `.person-card[data-id="${ids[0]}"]`
+    );
+
+    // Check that the preview width matches the original card width (no inflation)
+    const previewInfo = await page.evaluate((sel) => {
+      const group = document.querySelector(sel)!;
+      const preview = group.querySelector(".drag-preview-entry");
+      const card = group.querySelector(
+        ".member-entry:not(.drag-preview-entry):not(.dragging-source) .person-card"
+      );
+      if (!preview || !card) return null;
+      return {
+        previewWidth: Math.round(preview.getBoundingClientRect().width),
+        cardWidth: Math.round(card.getBoundingClientRect().width),
+        groupWidth: Math.round(group.getBoundingClientRect().width),
+      };
+    }, peopleGroup);
+
+    expect(previewInfo).toBeTruthy();
+    expect(previewInfo!.previewWidth).toBe(previewInfo!.cardWidth);
+    // People-group width should not have collapsed
+    expect(previewInfo!.groupWidth).toBeGreaterThanOrEqual(beforeLayout.groupWidth - 2);
+
+    await dragCancel(page, `.person-card[data-id="${ids[1]}"]`);
+  });
+});
+
+test.describe("Drag Preview — Hysteresis", () => {
+  test("preview position does not oscillate on micro-movements near boundary", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Use Product (t1) member slot which has Milo (p2) and Zuri (p3)
+    const memberSlot =
+      '.team[data-team-id="t1"] > .team-body > .member-slot';
+
+    // Start dragging Milo (p2)
+    const source = '.person-card[data-id="p2"]';
+
+    // Initiate dragstart only
+    await page.evaluate((src) => {
+      const source = document.querySelector(src) as HTMLElement;
+      const dataTransfer = new DataTransfer();
+      const srcRect = source.getBoundingClientRect();
+      source.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+          clientX: srcRect.x + srcRect.width / 2,
+          clientY: srcRect.y + srcRect.height / 2,
+        })
+      );
+    }, source);
+
+    // Wait for the setTimeout(0) that applies .dragging-source
+    await page.waitForTimeout(50);
+
+    // Find a point past the remaining entries (where the preview will anchor)
+    // and a second point nearby (within hysteresis range) that would compute
+    // a different raw index
+    const coords = await page.evaluate((sel) => {
+      const slot = document.querySelector(sel)!;
+      const group = slot.querySelector('.people-group');
+      // Entries may be direct children or inside .people-column wrappers
+      const entries = group ? [
+        ...group.querySelectorAll(".member-entry"),
+      ].filter(
+        (e) =>
+          !e.classList.contains("dragging-source") &&
+          !e.classList.contains("drag-preview-entry") &&
+          e.querySelector(".person-card")
+      ) : [];
+      if (entries.length < 1) return null;
+      const r = entries[entries.length - 1].getBoundingClientRect();
+      return {
+        // Well past the last entry — preview goes at the end
+        xFar: Math.round(r.right + 20),
+        yFar: Math.round(r.bottom + 20),
+      };
+    }, memberSlot);
+
+    expect(coords).toBeTruthy();
+
+    // First dragover establishes the initial insertion index (at end)
+    await page.evaluate(
+      ({ slot, x, y }) => {
+        const target = document.querySelector(slot) as HTMLElement;
+        target.dispatchEvent(
+          new DragEvent("dragover", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: new DataTransfer(),
+            clientX: x,
+            clientY: y,
+          })
+        );
+      },
+      { slot: memberSlot, x: coords!.xFar, y: coords!.yFar }
+    );
+
+    // Record the preview position within people-group
+    const positionBefore = await page.evaluate((sel) => {
+      const slot = document.querySelector(sel)!;
+      const group = slot.querySelector('.people-group');
+      if (!group) return null;
+      const preview = group.querySelector(".drag-preview-entry");
+      if (!preview) return null;
+      // Entries may be inside .people-column wrappers in horizontal layout
+      const entries = [...group.querySelectorAll(".member-entry")].filter(
+        (n) => !n.classList.contains("dragging-source")
+      );
+      return entries.indexOf(preview);
+    }, memberSlot);
+
+    expect(positionBefore).not.toBeNull();
+
+    // Now do micro-movements (< 8px from the commit point) — these should
+    // NOT change position because they're within the hysteresis dead zone
+    for (let offset = -3; offset <= 3; offset++) {
+      await page.evaluate(
+        ({ slot, x, y }) => {
+          const target = document.querySelector(slot) as HTMLElement;
+          target.dispatchEvent(
+            new DragEvent("dragover", {
+              bubbles: true,
+              cancelable: true,
+              dataTransfer: new DataTransfer(),
+              clientX: x,
+              clientY: y,
+            })
+          );
+        },
+        {
+          slot: memberSlot,
+          x: coords!.xFar + offset,
+          y: coords!.yFar + offset,
+        }
+      );
+    }
+
+    // Preview should still be at the same position
+    const positionAfter = await page.evaluate((sel) => {
+      const slot = document.querySelector(sel)!;
+      const group = slot.querySelector('.people-group');
+      if (!group) return null;
+      const preview = group.querySelector(".drag-preview-entry");
+      if (!preview) return null;
+      // Entries may be inside .people-column wrappers in horizontal layout
+      const entries = [...group.querySelectorAll(".member-entry")].filter(
+        (n) => !n.classList.contains("dragging-source")
+      );
+      return entries.indexOf(preview);
+    }, memberSlot);
+
+    expect(positionAfter).toBe(positionBefore);
+
+    await dragCancel(page, source);
+  });
+});

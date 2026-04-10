@@ -148,7 +148,7 @@ test.describe("Packing — Slot Width During Drag", () => {
     await page.evaluate(
       ({ slotCx, slotCy }) => {
         const entry = document.querySelector(
-          '.member-slot[data-team-id="t1"] > .member-entry:first-child'
+          '.member-slot[data-team-id="t1"] .people-group > .member-entry:first-child'
         );
         const draggable = entry?.querySelector('[draggable="true"]') || entry;
         const dt = new DataTransfer();

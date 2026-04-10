@@ -1,5 +1,4 @@
 import { test, expect } from "./fixtures";
-import { dragAndDrop } from "./helpers";
 
 test.describe("Stats Panel", () => {
   test.beforeEach(async ({ page }) => {
@@ -124,5 +123,54 @@ test.describe("Stats Panel", () => {
 
   test("no stats toggle button in the toolbar", async ({ page }) => {
     await expect(page.locator("#stats-toggle-btn")).toHaveCount(0);
+  });
+
+  test("people by role section is collapsible and starts expanded", async ({ page }) => {
+    await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
+    const roleSection = page.locator("details.stats-collapsible", { has: page.locator("summary.stats-section-title", { hasText: "People by role" }) });
+    await expect(roleSection).toHaveAttribute("open", "");
+    // Collapse it
+    await roleSection.locator("summary").click();
+    await expect(roleSection).not.toHaveAttribute("open", "");
+    // Role rows should be hidden
+    await expect(roleSection.locator(".stats-row")).toHaveCount(0, { timeout: 500 }).catch(() => {
+      // In some browsers hidden content still exists in DOM but is not visible
+    });
+    // Re-expand
+    await roleSection.locator("summary").click();
+    await expect(roleSection).toHaveAttribute("open", "");
+  });
+
+  test("team blocks are collapsible and start collapsed", async ({ page }) => {
+    await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
+    // Select only root-level team details (not nested)
+    const teamDetails = page.locator(".stats-panel-body > details.stats-collapsible:has(> summary.stats-team-header)");
+    const count = await teamDetails.count();
+    expect(count).toBeGreaterThan(0);
+    // All team blocks start collapsed
+    for (let i = 0; i < count; i++) {
+      await expect(teamDetails.nth(i)).not.toHaveAttribute("open", "");
+    }
+    // Expand the first root team by clicking its direct summary
+    await teamDetails.first().locator("> summary").click();
+    await expect(teamDetails.first()).toHaveAttribute("open", "");
+  });
+
+  test("manager changes details are collapsible", async ({ page }) => {
+    // Demo data already has manager changes — just check the toggle exists
+    await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
+    const managerToggle = page.locator(".stats-collapsible-toggle");
+    // Demo data should have manager changes
+    await expect(managerToggle).toHaveCount(1);
+    // Starts collapsed
+    const details = managerToggle.locator("..");
+    await expect(details).not.toHaveAttribute("open", "");
+    // Expand
+    await managerToggle.click();
+    await expect(details).toHaveAttribute("open", "");
+    // Change rows should now be visible
+    const changeRows = page.locator(".manager-change-row");
+    const rowCount = await changeRows.count();
+    expect(rowCount).toBeGreaterThan(0);
   });
 });

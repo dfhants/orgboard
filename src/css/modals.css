@@ -23,7 +23,7 @@
   border-radius: var(--radius-xl);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.16), 0 8px 20px rgba(0, 0, 0, 0.08);
   padding: 28px;
-  width: 360px;
+  width: 480px;
   max-width: calc(100vw - 40px);
   display: flex;
   flex-direction: column;
@@ -89,5 +89,69 @@
 .modal-submit:hover {
   opacity: 0.92;
   box-shadow: 0 2px 8px rgba(79, 110, 247, 0.35) !important;
+}
+
+.modal-danger {
+  background: var(--danger, #e53e3e) !important;
+  border-color: var(--danger, #e53e3e) !important;
+  box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3) !important;
+}
+
+.modal-danger:hover {
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.35) !important;
+}
+
+.modal-body-text {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+
+/* ─── Team stats modal ─── */
+
+.team-stats-panel {
+  max-width: min(600px, calc(100vw - 40px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.team-stats-overview {
+  margin-bottom: 12px;
+}
+
+.team-stats-section {
+  margin-bottom: 12px;
+}
+
+.team-stats-columns {
+  columns: 2;
+  column-gap: 24px;
+}
+
+.team-stats-columns > .stats-row,
+.team-stats-columns > .team-stats-nested-row {
+  break-inside: avoid;
+}
+
+.team-stats-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+
+.team-stats-nested-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.8rem;
+}
+
+.team-stats-nested-row .stats-team-count {
+  margin-left: auto;
 }
 

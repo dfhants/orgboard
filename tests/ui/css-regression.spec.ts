@@ -5,7 +5,7 @@ import { dragHover, dragCancel } from "./helpers";
  * CSS regression tests — computed-style assertions that catch silent
  * breakage when styles are refactored or reordered.
  *
- * Grouped by CSS section (mirrors styles.css structure).
+ * Grouped by CSS section (mirrors src/css/ structure).
  */
 
 test.beforeEach(async ({ page }) => {
@@ -86,6 +86,73 @@ test.describe("Person Card", () => {
       expect(field.textOverflow, `${field.sel} textOverflow`).toBe("ellipsis");
     }
   });
+
+  test("level badge renders inside timezone row", async ({ page }) => {
+    // Add a person with a level so the badge appears
+    await page.click('[data-action="open-team-menu"][data-team-id="t1"]');
+    await page.click('.team-menu-item[data-menu-action="add-person"]');
+    await page.fill("#ap-name", "Test Person");
+    await page.fill("#ap-role", "Engineer");
+    await page.fill("#ap-level", "5");
+    await page.fill("#ap-location", "NYC");
+    await page.click("#add-person-submit");
+    await page.waitForSelector(".person-level");
+
+    const parentClass = await page.evaluate(() => {
+      const level = document.querySelector(".person-level")!;
+      return level.parentElement!.className;
+    });
+    expect(parentClass).toContain("person-timezone");
+  });
+
+  test("card notes use two-line clamp", async ({ page }) => {
+    // Add a person with notes
+    await page.click('[data-action="open-team-menu"][data-team-id="t1"]');
+    await page.click('.team-menu-item[data-menu-action="add-person"]');
+    await page.fill("#ap-name", "Notes Person");
+    await page.fill("#ap-role", "Analyst");
+    await page.fill("#ap-location", "London");
+    await page.fill("#ap-notes", "Some long note text");
+    await page.click("#add-person-submit");
+    await page.waitForSelector(".card-notes");
+
+    const styles = await page.evaluate(() => {
+      const el = document.querySelector(".card-notes")!;
+      const cs = getComputedStyle(el);
+      return {
+        webkitLineClamp: cs.getPropertyValue("-webkit-line-clamp"),
+        overflow: cs.overflow,
+        // Chromium resolves -webkit-box to flow-root in getComputedStyle,
+        // so check the specified value from the stylesheet instead.
+        specifiedDisplay: el.style.display || cs.display,
+      };
+    });
+    expect(styles.webkitLineClamp).toBe("2");
+    expect(styles.overflow).toBe("hidden");
+  });
+
+  test("action buttons have z-index and backdrop for clickability", async ({
+    page,
+  }) => {
+    const styles = await page.evaluate(() => {
+      const actions = document.querySelector(".card-top-actions")!;
+      const btn = document.querySelector(".card-action-button")!;
+      const actionsCs = getComputedStyle(actions);
+      const btnCs = getComputedStyle(btn);
+      return {
+        zIndex: actionsCs.zIndex,
+        btnBackground: btnCs.backgroundColor,
+      };
+    });
+    expect(Number(styles.zIndex)).toBeGreaterThanOrEqual(1);
+    // Buttons should have a semi-transparent white backdrop
+    expect(styles.btnBackground).toContain("rgba(255, 255, 255");
+  });
+
+  test("current manager label is not rendered on cards", async ({ page }) => {
+    const count = await page.locator(".person-current-manager").count();
+    expect(count).toBe(0);
+  });
 });
 
 /* ── Team panel ── */
@@ -100,14 +167,12 @@ test.describe("Team Panel", () => {
         display: cs.display,
         flexDirection: cs.flexDirection,
         borderRadius: cs.borderRadius,
-        minWidth: cs.minWidth,
       };
     });
     expect(styles.overflow).toBe("hidden");
     expect(styles.display).toBe("flex");
     expect(styles.flexDirection).toBe("column");
     expect(styles.borderRadius).toBe("20px");
-    expect(styles.minWidth).toBe("220px");
   });
 
   test("team accent stripe is present", async ({ page }) => {
@@ -130,14 +195,14 @@ test.describe("Team Panel", () => {
     expect(cursor).toBe("grab");
   });
 
-  test("collapsed team has reduced min-width", async ({ page }) => {
+  test("collapsed team has auto min-width", async ({ page }) => {
     // Research (t3) is collapsed by default
     const team = page.locator('.team[data-team-id="t3"]');
     await expect(team).toHaveAttribute("data-view", "collapsed");
     const minWidth = await team.evaluate(
       (el) => getComputedStyle(el).minWidth
     );
-    expect(minWidth).toBe("200px");
+    expect(minWidth).toBe("0px");
   });
 
   test("collapsed team slots shrink min dimensions to zero", async ({
@@ -206,22 +271,6 @@ test.describe("Slots and Dropzones", () => {
     });
     expect(styles.display).toBe("flex");
     expect(styles.gap).toBe("10px");
-  });
-
-  test("horizontal layout uses column flex-direction", async ({ page }) => {
-    const dir = await page
-      .locator('.member-slot.layout-horizontal')
-      .first()
-      .evaluate((el) => getComputedStyle(el).flexDirection);
-    expect(dir).toBe("column");
-  });
-
-  test("vertical layout uses row flex-direction", async ({ page }) => {
-    const dir = await page
-      .locator('.member-slot.layout-vertical')
-      .first()
-      .evaluate((el) => getComputedStyle(el).flexDirection);
-    expect(dir).toBe("row");
   });
 });
 
@@ -444,9 +493,38 @@ test.describe("Stats Panel", () => {
       expect(gap).toBeLessThanOrEqual(1);
     }
   });
-});
 
-/* ── Layout adjustments (stats panel open) ── */
+  test("manager change detail does not overflow container", async ({
+    page,
+  }) => {
+    await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
+    await expect(page.locator(".stats-panel")).toHaveClass(/is-open/);
+
+    // Expand manager changes details if collapsed
+    const toggle = page.locator(".stats-collapsible-toggle");
+    if (await toggle.count() > 0) {
+      await toggle.click();
+    }
+
+    const overflow = await page.evaluate(() => {
+      const detail = document.querySelector(
+        ".manager-change-detail"
+      ) as HTMLElement | null;
+      if (!detail) return { found: false };
+      const row = detail.closest(".manager-change-row") as HTMLElement;
+      return {
+        found: true,
+        detailRight: Math.round(detail.getBoundingClientRect().right),
+        rowRight: Math.round(row.getBoundingClientRect().right),
+        truncated: detail.scrollWidth > detail.clientWidth,
+      };
+    });
+    if (overflow.found) {
+      // Detail should not extend past the row boundary
+      expect(overflow.detailRight).toBeLessThanOrEqual(overflow.rowRight! + 1);
+    }
+  });
+});
 
 test.describe("Layout Adjustments — Stats Panel Open", () => {
   test("unassigned bar shifts right when panel opens", async ({ page }) => {

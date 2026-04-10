@@ -4,11 +4,9 @@
 		{
 			"label": "Serve site",
 			"type": "shell",
-			"command": "python3",
+			"command": "npx",
 			"args": [
-				"-m",
-				"http.server",
-				"4173"
+				"vite"
 			],
 			"isBackground": true,
 			"group": "build"

@@ -168,6 +168,16 @@ test.describe("Team Expand / Collapse", () => {
     expect(rootTeamsAfter).toBe(rootTeamsBefore + 1);
   });
 
+  test("new teams get sequential default names", async ({ page }) => {
+    await page.locator('[data-action="add-root-team"]').click();
+    const first = page.locator(".root-dropzone > .team").last();
+    await expect(first.locator(".team-name-text")).toHaveText("New team 1");
+
+    await page.locator('[data-action="add-root-team"]').click();
+    const second = page.locator(".root-dropzone > .team").last();
+    await expect(second.locator(".team-name-text")).toHaveText("New team 2");
+  });
+
   test("add child team creates nested team inside parent", async ({
     page,
   }) => {
@@ -177,7 +187,10 @@ test.describe("Team Expand / Collapse", () => {
       .count();
 
     await page
-      .locator('[data-action="add-child-team"][data-team-id="t1"]')
+      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
+      .click();
+    await page
+      .locator('.team-menu-item[data-menu-action="add-team"]')
       .click();
 
     const nestedAfter = await t1
@@ -225,5 +238,133 @@ test.describe("Team Expand / Collapse", () => {
     await page.keyboard.press("Space");
 
     await expect(team).toHaveAttribute("data-view", "collapsed");
+  });
+
+  test("team menu opens popover with all actions", async ({
+    page,
+  }) => {
+    await page
+      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
+      .click();
+    const popover = page.locator(".team-menu-popover");
+    await expect(popover).toBeVisible();
+    await expect(
+      popover.locator('[data-menu-action="add-person"]')
+    ).toBeVisible();
+    await expect(
+      popover.locator('[data-menu-action="add-team"]')
+    ).toBeVisible();
+    await expect(
+      popover.locator('[data-menu-action="view-hierarchy"]')
+    ).toBeVisible();
+    await expect(
+      popover.locator('[data-menu-action="delete"]')
+    ).toBeVisible();
+  });
+
+  test("team menu add-person option opens add-person modal", async ({ page }) => {
+    await page
+      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
+      .click();
+    await page
+      .locator('.team-menu-item[data-menu-action="add-person"]')
+      .click();
+    await expect(page.locator("#add-person-modal")).toBeVisible();
+  });
+
+  test("team menu closes on outside click", async ({ page }) => {
+    await page
+      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
+      .click();
+    await expect(page.locator(".team-menu-popover")).toBeVisible();
+
+    // Click outside the popover
+    await page.locator(".root-dropzone").click({ position: { x: 5, y: 5 } });
+    await expect(page.locator(".team-menu-popover")).not.toBeVisible();
+  });
+
+  test("team toolbar has handle, menu trigger, stats, and chevron", async ({ page }) => {
+    const team = page.locator('.team[data-team-id="t1"]');
+    const toolbar = team.locator("> .team-titlebar > .team-toolbar");
+    const toolbarLeft = toolbar.locator("> .team-toolbar-left");
+    await expect(toolbarLeft.locator(".team-handle")).toBeVisible();
+    await expect(
+      toolbarLeft.locator('[data-action="open-team-menu"]')
+    ).toBeVisible();
+    await expect(
+      toolbarLeft.locator('[data-action="open-team-stats"]')
+    ).toBeVisible();
+    await expect(
+      toolbarLeft.locator('[data-action="toggle-collapse"]')
+    ).toBeVisible();
+  });
+
+  test("team name is on its own row above the toolbar", async ({ page }) => {
+    const team = page.locator('.team[data-team-id="t1"]');
+    const titlebar = team.locator("> .team-titlebar");
+    // Name should be a direct child of titlebar, not inside toolbar
+    await expect(titlebar.locator("> .team-name")).toBeVisible();
+    await expect(titlebar.locator("> .team-toolbar")).toBeVisible();
+  });
+
+  test("stats button tooltip shows people and team count", async ({ page }) => {
+    const statsBtn = page.locator(
+      '.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]'
+    );
+    const title = await statsBtn.getAttribute("title");
+    expect(title).toMatch(/\d+ people/);
+  });
+
+  test("stats button opens team stats modal", async ({ page }) => {
+    await page
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]')
+      .click();
+    const modal = page.locator("#team-stats-modal");
+    await expect(modal).toBeVisible();
+    await expect(modal.locator(".modal-title")).toContainText("Product");
+    // Should show roles and timezones sections
+    const sectionCount = await modal.locator(".team-stats-section-title").count();
+    expect(sectionCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test("stats modal closes on close button", async ({ page }) => {
+    await page
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]')
+      .click();
+    await expect(page.locator("#team-stats-modal")).toBeVisible();
+    await page.locator("#team-stats-close").click();
+    await expect(page.locator("#team-stats-modal")).not.toBeAttached();
+  });
+
+  test("stats modal closes on Escape", async ({ page }) => {
+    await page
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]')
+      .click();
+    await expect(page.locator("#team-stats-modal")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#team-stats-modal")).not.toBeAttached();
+  });
+
+  test("stats modal closes on overlay click", async ({ page }) => {
+    await page
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]')
+      .click();
+    const modal = page.locator("#team-stats-modal");
+    await expect(modal).toBeVisible();
+    await modal.click({ position: { x: 5, y: 5 } });
+    await expect(modal).not.toBeAttached();
+  });
+
+  test("stats modal uses multi-column layout for roles and nested teams", async ({ page }) => {
+    await page
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]')
+      .click();
+    const modal = page.locator("#team-stats-modal");
+    await expect(modal).toBeVisible();
+
+    // Roles section should use multi-column container
+    const rolesColumns = modal.locator(".team-stats-section").filter({ hasText: "Roles" }).locator(".team-stats-columns");
+    await expect(rolesColumns).toBeVisible();
+    await expect(rolesColumns.locator(".stats-row").first()).toBeVisible();
   });
 });

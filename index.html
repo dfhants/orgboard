@@ -3,23 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TeamBoard — Team Organizer</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233b6cf5'/%3E%3Crect x='14' y='14' width='14' height='14' fill='%23ffffff'/%3E%3Crect x='36' y='14' width='14' height='14' fill='%23ffffff'/%3E%3Crect x='25' y='36' width='14' height='14' fill='%23ffffff'/%3E%3C/svg%3E"
-    />
+    <title>OrgBoard — Team Organizer</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./assets/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./src/styles.css" />
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.11.0/sql-wasm.js"></script>
+    <link rel="stylesheet" href="./src/css/main.css" />
   </head>
   <body>
     <header class="app-toolbar">
       <div class="toolbar-brand">
-        <svg class="toolbar-logo" viewBox="0 0 64 64" width="28" height="28"><rect width="64" height="64" rx="14" fill="var(--accent)"/><rect x="14" y="14" width="14" height="14" fill="#fff"/><rect x="36" y="14" width="14" height="14" fill="#fff"/><rect x="25" y="36" width="14" height="14" fill="#fff"/></svg>
-        <span class="toolbar-title">TeamBoard</span>
+        <img class="toolbar-logo" src="./assets/icons/icon-192.png" width="28" height="28" alt="OrgBoard logo" />
+        <span class="toolbar-title">OrgBoard</span>
       </div>
       <div id="scenario-tabs" class="scenario-tabs"></div>
       <nav class="toolbar-actions">

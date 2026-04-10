@@ -1,4 +1,4 @@
-/* TeamBoard — CSS entry point */
+/* OrgBoard — CSS entry point */
 
 @import "tokens.css";           /* Design tokens & resets */
 @import "scrollbar.css";        /* Custom scrollbar */

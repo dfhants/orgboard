@@ -1,9 +1,4 @@
 // ─── Layout constants ───
-export const layoutLabels = {
-  horizontal: "Horizontal",
-  vertical: "Vertical",
-};
-export const childLayoutModes = ["horizontal", "vertical"];
 export const oppositeLayout = { horizontal: "vertical", vertical: "horizontal" };
 export const layoutIcons = {
   horizontal: '<i data-lucide="square-arrow-right"></i>',
@@ -64,7 +59,6 @@ export const createInitialState = () => ({
         { type: "employee", id: "p3" },
         { type: "team", id: "t3" },
       ],
-      childLayout: "horizontal",
       color: "#818cf8",
     },
     t2: {
@@ -76,7 +70,6 @@ export const createInitialState = () => ({
         { type: "employee", id: "p5" },
         { type: "team", id: "t4" },
       ],
-      childLayout: "vertical",
       color: "#60a5fa",
     },
     t3: {
@@ -85,7 +78,6 @@ export const createInitialState = () => ({
       ownLayout: "collapsed",
       manager: "p6",
       members: [{ type: "employee", id: "p7" }],
-      childLayout: "vertical",
       color: "#a78bfa",
     },
     t4: {
@@ -94,7 +86,6 @@ export const createInitialState = () => ({
       ownLayout: "expanded",
       manager: null,
       members: [{ type: "employee", id: "p8" }],
-      childLayout: "horizontal",
       color: "#38bdf8",
     },
   },
@@ -149,6 +140,10 @@ export function setScenarioSequence(v) { scenarioSequence = v; }
 
 export let showLanding = false;
 export function setShowLanding(v) { showLanding = v; }
+
+// ─── Global criteria (validation checks loaded from DB) ───
+export let globalCriteria = [];
+export function setGlobalCriteria(v) { globalCriteria = v; }
 
 // ─── State helpers ───
 export function getTeam(teamId) {

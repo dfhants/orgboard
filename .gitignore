@@ -1,5 +1,5 @@
 node_modules/
 .playwright-mcp/
-src/styles.css
+dist/
 test-results/
 .DS_Store

@@ -10,8 +10,37 @@ test.describe("Initial Render", () => {
     page,
   }) => {
     await expect(page.locator(".app-toolbar")).toBeVisible();
-    await expect(page.locator(".app-toolbar")).toContainText("TeamBoard");
+    await expect(page.locator(".app-toolbar")).toContainText("OrgBoard");
+    await expect(page.locator(".toolbar-logo")).toHaveAttribute(
+      "src",
+      /assets\/icons\/icon-192\.png$/
+    );
     await expect(page.locator("#add-person-btn")).toBeVisible();
+  });
+
+  test("head includes generated favicon assets", async ({ page }) => {
+    const favicon32 = page.locator(
+      'head link[rel="icon"][sizes="32x32"]'
+    );
+    const favicon16 = page.locator(
+      'head link[rel="icon"][sizes="16x16"]'
+    );
+    const appleTouch = page.locator(
+      'head link[rel="apple-touch-icon"][sizes="180x180"]'
+    );
+
+    await expect(favicon32).toHaveAttribute(
+      "href",
+      /assets\/icons\/favicon-32\.png$/
+    );
+    await expect(favicon16).toHaveAttribute(
+      "href",
+      /assets\/icons\/favicon-16\.png$/
+    );
+    await expect(appleTouch).toHaveAttribute(
+      "href",
+      /assets\/icons\/apple-touch-icon\.png$/
+    );
   });
 
   test("two root teams render with correct names", async ({ page }) => {
@@ -53,7 +82,7 @@ test.describe("Initial Render", () => {
     await expect(avaCard.locator(".person-location")).toHaveText(
       "San Francisco, CA"
     );
-    await expect(avaCard.locator(".person-timezone")).toHaveText("PST (UTC−8)");
+    await expect(avaCard.locator(".person-timezone")).toContainText("PST (UTC−8)");
   });
 
   test("manager slots are populated correctly", async ({ page }) => {
@@ -99,18 +128,6 @@ test.describe("Initial Render", () => {
     const names = await rosterCards.locator(".person-name").allTextContents();
     expect(names).toContain("Eli Vasquez");
     expect(names).toContain("Nia Ramaswamy");
-  });
-
-  test("layout classes are applied correctly", async ({ page }) => {
-    // Product has horizontal child layout
-    await expect(
-      page.locator('.team[data-team-id="t1"] > .team-body > .member-slot')
-    ).toHaveClass(/layout-horizontal/);
-
-    // Operations has vertical child layout
-    await expect(
-      page.locator('.team[data-team-id="t2"] > .team-body > .member-slot')
-    ).toHaveClass(/layout-vertical/);
   });
 
   test("team control buttons have correct interactive styling", async ({

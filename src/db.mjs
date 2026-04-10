@@ -1,6 +1,9 @@
 // ─── SQLite persistence via sql.js (WASM) + IndexedDB ───
 
-const DB_NAME = "teamboard";
+import initSqlJs from "sql.js";
+import sqlWasm from "sql.js/dist/sql-wasm-browser.wasm?url";
+
+const DB_NAME = "orgboard";
 const DB_STORE = "database";
 const DB_KEY = "main";
 const DEBOUNCE_MS = 300;
@@ -43,7 +46,7 @@ function flushToIDB() {
   if (!db) return;
   const data = db.export();
   openIDB().then((idb) => idbPut(idb, DB_KEY, data)).catch((err) => {
-    console.error("TeamBoard: failed to persist DB to IndexedDB", err);
+    console.error("OrgBoard: failed to persist DB to IndexedDB", err);
   });
 }
 
@@ -87,16 +90,19 @@ function ensureSchema(database) {
       type TEXT NOT NULL,
       config TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1,
-      sort_order INTEGER NOT NULL DEFAULT 0
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      pinned INTEGER NOT NULL DEFAULT 0
     )
   `);
+  // Migration: add pinned column if upgrading from older schema
+  try { database.run("ALTER TABLE criteria ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"); } catch (_) { /* already exists */ }
 }
 
 // ─── Public API ───
 
 export async function initDB() {
   const SQL = await initSqlJs({
-    locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.11.0/${file}`,
+    locateFile: () => sqlWasm,
   });
 
   let savedData = null;
@@ -111,7 +117,7 @@ export async function initDB() {
     db = savedData ? new SQL.Database(savedData) : new SQL.Database();
     ensureSchema(db);
   } catch (err) {
-    console.warn("TeamBoard: stored database is corrupt, resetting to fresh DB.", err);
+    console.warn("OrgBoard: stored database is corrupt, resetting to fresh DB.", err);
     try {
       const idb = await openIDB();
       await idbPut(idb, DB_KEY, null);
@@ -188,18 +194,18 @@ export function setMeta(key, value) {
 // ─── Criteria CRUD ───
 
 export function listCriteria() {
-  const rows = db.exec("SELECT id, name, type, config, enabled, sort_order FROM criteria ORDER BY sort_order ASC, rowid ASC");
+  const rows = db.exec("SELECT id, name, type, config, enabled, sort_order, pinned FROM criteria ORDER BY sort_order ASC, rowid ASC");
   if (rows.length === 0) return [];
-  return rows[0].values.map(([id, name, type, config, enabled, sort_order]) => ({
-    id, name, type, config: JSON.parse(config), enabled: !!enabled, sort_order,
+  return rows[0].values.map(([id, name, type, config, enabled, sort_order, pinned]) => ({
+    id, name, type, config: JSON.parse(config), enabled: !!enabled, sort_order, pinned: !!pinned,
   }));
 }
 
 export function saveCriterion(criterion) {
-  const { id, name, type, config, enabled, sort_order } = criterion;
+  const { id, name, type, config, enabled, sort_order, pinned } = criterion;
   db.run(
-    "INSERT OR REPLACE INTO criteria (id, name, type, config, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
-    [id, name, type, JSON.stringify(config), enabled ? 1 : 0, sort_order ?? 0]
+    "INSERT OR REPLACE INTO criteria (id, name, type, config, enabled, sort_order, pinned) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [id, name, type, JSON.stringify(config), enabled ? 1 : 0, sort_order ?? 0, pinned ? 1 : 0]
   );
   schedulePersist();
 }

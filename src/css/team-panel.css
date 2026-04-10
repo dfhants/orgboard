@@ -1,17 +1,15 @@
 /* ─── Team panel ─── */
 
 .team {
-  width: max-content;
-  min-width: 220px; /* expanded team panel — wide enough for the titlebar + controls */
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
   background: var(--panel);
-  padding: 14px;
+  padding: var(--space);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space);
   align-self: flex-start;
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition);
@@ -28,42 +26,38 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--team-accent, var(--panel-muted));
-  filter: brightness(0.85) saturate(1.4);
+  background: var(--ribbon-color, var(--panel-muted));
 }
 
 .team[data-view="collapsed"] {
-  min-width: 200px; /* collapsed team — slightly narrower since body content is compact */
 }
 
 .team-titlebar {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  cursor: pointer;
+  flex-direction: column;
+  gap: 4px;
   border-radius: var(--radius);
   padding: 4px 6px;
   margin: -4px -6px;
-  transition: background-color var(--transition);
 }
 
-.team-titlebar:hover {
-  background: rgba(0, 0, 0, 0.025);
+.team-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
 }
 
-.team-titlebar:has(.team-control-button:hover, .team-handle:hover):hover {
-  background: none;
-}
-
-.team-titlebar:focus-visible {
-  outline: 2px solid rgba(79, 110, 247, 0.5);
-  outline-offset: 2px;
+.team-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .team-handle {
   background: none;
   border: none;
-  padding: 6px;
+  padding: 4px;
   border-radius: var(--radius-sm);
   cursor: grab;
   display: grid;
@@ -81,25 +75,6 @@
 .drag-image-proxy {
   overflow: hidden;
   isolation: isolate;
-}
-
-.team-titleblock {
-  flex: 1;
-  min-width: 0; /* allow text truncation inside flex child */
-}
-
-.team-name-row {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.team-title-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
-  margin-left: auto;
 }
 
 .team-name {
@@ -147,8 +122,8 @@
 }
 
 .team-handle svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 
@@ -188,16 +163,6 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-.facepile-overflow {
-  background: var(--panel-muted);
-  font-size: 0.55rem;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
-  color: var(--text-soft);
-  border-color: rgba(0, 0, 0, 0.06);
-}
-
 .facepile-empty {
   background: transparent;
   border: 1.5px dashed rgba(0, 0, 0, 0.15);
@@ -210,32 +175,24 @@
   flex: 0 0 auto;
 }
 
-.team-delete-button,
 .board-create-button {
   flex: 0 0 auto;
-}
-
-.team-caption {
-  margin: 2px 0 0;
-  color: var(--text-soft);
-  font-size: 0.72rem;
-  font-weight: 400;
-  letter-spacing: 0.01em;
 }
 
 .team-body {
   display: grid;
   gap: 10px;
-  width: max-content;
 }
 
 .team-body.horizontal {
-  grid-template-columns: max-content max-content;
-  align-items: start;
+  display: flex;
+  flex-flow: row nowrap;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .team-body.vertical {
-  grid-template-columns: max-content;
+  max-width: 100%;
 }
 
 .slot {
@@ -244,8 +201,6 @@
   border-radius: var(--radius-lg);
   background: rgba(0, 0, 0, 0.015);
   padding: 10px;
-  width: max-content;
-  min-width: 0; /* base reset — specific slot types override below */
 }
 
 /* 143px ≈ one person-card with padding — keeps slots a consistent square
@@ -261,22 +216,62 @@
   position: relative;
   display: flex;
   gap: 10px;
-  align-content: flex-start;
   align-items: flex-start;
 }
-
 
 .member-entry {
   position: relative;
   flex: 0 0 auto;
 }
 
-.member-slot.layout-vertical {
-  flex-flow: row wrap;
+/* ── People group: wrapping container for employee entries ── */
+.people-group {
+  display: flex;
+  gap: 10px;
+  align-content: flex-start;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+
+/* ── Manager can always fit contents since it only has one member ever ── */
+.manager-slot {
+  max-width: min-content;
+  max-height: min-content;
 }
 
 .member-slot.layout-horizontal {
-  flex-flow: column wrap;
+  flex-flow: row nowrap;
+  height: 100%;
+  overflow: hidden;
+}
+
+.member-slot.layout-vertical {
+  flex-flow: column nowrap;
+  width: 100%;
+  overflow: hidden;
+}
+
+.member-slot.layout-horizontal .people-group {
+  flex-direction: column;
+  max-height: 100%;
+}
+
+/* When JS wraps entries into .people-column divs, switch to row layout */
+.member-slot.layout-horizontal .people-group.has-columns {
+  flex-direction: row;
+  max-height: none;
+}
+
+.people-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.member-slot.layout-vertical .people-group {
+  flex-flow: row wrap;
+  max-width: 100%;
 }
 
 .team[data-view="collapsed"] .team-body {
@@ -295,5 +290,100 @@
 
 .child-team {
   width: max-content;
+  height: max-content;
+}
+
+/* ── Layout cascade ──
+   Horizontal: page scrolls sideways, teams must fit shell height.
+   Vertical: page scrolls down, teams must fit shell width. */
+
+.page-shell[data-layout="horizontal"] .team {
+  height: 100%;
+  max-height: max-content;
+}
+
+.page-shell[data-layout="vertical"] .team {
+  max-width: 100%;
+  width: max-content;
+}
+
+.page-shell[data-layout="horizontal"] .child-team {
+  height: 100%;
+  max-height: max-content;
+}
+
+.page-shell[data-layout="vertical"] .child-team {
+  max-width: 100%;
+}
+
+.page-shell[data-layout="horizontal"] .member-entry {
+  max-height: 100%;
+}
+
+.page-shell[data-layout="horizontal"] .member-entry:has(.child-team) {
+  height: 100%;
+  max-height: max-content;
+}
+
+.page-shell[data-layout="vertical"] .member-entry {
+  max-width: 100%;
+}
+
+/* ─── Team menu popover ─── */
+
+.team-menu-popover {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 160px;
+  animation: modal-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.team-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  font: inherit;
+  text-align: left;
+  font-size: 0.78rem;
+  width: 100%;
+  color: var(--text);
+}
+
+.team-menu-item:hover {
+  background: var(--accent-soft);
+}
+
+.team-menu-item svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-soft);
+  flex: 0 0 auto;
+}
+
+.team-menu-item.is-danger {
+  color: var(--danger, #e53e3e);
+}
+
+.team-menu-item.is-danger svg {
+  color: var(--danger, #e53e3e);
+}
+
+.team-menu-item.is-danger:hover {
+  background: rgba(229, 62, 62, 0.08);
+}
+
+.team-menu-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 4px 6px;
 }
 

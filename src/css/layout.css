@@ -1,11 +1,33 @@
 /* ─── Page shell ─── */
 
 .page-shell {
-  padding: 12px;
+  padding: var(--space);
   overflow: auto;
   height: calc(100vh - 52px - 52px);
   margin-left: 0;
   margin-right: 40px;
+}
+
+.page-shell[data-layout="horizontal"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.page-shell[data-layout="vertical"] {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.page-shell[data-layout="horizontal"] .app-grid {
+  flex-direction: row;
+  height: 100%;
+  min-height: 0;
+}
+
+.page-shell[data-layout="vertical"] .app-grid {
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
 }
 
 /* ─── App toolbar ─── */
@@ -107,7 +129,8 @@
   gap: 0;
   flex: 1 1 auto;
   min-width: 0;
-  overflow: clip visible;
+  overflow-x: auto;
+  overflow-y: visible;
   padding: 0 8px;
   scrollbar-width: none;
   align-self: stretch;
@@ -235,7 +258,6 @@
 
 .app-grid {
   display: flex;
-  flex-direction: column;
   gap: 20px;
   align-items: flex-start;
   min-width: 100%;

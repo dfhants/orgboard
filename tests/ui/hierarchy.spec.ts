@@ -113,8 +113,9 @@ test.describe("Hierarchy Tree Modal", () => {
     expect(newOverrideCount).toBeGreaterThan(initialCount);
   });
 
-  test("no view-hierarchy button on individual team titlebars", async ({ page }) => {
-    const teamButtons = page.locator('.team-title-actions [data-action="view-hierarchy"]');
+  test("no view-hierarchy button directly on team titlebars", async ({ page }) => {
+    // view-hierarchy is only accessible via the team menu popover, not as a direct button
+    const teamButtons = page.locator('.team-titlebar [data-action="view-hierarchy"]');
     await expect(teamButtons).toHaveCount(0);
   });
 });
