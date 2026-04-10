@@ -6,6 +6,7 @@ import {
 import {
   moveEmployeeToTeam, moveEmployeeToRoster, moveTeamToTarget,
   copyEmployeeToTeam, copyEmployeeToRoster, copyTeamToTarget,
+  insertSubTeam,
 } from './operations.mjs';
 import { isTeamInside } from './team-logic.mjs';
 import { render, applyHorizontalPacking } from './render.mjs';
@@ -32,7 +33,10 @@ export function canDrop(dropKind, teamId) {
   }
 
   if (dragState.type === "team") {
-    return dropKind === "members" && dragState.id !== teamId && !isTeamInside(state.teams, dragState.id, teamId);
+    if (dropKind === "subteams") {
+      return dragState.id !== teamId && !isTeamInside(state.teams, dragState.id, teamId);
+    }
+    return false;
   }
 
   return false;
@@ -52,17 +56,63 @@ export function resetInsertionHysteresis() {
 }
 
 function computeRawInsertionIndex(entries, event) {
-  for (let index = 0; index < entries.length; index += 1) {
-    const rect = entries[index].getBoundingClientRect();
-    if (event.clientY < rect.top) {
-      return index;
+  if (entries.length === 0) return 0;
+
+  // Group entries into visual columns by their left coordinate.
+  // Entries within 5px of each other horizontally are in the same column.
+  const COL_SNAP = 5;
+  const columns = []; // [{left, entries: [{idx, rect}]}]
+  for (let i = 0; i < entries.length; i++) {
+    const rect = entries[i].getBoundingClientRect();
+    let col = columns.find(c => Math.abs(c.left - rect.left) < COL_SNAP);
+    if (!col) {
+      col = { left: rect.left, entries: [] };
+      columns.push(col);
     }
-    if (event.clientY <= rect.bottom && event.clientX < rect.left + rect.width / 2) {
-      return index;
+    col.entries.push({ idx: i, rect });
+  }
+  // Sort columns left-to-right, entries within each column top-to-bottom
+  columns.sort((a, b) => a.left - b.left);
+  for (const col of columns) {
+    col.entries.sort((a, b) => a.rect.top - b.rect.top);
+  }
+
+  // Find which column the cursor is in
+  const lastCol = columns[columns.length - 1];
+  const lastRight = lastCol.left + lastCol.entries[0].rect.width;
+  // If cursor is past the right edge of the last column → after all entries
+  if (event.clientX > lastRight) {
+    return entries.length;
+  }
+
+  let targetCol = lastCol; // default to last
+  for (let ci = 0; ci < columns.length - 1; ci++) {
+    const rightEdge = columns[ci].left + columns[ci].entries[0].rect.width;
+    const nextLeft = columns[ci + 1].left;
+    const boundary = (rightEdge + nextLeft) / 2;
+    if (event.clientX < boundary) {
+      targetCol = columns[ci];
+      break;
     }
   }
 
-  return entries.length;
+  // Within the column, find vertical insertion point using gap midpoints.
+  // The boundary between "before entry N" and "before entry N+1" is the
+  // midpoint of the gap between entries, not the midpoint of the entry itself.
+  const colEntries = targetCol.entries;
+  for (let i = 0; i < colEntries.length; i++) {
+    const { idx, rect } = colEntries[i];
+    const nextRect = colEntries[i + 1]?.rect;
+    const boundary = nextRect
+      ? (rect.bottom + nextRect.top) / 2
+      : rect.bottom;
+    if (event.clientY < boundary) {
+      return idx;
+    }
+  }
+
+  // Below all entries in this column → after the last entry in this column
+  return colEntries[colEntries.length - 1].idx + 1;
 }
 
 /**
@@ -105,30 +155,23 @@ function computeColumnInsertionIndex(flatEntries, columns, event) {
 }
 
 export function getMemberInsertionIndex(dropzone, event) {
-  const peopleGroup = dropzone.querySelector(":scope > .people-group");
-  const columns = peopleGroup ? [...peopleGroup.querySelectorAll(":scope > .people-column")] : [];
+  const columns = [...dropzone.querySelectorAll(":scope > .people-column")];
   const isColumnLayout = columns.length > 0;
 
-  // Collect ALL member-entry nodes: employees inside .people-group (or its columns) + teams as direct children
+  // Collect member-entry nodes: from column wrappers or as direct children
   let entries;
   if (isColumnLayout) {
-    // Column layout: entries live inside .people-column wrappers
-    const pgEntries = [];
+    entries = [];
     for (const col of columns) {
       for (const child of col.children) {
         if (child.classList.contains("member-entry") && !child.classList.contains("drag-preview-entry") && !child.classList.contains("dragging-source")) {
-          pgEntries.push(child);
+          entries.push(child);
         }
       }
     }
-    // Also include direct team children of the dropzone
-    const teamEntries = [...dropzone.querySelectorAll(
-      ':scope > .member-entry:not(.drag-preview-entry):not(.dragging-source)'
-    )];
-    entries = [...pgEntries, ...teamEntries];
   } else {
     entries = [...dropzone.querySelectorAll(
-      ':scope > .member-entry:not(.drag-preview-entry):not(.dragging-source), :scope > .people-group > .member-entry:not(.drag-preview-entry):not(.dragging-source)'
+      ':scope > .member-entry:not(.drag-preview-entry):not(.dragging-source)'
     )];
   }
 
@@ -147,7 +190,12 @@ export function getMemberInsertionIndex(dropzone, event) {
       return Number(entries[visIdx].dataset.memberIndex);
     }
     const teamId = dropzone.dataset.teamId;
-    return teamId ? getTeam(teamId).members.length : 0;
+    const dropKind = dropzone.dataset.dropKind;
+    if (teamId) {
+      const team = getTeam(teamId);
+      return dropKind === "subteams" ? team.subTeams.length : team.members.length;
+    }
+    return 0;
   }
 
   if (dropzone === lastInsertDropzone && lastInsertIndex !== rawIndex && lastInsertIndex >= 0 && lastInsertIndex <= entries.length) {
@@ -162,7 +210,8 @@ export function getMemberInsertionIndex(dropzone, event) {
   lastInsertIndex = rawIndex;
   lastInsertX = event.clientX;
   lastInsertY = event.clientY;
-  return visualToArrayIndex(rawIndex);
+  const result = visualToArrayIndex(rawIndex);
+  return result;
 }
 
 function clearDropHighlights() {
@@ -235,12 +284,6 @@ function setCustomDragImage(event, draggable, previewNode) {
 
 function createDropPreview(dropzone) {
   const preview = document.createElement("div");
-  const isCollapsed = dropzone?.closest('.team[data-view="collapsed"]');
-  if (isCollapsed) {
-    preview.className = "facepile-dot drag-preview-dot";
-    preview.setAttribute("aria-hidden", "true");
-    return preview;
-  }
   preview.className = `member-entry drag-preview-entry drag-preview-${dragState.type}`;
   preview.setAttribute("aria-hidden", "true");
   preview.style.width = `${dragState.previewWidth}px`;
@@ -260,85 +303,67 @@ function removeDropPreview() {
 }
 
 function updateDropPreview(dropzone, event) {
-  if (!dragState || dropzone.dataset.dropKind !== "members") {
+  const dk = dropzone.dataset.dropKind;
+  if (!dragState || (dk !== "members" && dk !== "subteams")) {
     removeDropPreview();
     return;
   }
 
   const isCollapsed = !!dropzone.closest('.team[data-view="collapsed"]');
-  const currentIsCollapsed = dropPreview?.classList.contains("drag-preview-dot");
-  if (dropPreview && isCollapsed !== !!currentIsCollapsed) {
+  if (isCollapsed) {
+    // Collapsed teams just highlight the team border — no preview element
     removeDropPreview();
+    return;
   }
 
   if (!dropPreview) {
     setDropPreview(createDropPreview(dropzone));
   }
 
-  if (isCollapsed) {
-    const facepile = dropzone.querySelector(".member-facepile");
-    if (facepile && dropPreview.parentElement !== facepile) {
-      facepile.appendChild(dropPreview);
-    }
-    return;
-  }
-
   // Place the preview in the correct container based on drag type
-  const peopleGroup = dropzone.querySelector(":scope > .people-group");
+  const columns = [...dropzone.querySelectorAll(":scope > .people-column")];
+  const isColumnLayout = columns.length > 0;
 
-  if (dragState.type === "employee" && peopleGroup) {
-    // Employee preview goes inside people-group
-    const columns = [...peopleGroup.querySelectorAll(":scope > .people-column")];
-    const isColumnLayout = columns.length > 0;
-
-    if (isColumnLayout) {
-      // Column layout: entries are inside .people-column wrappers.
-      // Collect flat entry list across all columns (left→right, top→bottom).
-      const flatEntries = [];
-      for (const col of columns) {
-        for (const child of col.children) {
-          if (child.classList.contains("member-entry") && !child.classList.contains("drag-preview-entry") && !child.classList.contains("dragging-source")) {
-            flatEntries.push(child);
-          }
+  if (dragState.type === "employee" && isColumnLayout) {
+    // Column layout: entries are inside .people-column wrappers.
+    // Collect flat entry list across all columns (left→right, top→bottom).
+    const flatEntries = [];
+    for (const col of columns) {
+      for (const child of col.children) {
+        if (child.classList.contains("member-entry") && !child.classList.contains("drag-preview-entry") && !child.classList.contains("dragging-source")) {
+          flatEntries.push(child);
         }
       }
-
-      const insertPos = computeColumnInsertionIndex(flatEntries, columns, event);
-
-      // Unwrap columns back to flat children in the people-group
-      for (const col of columns) {
-        while (col.firstChild) peopleGroup.insertBefore(col.firstChild, col);
-        col.remove();
-      }
-      peopleGroup.classList.remove("has-columns");
-
-      // Re-collect entries after unwrap (same elements, now direct children)
-      const entries = [...peopleGroup.children].filter(
-        n => n.classList.contains("member-entry") && !n.classList.contains("drag-preview-entry") && !n.classList.contains("dragging-source")
-      );
-      const anchor = entries[insertPos] ?? null;
-      peopleGroup.insertBefore(dropPreview, anchor);
-
-      // Repack into columns (including the preview)
-      applyHorizontalPacking();
-    } else {
-      // Vertical / no-column layout — original behavior
-      const entries = [...peopleGroup.children].filter(
-        (node) =>
-          node.classList.contains("member-entry") &&
-          !node.classList.contains("drag-preview-entry") &&
-          !node.classList.contains("dragging-source"),
-      );
-      const insertPos = computeRawInsertionIndex(entries, event);
-      const anchor = entries[insertPos] ?? null;
-      const moved = dropPreview.parentElement !== peopleGroup || dropPreview.nextSibling !== anchor;
-
-      if (moved) {
-        peopleGroup.insertBefore(dropPreview, anchor);
-      }
     }
+
+    const insertPos = computeColumnInsertionIndex(flatEntries, columns, event);
+
+    // Unwrap columns back to flat children in the dropzone
+    for (const col of columns) {
+      while (col.firstChild) dropzone.insertBefore(col.firstChild, col);
+      col.remove();
+    }
+    dropzone.classList.remove("has-columns");
+
+    // Re-collect entries after unwrap (same elements, now direct children)
+    const entries = [...dropzone.children].filter(
+      n => n.classList.contains("member-entry") && !n.classList.contains("drag-preview-entry") && !n.classList.contains("dragging-source")
+    );
+    const anchor = entries[insertPos] ?? null;
+    dropzone.insertBefore(dropPreview, anchor);
+
+    // Repack into columns (including the preview)
+    applyHorizontalPacking();
   } else {
-    // Team preview (or employee into empty team with no people-group) goes as direct child of member-slot
+    // Flat layout — place preview among direct children.
+    // Temporarily detach the preview so its presence doesn't shift entry
+    // rects and cause computeRawInsertionIndex to oscillate.
+    const previewWasInDropzone = dropPreview.parentElement === dropzone;
+    const previewNextSibling = dropPreview.nextSibling;
+    if (previewWasInDropzone) {
+      dropPreview.remove();
+    }
+
     const entries = [...dropzone.children].filter(
       (node) =>
         node.classList.contains("member-entry") &&
@@ -347,10 +372,29 @@ function updateDropPreview(dropzone, event) {
     );
     const insertPos = computeRawInsertionIndex(entries, event);
     const anchor = entries[insertPos] ?? null;
-    const moved = dropPreview.parentElement !== dropzone || dropPreview.nextSibling !== anchor;
+
+    // Check current logical position (where preview was before detach)
+    let currentPos = -1;
+    if (previewWasInDropzone) {
+      currentPos = 0;
+      // Count member-entries that come before the preview's old position
+      let node = dropzone.firstChild;
+      const refNode = previewNextSibling; // what was after the preview
+      while (node && node !== refNode) {
+        if (node.classList?.contains("member-entry") && !node.classList.contains("dragging-source")) {
+          currentPos++;
+        }
+        node = node.nextSibling;
+      }
+    }
+    const moved = currentPos !== insertPos;
 
     if (moved) {
       dropzone.insertBefore(dropPreview, anchor);
+      applyHorizontalPacking();
+    } else if (previewWasInDropzone) {
+      // Re-insert at original position (since we detached it)
+      dropzone.insertBefore(dropPreview, previewNextSibling);
     }
   }
 }
@@ -362,11 +406,26 @@ function resolveDropzone(event) {
   const teamEl = event.target.closest(".team");
   if (!teamEl) return naiveDropzone;
 
-  const managerSlot = teamEl.querySelector(":scope > .team-body > .manager-slot.dropzone");
+  const managerSlot = teamEl.querySelector(":scope > .team-body > .member-slot > .manager-slot.dropzone");
   const memberSlot = teamEl.querySelector(":scope > .team-body > .member-slot.dropzone");
+  const subteamSlot = teamEl.querySelector(":scope > .team-body > .subteam-slot.dropzone");
 
-  if (naiveDropzone === managerSlot || naiveDropzone === memberSlot) {
+  // Team drags: anywhere on a team resolves to its subteam-slot
+  if (dragState.type === "team" && subteamSlot) {
+    const { teamId } = subteamSlot.dataset;
+    if (canDrop("subteams", teamId)) {
+      return subteamSlot;
+    }
     return naiveDropzone;
+  }
+
+  // If the naive dropzone is a valid slot AND canDrop passes, use it directly
+  if (naiveDropzone === managerSlot || naiveDropzone === memberSlot) {
+    const { dropKind, teamId } = naiveDropzone.dataset;
+    if (canDrop(dropKind, teamId)) {
+      return naiveDropzone;
+    }
+    // Otherwise fall through to distance-based resolution
   }
 
   function distToRect(el) {
@@ -405,7 +464,7 @@ export function setupDragDropListeners() {
     // find the outer .member-entry that wraps the entire child team, causing the
     // whole team to disappear while dragging.
     const closestMemberEntry = draggable.closest(".member-entry");
-    const closestSlot = draggable.closest(".manager-slot, .member-slot, .roster-cards");
+    const closestSlot = draggable.closest(".manager-slot, .member-slot, .subteam-slot, .roster-cards");
     const memberEntryInSameSlot =
       closestMemberEntry && closestSlot?.contains(closestMemberEntry)
         ? closestMemberEntry
@@ -422,10 +481,12 @@ export function setupDragDropListeners() {
         ? "manager"
         : draggable.closest(".member-slot")
           ? "members"
-          : draggable.closest(".roster-cards")
-            ? "roster"
-            : null,
-      sourceTeamId: draggable.closest(".member-slot, .manager-slot")?.dataset.teamId ?? null,
+          : draggable.closest(".subteam-slot")
+            ? "subteams"
+            : draggable.closest(".roster-cards")
+              ? "roster"
+              : null,
+      sourceTeamId: draggable.closest(".member-slot, .manager-slot, .subteam-slot")?.dataset.teamId ?? null,
       sourceIndex: Number(draggable.closest(".member-entry")?.dataset.memberIndex ?? -1),
       previewWidth: Math.round(previewRect?.width ?? 84),
       previewHeight: Math.round(previewRect?.height ?? 84),
@@ -476,7 +537,12 @@ export function setupDragDropListeners() {
 
     event.preventDefault();
     clearDropHighlights();
-    dropzone.classList.add("is-over");
+    const collapsedTeam = dropzone.closest('.team[data-view="collapsed"]');
+    if (collapsedTeam) {
+      collapsedTeam.classList.add("is-over");
+    } else {
+      dropzone.classList.add("is-over");
+    }
     updateDropPreview(dropzone, event);
   });
 
@@ -484,6 +550,10 @@ export function setupDragDropListeners() {
     const dropzone = event.target.closest(".dropzone");
     if (dropzone) {
       dropzone.classList.remove("is-over");
+    }
+    const team = event.target.closest(".team.is-over");
+    if (team && !team.contains(event.relatedTarget)) {
+      team.classList.remove("is-over");
     }
   });
 
@@ -506,7 +576,7 @@ export function setupDragDropListeners() {
     event.preventDefault();
 
     const insertIndex =
-      dropKind === "members" ? getMemberInsertionIndex(dropzone, event) : undefined;
+      (dropKind === "members" || dropKind === "subteams") ? getMemberInsertionIndex(dropzone, event) : undefined;
 
     if (isCopyMode) {
       if (dropKind === "roster" && dragState.type === "employee") {
@@ -521,14 +591,12 @@ export function setupDragDropListeners() {
         copyEmployeeToTeam(dragState.id, teamId, "manager");
       }
 
-      if (dropKind === "members") {
-        if (dragState.type === "employee") {
-          copyEmployeeToTeam(dragState.id, teamId, "members", insertIndex);
-        }
+      if (dropKind === "members" && dragState.type === "employee") {
+        copyEmployeeToTeam(dragState.id, teamId, "members", insertIndex);
+      }
 
-        if (dragState.type === "team") {
-          copyTeamToTarget(dragState.id, teamId, insertIndex);
-        }
+      if (dropKind === "subteams" && dragState.type === "team") {
+        copyTeamToTarget(dragState.id, teamId, insertIndex);
       }
     } else {
       if (dropKind === "roster" && dragState.type === "employee") {
@@ -543,14 +611,12 @@ export function setupDragDropListeners() {
         moveEmployeeToTeam(dragState.id, teamId, "manager");
       }
 
-      if (dropKind === "members") {
-        if (dragState.type === "employee") {
-          moveEmployeeToTeam(dragState.id, teamId, "members", insertIndex);
-        }
+      if (dropKind === "members" && dragState.type === "employee") {
+        moveEmployeeToTeam(dragState.id, teamId, "members", insertIndex);
+      }
 
-        if (dragState.type === "team") {
-          moveTeamToTarget(dragState.id, teamId, insertIndex);
-        }
+      if (dropKind === "subteams" && dragState.type === "team") {
+        moveTeamToTarget(dragState.id, teamId, insertIndex);
       }
     }
 

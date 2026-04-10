@@ -43,7 +43,7 @@ test.describe("Delete", () => {
   }) => {
     // Ava Richardson (p1) is manager of Product (t1)
     const managerCard = page.locator(
-      '.team[data-team-id="t1"] > .team-body > .manager-slot .person-card'
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot .person-card'
     );
     await expect(managerCard).toBeVisible();
     await expect(managerCard.locator(".person-name")).toHaveText(
@@ -56,7 +56,7 @@ test.describe("Delete", () => {
     // Manager slot should now have no person card
     await expect(
       page.locator(
-        '.team[data-team-id="t1"] > .team-body > .manager-slot .person-card'
+        '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot .person-card'
       )
     ).toHaveCount(0);
   });

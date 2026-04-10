@@ -139,7 +139,7 @@ function checkMaxDirectReports(state, config) {
       details.push({ teamId, teamName: team.name, passed: true, message: "No manager" });
       continue;
     }
-    const directCount = team.members.filter((m) => m.type === "employee").length;
+    const directCount = team.members.length;
     const passed = directCount <= config.maxReports;
     details.push({
       teamId, teamName: team.name, passed,

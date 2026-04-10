@@ -23,6 +23,7 @@ export function addRandomRootTeam() {
     ownLayout: "expanded",
     manager: null,
     members: [],
+    subTeams: [],
     color: pickRandomItem(randomTeamColors),
   };
 
@@ -35,7 +36,7 @@ export function addRandomTeamToTeam(parentTeamId) {
   const teamId = addRandomRootTeam();
 
   state.rootTeams = state.rootTeams.filter((id) => id !== teamId);
-  insertMember(parentTeamId, { type: "team", id: teamId });
+  insertSubTeam(parentTeamId, { id: teamId });
 
   if (parentTeam.ownLayout === "collapsed") {
     parentTeam.ownLayout = "expanded";
@@ -51,7 +52,7 @@ export function removeEmployeeFromCurrentLocation(employeeId) {
     if (team.manager === employeeId && team.managerOverride) {
       preservedOverride = team.managerOverride;
     }
-    const member = team.members.find((m) => m.type === "employee" && m.id === employeeId);
+    const member = team.members.find((m) => m.id === employeeId);
     if (member?.managerOverride) {
       preservedOverride = member.managerOverride;
     }
@@ -63,7 +64,7 @@ export function removeEmployeeFromCurrentLocation(employeeId) {
       delete team.managerOverride;
     }
     team.members = team.members.filter(
-      (member) => !(member.type === "employee" && member.id === employeeId),
+      (member) => member.id !== employeeId,
     );
   }
 
@@ -74,8 +75,8 @@ export function removeTeamFromCurrentLocation(teamId) {
   state.rootTeams = state.rootTeams.filter((id) => id !== teamId);
 
   for (const team of Object.values(state.teams)) {
-    team.members = team.members.filter(
-      (member) => !(member.type === "team" && member.id === teamId),
+    team.subTeams = team.subTeams.filter(
+      (sub) => sub.id !== teamId,
     );
   }
 }
@@ -83,6 +84,11 @@ export function removeTeamFromCurrentLocation(teamId) {
 export function insertMember(teamId, member, insertIndex) {
   const members = getTeam(teamId).members;
   members.splice(normalizeInsertIndex(members, insertIndex), 0, member);
+}
+
+export function insertSubTeam(teamId, entry, insertIndex) {
+  const subTeams = getTeam(teamId).subTeams;
+  subTeams.splice(normalizeInsertIndex(subTeams, insertIndex), 0, entry);
 }
 
 export function moveEmployeeToTeam(employeeId, teamId, slot, insertIndex) {
@@ -102,7 +108,7 @@ export function moveEmployeeToTeam(employeeId, teamId, slot, insertIndex) {
     return true;
   }
 
-  const entry = { type: "employee", id: employeeId };
+  const entry = { id: employeeId };
   if (preservedOverride) {
     entry.managerOverride = preservedOverride;
   }
@@ -130,7 +136,7 @@ export function moveTeamToTarget(teamId, targetTeamId, insertIndex) {
     return true;
   }
 
-  insertMember(targetTeamId, { type: "team", id: teamId }, insertIndex);
+  insertSubTeam(targetTeamId, { id: teamId }, insertIndex);
   return true;
 }
 
@@ -150,16 +156,17 @@ export function deepCopyTeam(teamId) {
   const newTeamId = `t${teamSequence}`;
   const newManager = original.manager ? deepCopyEmployee(original.manager) : null;
   const newMembers = original.members.map((member) => {
-    if (member.type === "employee") {
-      return { type: "employee", id: deepCopyEmployee(member.id) };
-    }
-    return { type: "team", id: deepCopyTeam(member.id) };
+    return { id: deepCopyEmployee(member.id) };
+  });
+  const newSubTeams = original.subTeams.map((sub) => {
+    return { id: deepCopyTeam(sub.id) };
   });
   state.teams[newTeamId] = {
     ...original,
     id: newTeamId,
     manager: newManager,
     members: newMembers,
+    subTeams: newSubTeams,
   };
   return newTeamId;
 }
@@ -173,7 +180,7 @@ export function copyEmployeeToTeam(employeeId, teamId, slot, insertIndex) {
     team.manager = newId;
     return true;
   }
-  insertMember(teamId, { type: "employee", id: newId }, insertIndex);
+  insertMember(teamId, { id: newId }, insertIndex);
   return true;
 }
 
@@ -191,7 +198,7 @@ export function copyTeamToTarget(teamId, targetTeamId, insertIndex) {
     state.rootTeams.push(newId);
     return true;
   }
-  insertMember(targetTeamId, { type: "team", id: newId }, insertIndex);
+  insertSubTeam(targetTeamId, { id: newId }, insertIndex);
   return true;
 }
 
@@ -215,10 +222,8 @@ export function deleteTeam(teamId) {
     return;
   }
 
-  for (const member of [...team.members]) {
-    if (member.type === "team") {
-      deleteTeam(member.id);
-    }
+  for (const sub of [...team.subTeams]) {
+    deleteTeam(sub.id);
   }
 
   removeTeamFromCurrentLocation(teamId);

@@ -138,10 +138,10 @@ test.describe("Drag and Drop — Copy", () => {
         .click();
     }
 
-    const t2MemberSlot = page.locator(
-      '.team[data-team-id="t2"] > .team-body > .member-slot'
+    const t2SubteamSlot = page.locator(
+      '.team[data-team-id="t2"] > .team-body > .subteam-slot'
     );
-    const teamsBefore = await t2MemberSlot.locator(".team").count();
+    const teamsBefore = await t2SubteamSlot.locator(".team").count();
 
     // Copy Research (t3) from Product to Operations
     await dragAndDropCopy(
@@ -156,7 +156,7 @@ test.describe("Drag and Drop — Copy", () => {
     ).toHaveCount(1);
 
     // A copy should appear in Operations (with a new team ID)
-    const teamsAfter = await t2MemberSlot.locator(".team").count();
+    const teamsAfter = await t2SubteamSlot.locator(".team").count();
     expect(teamsAfter).toBe(teamsBefore + 1);
   });
 });

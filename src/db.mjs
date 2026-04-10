@@ -145,6 +145,13 @@ export function loadScenario(id) {
     result = JSON.parse(stmt.get()[0]);
   }
   stmt.free();
+  // Normalize teams from older state that may lack subTeams/members
+  if (result?.teams) {
+    for (const team of Object.values(result.teams)) {
+      if (!team.subTeams) team.subTeams = [];
+      if (!team.members) team.members = [];
+    }
+  }
   return result;
 }
 

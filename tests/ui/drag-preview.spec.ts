@@ -20,7 +20,7 @@ test.describe("Drag Preview — Empty Note Hiding", () => {
     const fieldMemberSlot = page.locator(
       '.team[data-team-id="t4"] > .team-body > .member-slot'
     );
-    const emptyNote = fieldMemberSlot.locator(".empty-note");
+    const emptyNote = fieldMemberSlot.locator("> .empty-note");
     await expect(emptyNote).toBeVisible();
 
     // Now drag an employee over the empty Field member slot
@@ -86,9 +86,7 @@ test.describe("Drag Preview — Empty Note Hiding", () => {
     const fieldMemberSlot = page.locator(
       '.team[data-team-id="t4"] > .team-body > .member-slot'
     );
-    const emptyNote = fieldMemberSlot.locator(".empty-note");
-
-    // Hover then cancel
+    const emptyNote = fieldMemberSlot.locator("> .empty-note");
     await dragHover(
       page,
       '.person-card[data-id="p8"]',
@@ -142,20 +140,20 @@ test.describe("Drag Preview — Empty Note Hiding", () => {
 });
 
 test.describe("Drag Preview — Column Stability", () => {
-  test("people-group width is preserved when dragging within same slot", async ({
+  test("member-slot width is preserved when dragging within same slot", async ({
     page,
   }) => {
     // Product (t1) has Milo (p2) and Zuri (p3) as members.
-    // In default vertical mode, they stack in a column within .people-group.
-    // Verify dragging one card doesn't collapse the people-group width.
-    const peopleGroup =
-      '.team[data-team-id="t1"] > .team-body > .member-slot > .people-group';
+    // In default vertical mode, they stack in a column within .member-slot.
+    // Verify dragging one card doesn't collapse the member-slot width.
+    const memberSlotSel =
+      '.team[data-team-id="t1"] > .team-body > .member-slot';
 
-    // Verify people are in the people-group
+    // Verify people are in the member-slot
     const beforeLayout = await page.evaluate((sel) => {
-      const group = document.querySelector(sel)!;
+      const slot = document.querySelector(sel)!;
       const entries = [
-        ...group.querySelectorAll(":scope > .member-entry"),
+        ...slot.querySelectorAll(".member-entry"),
       ].filter(
         (e) =>
           !e.classList.contains("dragging-source") &&
@@ -163,23 +161,23 @@ test.describe("Drag Preview — Column Stability", () => {
       );
       return {
         count: entries.length,
-        groupWidth: Math.round(group.getBoundingClientRect().width),
+        slotWidth: Math.round(slot.getBoundingClientRect().width),
       };
-    }, peopleGroup);
+    }, memberSlotSel);
 
     expect(beforeLayout.count).toBe(2);
-    expect(beforeLayout.groupWidth).toBeGreaterThan(0);
+    expect(beforeLayout.slotWidth).toBeGreaterThan(0);
 
     // Drag the second person and hover over the first
     const ids = await page.evaluate((sel) => {
-      const group = document.querySelector(sel)!;
+      const slot = document.querySelector(sel)!;
       const cards = [
-        ...group.querySelectorAll(
-          ":scope > .member-entry:not(.dragging-source) .person-card"
+        ...slot.querySelectorAll(
+          ".member-entry:not(.dragging-source) .person-card"
         ),
       ];
       return cards.slice(0, 2).map((c) => c.getAttribute("data-id"));
-    }, peopleGroup);
+    }, memberSlotSel);
 
     await dragHover(
       page,
@@ -189,23 +187,23 @@ test.describe("Drag Preview — Column Stability", () => {
 
     // Check that the preview width matches the original card width (no inflation)
     const previewInfo = await page.evaluate((sel) => {
-      const group = document.querySelector(sel)!;
-      const preview = group.querySelector(".drag-preview-entry");
-      const card = group.querySelector(
+      const slot = document.querySelector(sel)!;
+      const preview = slot.querySelector(".drag-preview-entry");
+      const card = slot.querySelector(
         ".member-entry:not(.drag-preview-entry):not(.dragging-source) .person-card"
       );
       if (!preview || !card) return null;
       return {
         previewWidth: Math.round(preview.getBoundingClientRect().width),
         cardWidth: Math.round(card.getBoundingClientRect().width),
-        groupWidth: Math.round(group.getBoundingClientRect().width),
+        slotWidth: Math.round(slot.getBoundingClientRect().width),
       };
-    }, peopleGroup);
+    }, memberSlotSel);
 
     expect(previewInfo).toBeTruthy();
     expect(previewInfo!.previewWidth).toBe(previewInfo!.cardWidth);
-    // People-group width should not have collapsed
-    expect(previewInfo!.groupWidth).toBeGreaterThanOrEqual(beforeLayout.groupWidth - 2);
+    // Member-slot width should not have collapsed
+    expect(previewInfo!.slotWidth).toBeGreaterThanOrEqual(beforeLayout.slotWidth - 2);
 
     await dragCancel(page, `.person-card[data-id="${ids[1]}"]`);
   });
@@ -249,16 +247,15 @@ test.describe("Drag Preview — Hysteresis", () => {
     // a different raw index
     const coords = await page.evaluate((sel) => {
       const slot = document.querySelector(sel)!;
-      const group = slot.querySelector('.people-group');
-      // Entries may be direct children or inside .people-column wrappers
-      const entries = group ? [
-        ...group.querySelectorAll(".member-entry"),
+      // Entries are direct children of member-slot (or inside .people-column wrappers)
+      const entries = [
+        ...slot.querySelectorAll(":scope > .member-entry, :scope > .people-column .member-entry"),
       ].filter(
         (e) =>
           !e.classList.contains("dragging-source") &&
           !e.classList.contains("drag-preview-entry") &&
           e.querySelector(".person-card")
-      ) : [];
+      );
       if (entries.length < 1) return null;
       const r = entries[entries.length - 1].getBoundingClientRect();
       return {
@@ -287,15 +284,13 @@ test.describe("Drag Preview — Hysteresis", () => {
       { slot: memberSlot, x: coords!.xFar, y: coords!.yFar }
     );
 
-    // Record the preview position within people-group
+    // Record the preview position within member-slot
     const positionBefore = await page.evaluate((sel) => {
       const slot = document.querySelector(sel)!;
-      const group = slot.querySelector('.people-group');
-      if (!group) return null;
-      const preview = group.querySelector(".drag-preview-entry");
+      const preview = slot.querySelector(".drag-preview-entry");
       if (!preview) return null;
       // Entries may be inside .people-column wrappers in horizontal layout
-      const entries = [...group.querySelectorAll(".member-entry")].filter(
+      const entries = [...slot.querySelectorAll(":scope > .member-entry, :scope > .people-column .member-entry")].filter(
         (n) => !n.classList.contains("dragging-source")
       );
       return entries.indexOf(preview);
@@ -330,12 +325,10 @@ test.describe("Drag Preview — Hysteresis", () => {
     // Preview should still be at the same position
     const positionAfter = await page.evaluate((sel) => {
       const slot = document.querySelector(sel)!;
-      const group = slot.querySelector('.people-group');
-      if (!group) return null;
-      const preview = group.querySelector(".drag-preview-entry");
+      const preview = slot.querySelector(".drag-preview-entry");
       if (!preview) return null;
       // Entries may be inside .people-column wrappers in horizontal layout
-      const entries = [...group.querySelectorAll(".member-entry")].filter(
+      const entries = [...slot.querySelectorAll(":scope > .member-entry, :scope > .people-column .member-entry")].filter(
         (n) => !n.classList.contains("dragging-source")
       );
       return entries.indexOf(preview);

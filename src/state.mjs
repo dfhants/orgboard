@@ -55,9 +55,11 @@ export const createInitialState = () => ({
       ownLayout: "expanded",
       manager: "p1",
       members: [
-        { type: "employee", id: "p2" },
-        { type: "employee", id: "p3" },
-        { type: "team", id: "t3" },
+        { id: "p2" },
+        { id: "p3" },
+      ],
+      subTeams: [
+        { id: "t3" },
       ],
       color: "#818cf8",
     },
@@ -67,8 +69,10 @@ export const createInitialState = () => ({
       ownLayout: "expanded",
       manager: "p4",
       members: [
-        { type: "employee", id: "p5" },
-        { type: "team", id: "t4" },
+        { id: "p5" },
+      ],
+      subTeams: [
+        { id: "t4" },
       ],
       color: "#60a5fa",
     },
@@ -77,7 +81,8 @@ export const createInitialState = () => ({
       name: "Research",
       ownLayout: "collapsed",
       manager: "p6",
-      members: [{ type: "employee", id: "p7" }],
+      members: [{ id: "p7" }],
+      subTeams: [],
       color: "#a78bfa",
     },
     t4: {
@@ -85,7 +90,8 @@ export const createInitialState = () => ({
       name: "Field",
       ownLayout: "expanded",
       manager: null,
-      members: [{ type: "employee", id: "p8" }],
+      members: [{ id: "p8" }],
+      subTeams: [],
       color: "#38bdf8",
     },
   },
@@ -165,5 +171,5 @@ export function getAllManagers() {
 export function findMemberEntry(employeeId, teamId) {
   const team = getTeam(teamId);
   if (!team) return null;
-  return team.members.find((m) => m.type === "employee" && m.id === employeeId) ?? null;
+  return team.members.find((m) => m.id === employeeId) ?? null;
 }

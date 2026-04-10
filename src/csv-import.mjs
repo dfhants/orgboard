@@ -210,7 +210,7 @@ export function loadCsvData(rows, headers, mapping, loadMode) {
 
       const teamMembers = members
         .filter((m) => m.id !== managerId)
-        .map((m) => ({ type: "employee", id: m.id }));
+        .map((m) => ({ id: m.id }));
 
       state.teams[teamId] = {
         id: teamId,
@@ -218,6 +218,7 @@ export function loadCsvData(rows, headers, mapping, loadMode) {
         ownLayout: "expanded",
         manager: managerId,
         members: teamMembers,
+        subTeams: [],
         color: pickRandomItem(randomTeamColors),
       };
       state.rootTeams.push(teamId);
@@ -261,7 +262,7 @@ function buildTeamsFromManagers(newPeople) {
     managerToTeamId.set(managerName, teamId);
 
     // Initially, add all reports as employee members
-    const teamMembers = reports.map((r) => ({ type: "employee", id: r.id }));
+    const teamMembers = reports.map((r) => ({ id: r.id }));
 
     state.teams[teamId] = {
       id: teamId,
@@ -269,6 +270,7 @@ function buildTeamsFromManagers(newPeople) {
       ownLayout: "expanded",
       manager: managerPerson.id,
       members: teamMembers,
+      subTeams: [],
       color: pickRandomItem(randomTeamColors),
     };
   }
@@ -285,13 +287,14 @@ function buildTeamsFromManagers(newPeople) {
       const reportName = state.employees[r.id].name;
       const childTeamId = managerToTeamId.get(reportName);
       if (childTeamId) {
-        // This report has their own team — replace employee entry with team entry
+        // This report has their own team — move from members to subTeams
         const idx = parentTeam.members.findIndex(
-          (m) => m.type === "employee" && m.id === r.id
+          (m) => m.id === r.id
         );
         if (idx !== -1) {
-          parentTeam.members[idx] = { type: "team", id: childTeamId };
+          parentTeam.members.splice(idx, 1);
         }
+        parentTeam.subTeams.push({ id: childTeamId });
         nestedTeamIds.add(childTeamId);
       }
     }
@@ -309,7 +312,7 @@ function buildTeamsFromManagers(newPeople) {
   for (const t of Object.values(state.teams)) {
     if (t.manager) allTeamPersonIds.add(t.manager);
     for (const m of t.members) {
-      if (m.type === "employee") allTeamPersonIds.add(m.id);
+      allTeamPersonIds.add(m.id);
     }
   }
   for (const p of newPeople) {

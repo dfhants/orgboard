@@ -89,14 +89,14 @@ test.describe("Initial Render", () => {
     // Product manager: Ava
     await expect(
       page.locator(
-        '.team[data-team-id="t1"] > .team-body > .manager-slot .person-name'
+        '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot .person-name'
       )
     ).toHaveText("Ava Richardson");
 
     // Operations manager: Noah
     await expect(
       page.locator(
-        '.team[data-team-id="t2"] > .team-body > .manager-slot .person-name'
+        '.team[data-team-id="t2"] > .team-body > .member-slot > .manager-slot .person-name'
       )
     ).toHaveText("Noah Tremblay");
 
@@ -180,7 +180,7 @@ test.describe("Initial Render", () => {
           ":scope > .team-body > .member-slot"
         );
         const mgrSlot = team.querySelector(
-          ":scope > .team-body > .manager-slot"
+          ":scope > .team-body > .member-slot > .manager-slot"
         );
         const memR = memSlot?.getBoundingClientRect();
         const mgrR = mgrSlot?.getBoundingClientRect();
@@ -216,8 +216,8 @@ test.describe("Initial Render", () => {
     // Find the newest team (last in root-dropzone)
     const newTeam = page.locator(".root-dropzone > .team").last();
     const memberSlot = newTeam.locator("> .team-body > .member-slot");
-    await expect(memberSlot.locator(".empty-note")).toContainText(
-      "Drop people or teams here"
+    await expect(memberSlot.locator("> .empty-note")).toContainText(
+      "Drop people here"
     );
   });
 

@@ -30,6 +30,13 @@
 }
 
 .team[data-view="collapsed"] {
+  max-height: min-content;
+}
+
+.team[data-view="collapsed"].is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(79, 110, 247, 0.1);
 }
 
 .team-titlebar {
@@ -151,7 +158,7 @@
   flex-wrap: wrap;
   gap: 3px;
   align-items: center;
-  padding: 4px 0;
+  padding: 0;
 }
 
 .facepile-dot {
@@ -195,6 +202,23 @@
   max-width: 100%;
 }
 
+/* ── Member slot: wrapping container for manager + people ── */
+.member-slot {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  align-content: flex-start;
+}
+
+/* Manager sits as the first flex item — cards flow beside and below it. */
+.manager-slot {
+  flex: 0 0 auto;
+  max-width: min-content;
+  max-height: min-content;
+}
+
 .slot {
   position: relative;
   border: 1.5px dashed rgba(0, 0, 0, 0.08);
@@ -203,20 +227,60 @@
   padding: 10px;
 }
 
+.slot.manager-slot {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Empty manager slot: gold placeholder so it's a visible drop target */
+.slot.manager-slot:not(:has(.person-card)) {
+  background: rgba(234, 179, 8, 0.15);
+  border: 1.5px dashed rgba(234, 179, 8, 0.3);
+  border-radius: var(--radius-lg);
+  min-width: 120px;
+  min-height: 120px;
+}
+
+/* Occupied manager: glow on the card itself */
+.manager-slot > .person-card {
+  box-shadow: 0 0 12px 4px rgba(234, 179, 8, 0.45);
+}
+
 /* 143px ≈ one person-card with padding — keeps slots a consistent square
    minimum so they don't jump around during drag operations */
-.manager-slot,
 .member-slot {
   min-height: 143px;
   min-width: 143px;
   transition: all var(--transition);
 }
 
-.member-slot {
-  position: relative;
+/* ── Sub-team slot: hidden when empty, visible during team drags ── */
+.subteam-slot {
   display: flex;
+  flex-flow: column nowrap;
   gap: 10px;
   align-items: flex-start;
+  align-content: flex-start;
+  transition: all var(--transition);
+}
+
+.team-body.horizontal > .subteam-slot {
+  flex-flow: row nowrap;
+}
+
+.subteam-slot:empty,
+.subteam-slot:not(:has(> :not(.dragging-source))) {
+  display: none;
+}
+
+.subteam-slot.is-over {
+  display: flex;
+  min-height: 60px;
+  padding: 10px;
 }
 
 .member-entry {
@@ -224,44 +288,30 @@
   flex: 0 0 auto;
 }
 
-/* ── People group: wrapping container for employee entries ── */
-.people-group {
-  display: flex;
-  gap: 10px;
-  align-content: flex-start;
-  align-items: flex-start;
-  flex: 0 0 auto;
-}
-
-/* ── Manager can always fit contents since it only has one member ever ── */
-.manager-slot {
-  max-width: min-content;
-  max-height: min-content;
+/* Override absolute positioning from .slot > .empty-note (drag-drop.css)
+   so empty-notes are regular flex items sized to match a person-card. */
+.manager-slot > .empty-note,
+.member-slot > .empty-note {
+  position: static;
+  inset: auto;
+  width: 120px;
+  height: 120px;
+  font-size: 0.65rem;
 }
 
 .member-slot.layout-horizontal {
-  flex-flow: row nowrap;
   height: 100%;
   overflow: hidden;
+  flex-flow: column wrap;
+  align-content: flex-start;
 }
 
 .member-slot.layout-vertical {
-  flex-flow: column nowrap;
   width: 100%;
   overflow: hidden;
 }
 
-.member-slot.layout-horizontal .people-group {
-  flex-direction: column;
-  max-height: 100%;
-}
-
-/* When JS wraps entries into .people-column divs, switch to row layout */
-.member-slot.layout-horizontal .people-group.has-columns {
-  flex-direction: row;
-  max-height: none;
-}
-
+/* Packing wrapper — column in horizontal mode, row in vertical mode */
 .people-column {
   display: flex;
   flex-direction: column;
@@ -269,14 +319,16 @@
   flex: 0 0 auto;
 }
 
-.member-slot.layout-vertical .people-group {
-  flex-flow: row wrap;
-  max-width: 100%;
+.people-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .team[data-view="collapsed"] .team-body {
+  display: grid;
   gap: 8px;
-  grid-template-columns: max-content max-content;
   align-items: start;
 }
 
@@ -286,6 +338,39 @@
 .team[data-view="collapsed"] .manager-slot {
   min-width: 0;
   min-height: 0;
+}
+
+.team[data-view="collapsed"] .member-slot {
+  height: auto;
+  overflow: visible;
+  flex-flow: row wrap;
+  align-items: center;
+  padding: 4px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.team[data-view="collapsed"] .manager-slot {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius);
+}
+
+/* Empty collapsed manager: gold placeholder */
+.team[data-view="collapsed"] .manager-slot:has(.facepile-empty) {
+  background: rgba(234, 179, 8, 0.15);
+  padding: 4px;
+}
+
+/* Occupied collapsed manager: glow on the dot */
+.team[data-view="collapsed"] .manager-slot .facepile-dot:not(.facepile-empty) {
+  box-shadow: 0 0 8px 3px rgba(234, 179, 8, 0.45);
+}
+
+.team[data-view="collapsed"] .subteam-slot {
+  display: none;
 }
 
 .child-team {
@@ -299,7 +384,6 @@
 
 .page-shell[data-layout="horizontal"] .team {
   height: 100%;
-  max-height: max-content;
 }
 
 .page-shell[data-layout="vertical"] .team {
@@ -309,7 +393,6 @@
 
 .page-shell[data-layout="horizontal"] .child-team {
   height: 100%;
-  max-height: max-content;
 }
 
 .page-shell[data-layout="vertical"] .child-team {

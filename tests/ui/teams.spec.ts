@@ -183,7 +183,7 @@ test.describe("Team Expand / Collapse", () => {
   }) => {
     const t1 = page.locator('.team[data-team-id="t1"]');
     const nestedBefore = await t1
-      .locator("> .team-body > .member-slot .team")
+      .locator("> .team-body > .subteam-slot .team")
       .count();
 
     await page
@@ -194,7 +194,7 @@ test.describe("Team Expand / Collapse", () => {
       .click();
 
     const nestedAfter = await t1
-      .locator("> .team-body > .member-slot .team")
+      .locator("> .team-body > .subteam-slot .team")
       .count();
     expect(nestedAfter).toBe(nestedBefore + 1);
   });
@@ -206,7 +206,7 @@ test.describe("Team Expand / Collapse", () => {
 
     // Should have a facepile with dots inside the member slot
     const memberSlot = team.locator("> .team-body > .member-slot");
-    const facepile = memberSlot.locator(".member-facepile");
+    const facepile = memberSlot.locator("> .member-facepile");
     await expect(facepile).toBeVisible();
     const dots = facepile.locator(".facepile-dot");
     const dotCount = await dots.count();

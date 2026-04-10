@@ -102,7 +102,7 @@ test.describe("Drag and Drop — Move", () => {
   test("move manager out of manager slot to member slot", async ({ page }) => {
     // Ava (p1) is manager of Product (t1)
     const managerSlot = page.locator(
-      '.team[data-team-id="t1"] > .team-body > .manager-slot'
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot'
     );
     await expect(
       managerSlot.locator('.person-card[data-id="p1"]')
@@ -110,7 +110,7 @@ test.describe("Drag and Drop — Move", () => {
 
     await dragAndDrop(
       page,
-      '.team[data-team-id="t1"] > .team-body > .manager-slot .person-card[data-id="p1"]',
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot .person-card[data-id="p1"]',
       '.team[data-team-id="t2"] > .team-body > .member-slot'
     );
 
@@ -184,7 +184,7 @@ test.describe("Drag and Drop — Move", () => {
   }) => {
     // Product (t1) already has Ava (p1) as manager
     const managerSlot = page.locator(
-      '.team[data-team-id="t1"] > .team-body > .manager-slot'
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot'
     );
     await expect(
       managerSlot.locator('.person-card[data-id="p1"]')
@@ -194,7 +194,7 @@ test.describe("Drag and Drop — Move", () => {
     await dragAndDrop(
       page,
       '.person-card[data-id="p2"]',
-      '.team[data-team-id="t1"] > .team-body > .manager-slot'
+      '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot'
     );
 
     // Wait for async class cleanup (setTimeout(0) in dragstart handler
@@ -259,7 +259,7 @@ test.describe("Drag and Drop — Move", () => {
     );
 
     const idsBefore = await memberSlot
-      .locator(".people-group > .member-entry .person-card")
+      .locator(".member-entry .person-card")
       .evaluateAll((cards) => cards.map((c) => c.getAttribute("data-id")));
     expect(idsBefore.length).toBeGreaterThanOrEqual(2);
     const [firstId, secondId] = idsBefore;
@@ -273,7 +273,7 @@ test.describe("Drag and Drop — Move", () => {
     );
 
     const idsAfter = await memberSlot
-      .locator(".people-group > .member-entry .person-card")
+      .locator(".member-entry .person-card")
       .evaluateAll((cards) => cards.map((c) => c.getAttribute("data-id")));
     expect(idsAfter.length).toBe(idsBefore.length);
 
@@ -295,12 +295,12 @@ test.describe("Drag and Drop — Move", () => {
         .click();
     }
 
-    const managerSlot = t3.locator("> .team-body > .manager-slot");
+    const managerSlot = t3.locator("> .team-body > .member-slot > .manager-slot");
     await expect(managerSlot.locator('.person-card[data-id="p6"]')).toBeVisible();
 
     // Start dragging the manager (Iris, p6) and hover over another slot
     const sourceSelector =
-      '.team[data-team-id="t3"] > .team-body > .manager-slot .person-card[data-id="p6"]';
+      '.team[data-team-id="t3"] > .team-body > .member-slot > .manager-slot .person-card[data-id="p6"]';
     await dragHover(
       page,
       sourceSelector,

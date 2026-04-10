@@ -14,8 +14,8 @@ function makeState(overrides = {}) {
       p5: { id: "p5", name: "Eve", role: "QA Engineer", location: "Tokyo", timezone: "JST (UTC+9)", level: 4, requested: false },
     },
     teams: {
-      t1: { id: "t1", name: "Alpha", manager: "p1", members: [{ type: "employee", id: "p2" }, { type: "employee", id: "p3" }], color: "#aaa" },
-      t2: { id: "t2", name: "Beta", manager: "p4", members: [{ type: "employee", id: "p5" }], color: "#bbb" },
+      t1: { id: "t1", name: "Alpha", manager: "p1", members: [{ id: "p2" }, { id: "p3" }], color: "#aaa", subTeams: [] },
+      t2: { id: "t2", name: "Beta", manager: "p4", members: [{ id: "p5" }], color: "#bbb", subTeams: [] },
     },
     rootTeams: ["t1", "t2"],
     unassignedEmployees: [],
@@ -102,7 +102,7 @@ describe("has-manager", () => {
   it("fails when a team has no manager", () => {
     const r = runCheck("has-manager", {}, {
       teams: {
-        t1: { id: "t1", name: "Alpha", manager: null, members: [{ type: "employee", id: "p2" }], color: "#aaa" },
+        t1: { id: "t1", name: "Alpha", manager: null, members: [{ id: "p2" }], color: "#aaa", subTeams: [] },
       },
     });
     assert.ok(!r.passed);
@@ -116,8 +116,8 @@ describe("manager-match", () => {
     // Override t2 so its member matches the manager's location
     const r = runCheck("manager-match", { field: "location", match: "any" }, {
       teams: {
-        t1: { id: "t1", name: "Alpha", manager: "p1", members: [{ type: "employee", id: "p2" }, { type: "employee", id: "p3" }], color: "#aaa" },
-        t2: { id: "t2", name: "Beta", manager: "p4", members: [{ type: "employee", id: "p2" }], color: "#bbb" },
+        t1: { id: "t1", name: "Alpha", manager: "p1", members: [{ id: "p2" }, { id: "p3" }], color: "#aaa", subTeams: [] },
+        t2: { id: "t2", name: "Beta", manager: "p4", members: [{ id: "p2" }], color: "#bbb", subTeams: [] },
       },
     });
     // t1: manager p1 NYC, p3 NYC → match; t2: manager p4 London, p2 London → match
@@ -214,8 +214,8 @@ describe("max-memberships", () => {
     // Put p2 in both teams
     const r = runCheck("max-memberships", { maxTeams: 1 }, {
       teams: {
-        t1: { id: "t1", name: "A", manager: "p1", members: [{ type: "employee", id: "p2" }], color: "#a" },
-        t2: { id: "t2", name: "B", manager: "p2", members: [{ type: "employee", id: "p3" }], color: "#b" },
+        t1: { id: "t1", name: "A", manager: "p1", members: [{ id: "p2" }], color: "#a", subTeams: [] },
+        t2: { id: "t2", name: "B", manager: "p2", members: [{ id: "p3" }], color: "#b", subTeams: [] },
       },
     });
     // p2 is member of t1 and manager of t2 → 2 memberships > 1
@@ -249,7 +249,7 @@ describe("manager-changed", () => {
         p4: { id: "p4", name: "Diana", role: "PM", location: "London", timezone: "GMT (UTC+0)", level: 8, requested: false, currentManager: "" },
       },
       teams: {
-        t1: { id: "t1", name: "Alpha", manager: "p1", members: [{ type: "employee", id: "p2" }, { type: "employee", id: "p3" }], color: "#aaa" },
+        t1: { id: "t1", name: "Alpha", manager: "p1", members: [{ id: "p2" }, { id: "p3" }], color: "#aaa", subTeams: [] },
       },
       rootTeams: ["t1"],
       unassignedEmployees: ["p4"],

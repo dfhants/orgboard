@@ -38,6 +38,7 @@ function makeTeam(id, opts = {}) {
     ownLayout: opts.ownLayout ?? "expanded",
     manager: opts.manager ?? null,
     members: opts.members ?? [],
+    subTeams: opts.subTeams ?? [],
     childLayout: opts.childLayout ?? "horizontal",
     color: opts.color ?? "#818cf8",
   };
@@ -52,8 +53,8 @@ function makeTeam(id, opts = {}) {
 
 describe("isTeamInside", () => {
   const teams = {
-    t1: makeTeam("t1", { members: [{ type: "team", id: "t2" }] }),
-    t2: makeTeam("t2", { members: [{ type: "team", id: "t3" }] }),
+    t1: makeTeam("t1", { subTeams: [{ id: "t2" }] }),
+    t2: makeTeam("t2", { subTeams: [{ id: "t3" }] }),
     t3: makeTeam("t3"),
     t4: makeTeam("t4"),
   };
@@ -130,7 +131,7 @@ describe("cleanupManagerOverrides", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: "p1",
-          members: [{ type: "employee", id: "p2", managerOverride: "p1" }],
+          members: [{ id: "p2", managerOverride: "p1" }],
         }),
       },
     };
@@ -144,7 +145,7 @@ describe("cleanupManagerOverrides", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: null,
-          members: [{ type: "employee", id: "p2", managerOverride: "p1" }],
+          members: [{ id: "p2", managerOverride: "p1" }],
         }),
       },
     };
@@ -162,7 +163,7 @@ describe("cleanupManagerOverrides", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: "p1",
-          members: [{ type: "employee", id: "p2", managerOverride: "p3" }],
+          members: [{ id: "p2", managerOverride: "p3" }],
         }),
       },
     };
@@ -180,7 +181,7 @@ describe("cleanupManagerOverrides", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: "p1",
-          members: [{ type: "employee", id: "p2", managerOverride: "p3" }],
+          members: [{ id: "p2", managerOverride: "p3" }],
         }),
         t2: makeTeam("t2", { manager: "p3", members: [] }),
       },
@@ -195,7 +196,8 @@ describe("cleanupManagerOverrides", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: "p1",
-          members: [{ type: "team", id: "t2" }],
+          members: [],
+          subTeams: [{ id: "t2" }],
         }),
         t2: makeTeam("t2"),
       },
@@ -254,10 +256,10 @@ describe("countDirectEmployees", () => {
   it("counts only employee members", () => {
     const team = makeTeam("t1", {
       members: [
-        { type: "employee", id: "p1" },
-        { type: "team", id: "t2" },
-        { type: "employee", id: "p2" },
+        { id: "p1" },
+        { id: "p2" },
       ],
+      subTeams: [{ id: "t2" }],
     });
     assert.equal(countDirectEmployees(team), 2);
   });
@@ -273,10 +275,9 @@ describe("countNestedTeams", () => {
   it("counts only team members", () => {
     const team = makeTeam("t1", {
       members: [
-        { type: "employee", id: "p1" },
-        { type: "team", id: "t2" },
-        { type: "team", id: "t3" },
+        { id: "p1" },
       ],
+      subTeams: [{ id: "t2" }, { id: "t3" }],
     });
     assert.equal(countNestedTeams(team), 2);
   });
@@ -293,7 +294,7 @@ describe("countTeamMemberships", () => {
     const teams = {
       t1: makeTeam("t1", {
         manager: "p1",
-        members: [{ type: "employee", id: "p1" }],
+        members: [{ id: "p1" }],
       }),
     };
     assert.equal(countTeamMemberships(teams, "p1"), 2);
@@ -302,7 +303,7 @@ describe("countTeamMemberships", () => {
   it("counts across multiple teams", () => {
     const teams = {
       t1: makeTeam("t1", { manager: "p1" }),
-      t2: makeTeam("t2", { members: [{ type: "employee", id: "p1" }] }),
+      t2: makeTeam("t2", { members: [{ id: "p1" }] }),
     };
     assert.equal(countTeamMemberships(teams, "p1"), 2);
   });
@@ -325,13 +326,13 @@ describe("collectAllEmployeesInTeam", () => {
     t1: makeTeam("t1", {
       manager: "p1",
       members: [
-        { type: "employee", id: "p2" },
-        { type: "team", id: "t2" },
+        { id: "p2" },
       ],
+      subTeams: [{ id: "t2" }],
     }),
     t2: makeTeam("t2", {
       manager: "p3",
-      members: [{ type: "employee", id: "p4" }],
+      members: [{ id: "p4" }],
     }),
   };
 
@@ -368,7 +369,7 @@ describe("buildHierarchyTree", () => {
         t1: makeTeam("t1", {
           name: "Alpha",
           manager: "p1",
-          members: [{ type: "employee", id: "p2" }],
+          members: [{ id: "p2" }],
           color: "#abc",
         }),
       },
@@ -394,8 +395,8 @@ describe("buildHierarchyTree", () => {
         t1: makeTeam("t1", {
           manager: "p1",
           members: [
-            { type: "employee", id: "p2" },
-            { type: "employee", id: "p3", managerOverride: "p2" },
+            { id: "p2" },
+            { id: "p3", managerOverride: "p2" },
           ],
         }),
       },
@@ -419,7 +420,8 @@ describe("buildHierarchyTree", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: "p1",
-          members: [{ type: "team", id: "t2" }],
+          members: [],
+          subTeams: [{ id: "t2" }],
         }),
         t2: makeTeam("t2", {
           name: "Sub",
@@ -441,7 +443,7 @@ describe("buildHierarchyTree", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: null,
-          members: [{ type: "employee", id: "p1" }],
+          members: [{ id: "p1" }],
         }),
       },
     };
@@ -471,9 +473,9 @@ describe("computeTeamStats", () => {
         name: "Alpha",
         manager: "p1",
         members: [
-          { type: "employee", id: "p2" },
-          { type: "team", id: "t2" },
+          { id: "p2" },
         ],
+        subTeams: [{ id: "t2" }],
         color: "#abc",
       }),
       t2: makeTeam("t2", {
@@ -527,7 +529,7 @@ describe("computeGlobalStats", () => {
       teams: {
         t1: makeTeam("t1", {
           manager: "p1",
-          members: [{ type: "employee", id: "p2" }],
+          members: [{ id: "p2" }],
         }),
       },
       rootTeams: ["t1"],
@@ -583,7 +585,7 @@ describe("computeManagerChanges", () => {
         p2: { ...makeEmployee("p2", { name: "Bob" }), currentManager: "Charlie" },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p2" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p2" }] }),
       },
       rootTeams: ["t1"],
       unassignedEmployees: [],
@@ -603,7 +605,7 @@ describe("computeManagerChanges", () => {
         p2: { ...makeEmployee("p2", { name: "Bob" }), currentManager: "Alice" },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p2" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p2" }] }),
       },
       rootTeams: ["t1"],
       unassignedEmployees: [],
@@ -634,7 +636,7 @@ describe("computeManagerChanges", () => {
         p2: { ...makeEmployee("p2", { name: "Bob" }), currentManager: "" },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p2" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p2" }] }),
       },
       rootTeams: ["t1"],
       unassignedEmployees: [],
@@ -651,7 +653,7 @@ describe("computeManagerChanges", () => {
         p2: { ...makeEmployee("p2", { name: "Bob" }), currentManager: "Charlie", requested: true },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p2" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p2" }] }),
       },
       rootTeams: ["t1"],
       unassignedEmployees: [],
@@ -668,7 +670,7 @@ describe("computeManagerChanges", () => {
         p3: { ...makeEmployee("p3", { name: "Dave" }), currentManager: "Carol" },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p3", managerOverride: "p2" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p3", managerOverride: "p2" }] }),
       },
       rootTeams: ["t1"],
       unassignedEmployees: [],
@@ -686,8 +688,8 @@ describe("computeManagerChanges", () => {
         p3: { ...makeEmployee("p3", { name: "Dave" }), currentManager: "Alice" },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p3" }] }),
-        t2: makeTeam("t2", { manager: "p2", members: [{ type: "employee", id: "p3" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p3" }] }),
+        t2: makeTeam("t2", { manager: "p2", members: [{ id: "p3" }] }),
       },
       rootTeams: ["t1", "t2"],
       unassignedEmployees: [],
@@ -706,7 +708,7 @@ describe("computeManagerChanges", () => {
         p4: { ...makeEmployee("p4", { name: "Diana" }), currentManager: "" },
       },
       teams: {
-        t1: makeTeam("t1", { manager: "p1", members: [{ type: "employee", id: "p2" }, { type: "employee", id: "p3" }] }),
+        t1: makeTeam("t1", { manager: "p1", members: [{ id: "p2" }, { id: "p3" }] }),
       },
       rootTeams: ["t1"],
       unassignedEmployees: ["p4"],

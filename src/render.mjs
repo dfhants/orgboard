@@ -9,7 +9,6 @@ import {
 import { countDirectEmployees, countNestedTeams, countTeamMemberships, collectAllEmployeesInTeam, buildHierarchyTree, computeTeamStats, computeGlobalStats, computeManagerChanges } from './team-logic.mjs';
 import { evaluateAllChecks, describeCriterion, checkTypes } from './checks.mjs';
 import { debouncedSave } from './scenarios.mjs';
-import { computeColumns } from './packing.mjs';
 
 export const createIcons = (opts) => _createIcons({ icons, ...opts });
 
@@ -59,26 +58,30 @@ export function renderRootLayoutButton() {
 }
 
 export function renderFacepile(team) {
-  if (team.members.length === 0) {
-    return '<span class="member-facepile" aria-hidden="true"><span class="facepile-dot facepile-empty" title="Drop members here"></span></span>';
-  }
-  const dots = team.members
+  const peopleDots = team.members
     .map((member) => {
-      if (member.type === "employee") {
-        const emp = state.employees[member.id];
-        const color = emp ? colorForTimezone(emp.timezone) : "rgba(200, 200, 200, 0.5)";
-        const tip = emp ? `${emp.name} \u2014 ${emp.role}\n${emp.location}\n${emp.timezone}` : "";
-        return `<span class="facepile-dot" style="background:${color}" title="${escapeHtml(tip)}"></span>`;
-      }
-      const nested = getTeam(member.id);
+      const emp = state.employees[member.id];
+      const color = emp ? colorForTimezone(emp.timezone) : "rgba(200, 200, 200, 0.5)";
+      const tip = emp ? `${emp.name} \u2014 ${emp.role}\n${emp.location}\n${emp.timezone}` : "";
+      return `<span class="facepile-dot" style="background:${color}" title="${escapeHtml(tip)}"></span>`;
+    })
+    .join("");
+
+  const teamDots = team.subTeams
+    .map((entry) => {
+      const nested = getTeam(entry.id);
       const color = nested?.color ?? "rgba(200, 200, 200, 0.5)";
-      const memberCount = nested ? countDirectEmployees(getTeam(member.id)) : 0;
+      const memberCount = nested ? countDirectEmployees(nested) : 0;
       const tip = nested ? `${nested.name} team (${memberCount} people)` : "";
       return `<span class="facepile-dot" style="background:${color}" title="${escapeHtml(tip)}"></span>`;
     })
     .join("");
 
-  return `<span class="member-facepile" aria-hidden="true">${dots}</span>`;
+  const allDots = peopleDots + teamDots;
+  if (!allDots) {
+    return '<span class="member-facepile" aria-hidden="true"><span class="facepile-dot facepile-empty" title="Drop members here"></span></span>';
+  }
+  return `<span class="member-facepile" aria-hidden="true">${allDots}</span>`;
 }
 
 export function renderCollapsedManager(team) {
@@ -148,37 +151,40 @@ export function renderEmployeeCard(employeeId, contextTeamId) {
   `;
 }
 
-function renderMembers(team) {
+function renderPeople(team) {
   if (team.members.length === 0) {
-    return '<p class="empty-note">Drop people or teams here</p>';
+    return '<p class="empty-note">Drop people here</p>';
   }
 
-  // Separate people from nested teams — people always render first in a wrapping group
-  const peopleHtml = [];
-  const teamHtml = [];
+  return team.members.map((member, index) => `
+    <div class="member-entry" data-member-index="${index}" data-member-type="employee" data-member-id="${member.id}">
+      ${renderEmployeeCard(member.id, team.id)}
+    </div>
+  `).join("");
+}
 
-  team.members.forEach((member, index) => {
-    if (member.type === "employee") {
-      peopleHtml.push(`
-        <div class="member-entry" data-member-index="${index}" data-member-type="${member.type}" data-member-id="${member.id}">
-          ${renderEmployeeCard(member.id, team.id)}
-        </div>
-      `);
-    } else {
-      teamHtml.push(`
-        <div class="member-entry" data-member-index="${index}" data-member-type="${member.type}" data-member-id="${member.id}">
-          <div class="child-team">${renderTeam(member.id)}</div>
-        </div>
-      `);
-    }
-  });
+function renderSubTeamFacepile(team) {
+  if (team.subTeams.length === 0) return '';
+  const dots = team.subTeams
+    .map((entry) => {
+      const nested = getTeam(entry.id);
+      const color = nested?.color ?? "rgba(200, 200, 200, 0.5)";
+      const memberCount = nested ? countDirectEmployees(nested) : 0;
+      const tip = nested ? `${nested.name} team (${memberCount} people)` : "";
+      return `<span class="facepile-dot" style="background:${color}" title="${escapeHtml(tip)}"></span>`;
+    })
+    .join("");
+  return `<span class="member-facepile" aria-hidden="true">${dots}</span>`;
+}
 
-  const parts = [];
-  if (peopleHtml.length > 0) {
-    parts.push(`<div class="people-group">${peopleHtml.join("")}</div>`);
-  }
-  parts.push(...teamHtml);
-  return parts.join("");
+function renderSubTeams(team) {
+  if (team.subTeams.length === 0) return '';
+
+  return team.subTeams.map((entry, index) => `
+    <div class="member-entry" data-member-index="${index}" data-member-type="team" data-member-id="${entry.id}">
+      <div class="child-team">${renderTeam(entry.id)}</div>
+    </div>
+  `).join("");
 }
 
 export function renderTeam(teamId, options = {}) {
@@ -229,12 +235,13 @@ export function renderTeam(teamId, options = {}) {
       </div>
 
       <div class="team-body ${state.rootLayout}">
-        <div class="slot manager-slot dropzone" data-drop-kind="manager" data-team-id="${team.id}">
-          ${isCollapsed ? renderCollapsedManager(team) : (team.manager ? renderEmployeeCard(team.manager, team.id) : '<p class="empty-note">Drop a manager here</p>')}
-        </div>
         <div class="slot member-slot dropzone layout-${state.rootLayout}" data-drop-kind="members" data-team-id="${team.id}">
-          ${isCollapsed ? renderFacepile(team) : renderMembers(team)}
+          <div class="slot manager-slot dropzone" data-drop-kind="manager" data-team-id="${team.id}">
+            ${isCollapsed ? renderCollapsedManager(team) : (team.manager ? renderEmployeeCard(team.manager, team.id) : '<p class="empty-note">Drop a manager here</p>')}
+          </div>
+          ${isCollapsed ? renderFacepile(team) : renderPeople(team)}
         </div>
+        <div class="slot subteam-slot dropzone" data-drop-kind="subteams" data-team-id="${team.id}">${isCollapsed ? renderSubTeamFacepile(team) : renderSubTeams(team)}</div>
       </div>
     </section>
   `;
@@ -599,57 +606,93 @@ export function syncShellHeight() {
 }
 
 /**
- * Pack .people-group entries into explicit column wrappers in horizontal layout.
+ * Size member-slots in horizontal layout so CSS flex-flow: column wrap
+ * produces the right number of columns.
  *
- * CSS flex-flow: column wrap doesn't make containers report their intrinsic
- * width across browsers, so we measure entry heights, compute column
- * assignments via computeColumns(), and wrap entries into .people-column divs.
+ * Counts boxes, measures their effective flex heights (including margins),
+ * computes how many columns are needed, and sets the slot width accordingly.
  *
- * Only runs in horizontal mode — vertical mode uses CSS row-wrap which works
- * natively.
+ * Vertical mode doesn't need JS sizing — CSS flex-wrap: wrap handles row
+ * layout natively.  We still clean up stale inline widths when switching.
  */
-export function applyHorizontalPacking() {
-  if (state.rootLayout !== "horizontal") return;
+export function applyPacking() {
+  // Clean up stale column wrappers from previous approach
+  for (const w of document.querySelectorAll(".member-slot > .people-column, .member-slot > .people-row")) {
+    const parent = w.parentElement;
+    while (w.firstChild) parent.insertBefore(w.firstChild, w);
+    w.remove();
+    parent.classList.remove("has-columns");
+  }
 
-  const groups = document.querySelectorAll(".member-slot.layout-horizontal .people-group");
-  for (const group of groups) {
-    // Unwrap any previous .people-column wrappers so we measure fresh entries
-    for (const col of group.querySelectorAll(":scope > .people-column")) {
-      while (col.firstChild) group.insertBefore(col.firstChild, col);
-      col.remove();
+  // Clear inline widths when not in horizontal mode
+  if (state.rootLayout !== "horizontal") {
+    for (const slot of document.querySelectorAll(".member-slot")) {
+      slot.style.width = "";
     }
-    group.classList.remove("has-columns");
+    return;
+  }
 
-    const entries = [...group.querySelectorAll(":scope > .member-entry")];
-    if (entries.length <= 1) continue;
+  const slots = document.querySelectorAll(".member-slot.layout-horizontal");
+  for (const slot of slots) {
+    // Collapsed teams use facepile dots — no packing needed.
+    const team = slot.closest('.team');
+    if (team?.dataset.view === 'collapsed') { slot.style.width = ''; continue; }
 
-    // Measure available height from the member-slot parent
-    const slot = group.closest(".member-slot");
-    if (!slot) continue;
+    // During drag, skip the source slot — keep its width stable to prevent
+    // layout oscillation from the ResizeObserver feedback loop.
+    if (slot.querySelector(":scope > .dragging-source")) {
+      continue;
+    }
+
+    const boxes = [...slot.querySelectorAll(":scope > .manager-slot, :scope > .member-entry:not(.dragging-source)")];
+    if (boxes.length === 0) { slot.style.width = ""; continue; }
+
     const slotStyle = getComputedStyle(slot);
     const availableHeight = slot.clientHeight
       - parseFloat(slotStyle.paddingTop)
       - parseFloat(slotStyle.paddingBottom);
+    const gap = parseFloat(slotStyle.columnGap) || parseFloat(slotStyle.gap) || 10;
+    const rowGap = parseFloat(slotStyle.rowGap) || parseFloat(slotStyle.gap) || 10;
 
-    const gap = parseFloat(getComputedStyle(group).rowGap) || 0;
-    const heights = entries.map((e) => e.offsetHeight);
+    // Measure each box's effective height in the flex context (including margins)
+    const measurements = boxes.map((b) => {
+      const s = getComputedStyle(b);
+      const mt = parseFloat(s.marginTop) || 0;
+      const mb = parseFloat(s.marginBottom) || 0;
+      return {
+        flexHeight: b.offsetHeight + mt + mb,
+        flexWidth: b.offsetWidth + (parseFloat(s.marginLeft) || 0) + (parseFloat(s.marginRight) || 0),
+      };
+    });
 
-    const columns = computeColumns({ heights, availableHeight, gap });
-    if (columns.length <= 1) continue; // everything fits in one column
-
-    // Wrap entries into .people-column divs
-    for (const colIndices of columns) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "people-column";
-      // Insert wrapper before the first entry of this column
-      group.insertBefore(wrapper, entries[colIndices[0]]);
-      for (const idx of colIndices) {
-        wrapper.appendChild(entries[idx]);
+    // Compute how many columns we need by greedy packing
+    let cols = 1;
+    let colUsed = 0;
+    let maxColWidth = 0;
+    let curColMaxWidth = 0;
+    for (let i = 0; i < measurements.length; i++) {
+      const { flexHeight, flexWidth } = measurements[i];
+      if (colUsed > 0 && colUsed + rowGap + flexHeight > availableHeight) {
+        if (curColMaxWidth > maxColWidth) maxColWidth = curColMaxWidth;
+        cols++;
+        colUsed = flexHeight;
+        curColMaxWidth = flexWidth;
+      } else {
+        colUsed += (colUsed > 0 ? rowGap : 0) + flexHeight;
+        if (flexWidth > curColMaxWidth) curColMaxWidth = flexWidth;
       }
     }
-    group.classList.add("has-columns");
+    if (curColMaxWidth > maxColWidth) maxColWidth = curColMaxWidth;
+
+    // Set width: cols * maxCardWidth + (cols-1) * columnGap + padding
+    const padding = parseFloat(slotStyle.paddingLeft) + parseFloat(slotStyle.paddingRight);
+    const totalWidth = cols * maxColWidth + (cols - 1) * gap + padding;
+    slot.style.width = `${Math.ceil(totalWidth)}px`;
   }
 }
+
+// Backwards-compat alias used by tests
+export const applyHorizontalPacking = applyPacking;
 
 // Re-run packing when the page-shell resizes (window resize, drawer toggle, etc.)
 let packingObserver = null;
@@ -659,7 +702,7 @@ export function observeShellResize() {
   if (!shell) return;
   packingObserver = new ResizeObserver(() => {
     syncShellHeight();
-    applyHorizontalPacking();
+    applyPacking();
   });
   packingObserver.observe(shell);
 }

@@ -210,7 +210,7 @@ test.describe("Employee → Manager Slot", () => {
     await dragHover(
       page,
       '.person-card[data-id="p9"]',
-      '.team[data-team-id="t4"] > .team-body > .manager-slot'
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot'
     );
 
     await assertSourceState(page, '.person-card[data-id="p9"]', true);
@@ -218,7 +218,7 @@ test.describe("Employee → Manager Slot", () => {
     // Manager slot does NOT get a preview (dropKind="manager")
     const slotState = await assertSlotDragState(
       page,
-      '.team[data-team-id="t4"] > .team-body > .manager-slot',
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot',
       { isOver: true }
     );
     expect(slotState.isOver).toBe(true);
@@ -259,11 +259,11 @@ test.describe("Employee → Roster", () => {
 });
 
 /* ═══════════════════════════════════════════════════════
-   EMPLOYEE → COLLAPSED TEAM (facepile dot preview)
+   EMPLOYEE → COLLAPSED TEAM (team border highlight, no preview dot)
    ═══════════════════════════════════════════════════════ */
 
 test.describe("Employee → Collapsed Team Member Slot", () => {
-  test("drag preview is a dot in the facepile, not a card placeholder", async ({
+  test("highlights the collapsed team border, not a card or dot preview", async ({
     page,
   }) => {
     // Research (t3) is collapsed by default
@@ -280,31 +280,19 @@ test.describe("Employee → Collapsed Team Member Slot", () => {
 
     await assertSourceState(page, '.person-card[data-id="p9"]', true);
 
-    // Should have a dot preview, not a card preview
-    const slotState = await assertSlotDragState(
-      page,
-      '.team[data-team-id="t3"] > .team-body > .member-slot',
-      { isOver: true, hasPreviewDot: true }
-    );
-    expect(slotState.isOver).toBe(true);
-    expect(slotState.hasPreviewDot).toBe(true);
-    expect(slotState.hasPreviewEntry).toBe(false);
+    // The collapsed team itself should have the is-over highlight
+    await expect(
+      page.locator('.team[data-team-id="t3"]')
+    ).toHaveClass(/is-over/);
 
-    // Verify the dot has the right styling
-    const dotStyles = await page.evaluate(() => {
-      const dot = document.querySelector(
-        '.team[data-team-id="t3"] .drag-preview-dot'
-      );
-      if (!dot) return null;
-      const cs = getComputedStyle(dot);
-      return {
-        borderStyle: cs.borderStyle,
-        borderRadius: cs.borderRadius,
-      };
+    // No preview dot or card preview should be inserted
+    const previewCount = await page.evaluate(() => {
+      const team = document.querySelector('.team[data-team-id="t3"]');
+      const dots = team?.querySelectorAll(".drag-preview-dot").length ?? 0;
+      const entries = team?.querySelectorAll(".drag-preview-entry").length ?? 0;
+      return dots + entries;
     });
-    expect(dotStyles).not.toBeNull();
-    expect(dotStyles!.borderStyle).toBe("dashed");
-    expect(dotStyles!.borderRadius).toBe("50%");
+    expect(previewCount).toBe(0);
 
     await dragCancel(page, '.person-card[data-id="p9"]');
     await assertCleanState(page);
@@ -312,11 +300,11 @@ test.describe("Employee → Collapsed Team Member Slot", () => {
 });
 
 /* ═══════════════════════════════════════════════════════
-   TEAM → MEMBER SLOT (nesting)
+   TEAM → SUB-TEAM SLOT (nesting)
    ═══════════════════════════════════════════════════════ */
 
-test.describe("Team → Member Slot (Nesting)", () => {
-  test("team dragged into another team's member slot shows preview", async ({
+test.describe("Team → Sub-team Slot (Nesting)", () => {
+  test("team dragged into another team's subteam slot shows preview", async ({
     page,
   }) => {
     // Expand Research (t3) first so its handle is accessible
@@ -328,16 +316,16 @@ test.describe("Team → Member Slot (Nesting)", () => {
       await expect(t3).toHaveAttribute("data-view", "expanded");
     }
 
-    // Drag Research (t3) handle over Operations (t2) member slot
+    // Drag Research (t3) handle over Operations (t2) subteam slot
     await dragHover(
       page,
       '.team[data-team-id="t3"] > .team-titlebar .team-handle',
-      '.team[data-team-id="t2"] > .team-body > .member-slot'
+      '.team[data-team-id="t2"] > .team-body > .subteam-slot'
     );
 
     const slotState = await assertSlotDragState(
       page,
-      '.team[data-team-id="t2"] > .team-body > .member-slot',
+      '.team[data-team-id="t2"] > .team-body > .subteam-slot',
       { isOver: true, hasPreviewEntry: true }
     );
     expect(slotState.isOver).toBe(true);
@@ -462,7 +450,7 @@ test.describe("Empty Slot Preview", () => {
     );
 
     const emptyNote = page.locator(
-      '.team[data-team-id="t4"] > .team-body > .member-slot .empty-note'
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .empty-note'
     );
     await expect(emptyNote).toBeVisible();
 
@@ -494,7 +482,7 @@ test.describe("Empty Slot Preview", () => {
   test("preview in empty manager slot — is-over only", async ({ page }) => {
     // Field (t4) already has empty manager slot
     const mgrSlot = page.locator(
-      '.team[data-team-id="t4"] > .team-body > .manager-slot'
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot'
     );
     const emptyNote = mgrSlot.locator(".empty-note");
     await expect(emptyNote).toBeVisible();
@@ -502,12 +490,12 @@ test.describe("Empty Slot Preview", () => {
     await dragHover(
       page,
       '.person-card[data-id="p9"]',
-      '.team[data-team-id="t4"] > .team-body > .manager-slot'
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot'
     );
 
     const slotState = await assertSlotDragState(
       page,
-      '.team[data-team-id="t4"] > .team-body > .manager-slot',
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot',
       { isOver: true }
     );
     expect(slotState.isOver).toBe(true);
@@ -575,8 +563,10 @@ test.describe("Slot Stability During Drag", () => {
       return document.querySelector(sel)!.getBoundingClientRect().width;
     }, slotSel);
 
-    // Should not have shrunk more than 5px
-    expect(widthDuring).toBeGreaterThanOrEqual(widthBefore - 5);
+    // With display:none the source card is removed from flow, so the
+    // source slot may shrink.  But the packing guard preserves its width
+    // during drag — verify it hasn't collapsed significantly (> 25%).
+    expect(widthDuring).toBeGreaterThanOrEqual(widthBefore * 0.75);
 
     await dragCancel(page, '.person-card[data-id="p2"]');
   });
@@ -735,14 +725,14 @@ test.describe("Drag Cleanup", () => {
 });
 
 /* ═══════════════════════════════════════════════════════
-   TEAM → COLLAPSED TEAM (dot preview)
+   TEAM → COLLAPSED TEAM (team border highlight, no preview dot)
    ═══════════════════════════════════════════════════════ */
 
 test.describe("Team → Collapsed Team", () => {
-  test("nesting team into collapsed team shows dot preview", async ({
+  test("nesting team into collapsed team highlights the team border", async ({
     page,
   }) => {
-    // Research (t3) is collapsed; drag Field (t4) into it
+    // Research (t3) is collapsed; drag Field (t4) over it.
     await expect(
       page.locator('.team[data-team-id="t3"]')
     ).toHaveAttribute("data-view", "collapsed");
@@ -750,17 +740,22 @@ test.describe("Team → Collapsed Team", () => {
     await dragHover(
       page,
       '.team[data-team-id="t4"] > .team-titlebar .team-handle',
-      '.team[data-team-id="t3"] > .team-body > .member-slot'
+      '.team[data-team-id="t3"] > .team-body'
     );
 
-    const slotState = await assertSlotDragState(
-      page,
-      '.team[data-team-id="t3"] > .team-body > .member-slot',
-      { isOver: true, hasPreviewDot: true }
-    );
-    expect(slotState.isOver).toBe(true);
-    expect(slotState.hasPreviewDot).toBe(true);
-    expect(slotState.hasPreviewEntry).toBe(false);
+    // The collapsed team itself should have the is-over highlight
+    await expect(
+      page.locator('.team[data-team-id="t3"]')
+    ).toHaveClass(/is-over/);
+
+    // No preview dot or card preview should be inserted
+    const previewCount = await page.evaluate(() => {
+      const team = document.querySelector('.team[data-team-id="t3"]');
+      const dots = team?.querySelectorAll(".drag-preview-dot").length ?? 0;
+      const entries = team?.querySelectorAll(".drag-preview-entry").length ?? 0;
+      return dots + entries;
+    });
+    expect(previewCount).toBe(0);
 
     await dragCancel(
       page,

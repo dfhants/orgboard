@@ -132,25 +132,255 @@ test.describe("People Group Structure", () => {
     await page.waitForSelector(".team");
   });
 
-  test("employee entries are wrapped in a people-group container", async ({
+  test("employee entries are direct children of member-slot", async ({
     page,
   }) => {
-    // t1 has employees — they should be inside .people-group
-    const peopleGroup = page.locator(
-      '.team[data-team-id="t1"] .member-slot .people-group'
+    // t1 has employees — they should be inside .member-slot (possibly wrapped in .people-column in horizontal layout)
+    const memberSlot = page.locator(
+      '.team[data-team-id="t1"] > .team-body > .member-slot'
     );
-    await expect(peopleGroup).toBeAttached();
+    await expect(memberSlot).toBeAttached();
 
-    // Employee entries should be inside people-group
-    const employeeEntries = peopleGroup.locator('.member-entry[data-member-type="employee"]');
+    // Employee entries should be inside member-slot (direct or via .people-column)
+    const employeeEntries = memberSlot.locator('.member-entry[data-member-type="employee"]');
     await expect(employeeEntries).toHaveCount(2); // p2 and p3
   });
 
-  test("nested team entries are outside people-group", async ({ page }) => {
-    // t1 has a nested team t3 — it should be a direct child of member-slot, not inside people-group
+  test("nested team entries are in subteam-slot", async ({ page }) => {
+    // t1 has a nested team t3 — it should be in the subteam-slot
     const teamEntry = page.locator(
-      '.team[data-team-id="t1"] > .team-body > .member-slot > .member-entry[data-member-type="team"]'
+      '.team[data-team-id="t1"] > .team-body > .subteam-slot > .member-entry[data-member-type="team"]'
     );
     await expect(teamEntry).toHaveCount(1);
+  });
+});
+
+test.describe("Horizontal Layout Flow", () => {
+  test("all entries visible in horizontal layout with many people", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Import a CSV with many people in one team
+    const names = Array.from({ length: 15 }, (_, i) => `Person${i + 1}`);
+    const csvContent = [
+      "Name,Role,Location,Timezone,Team",
+      ...names.map(
+        (n) => `${n},Engineer,Remote,EST (UTC−5),BigTeam`
+      ),
+    ].join("\n");
+
+    await page.locator("#action-bar-import-csv").click();
+    await page.locator("#csv-file-input").setInputFiles({
+      name: "big.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csvContent),
+    });
+    await page.locator("#csv-import-next").click();
+    // Column mapping step — auto-detected, proceed
+    await page.locator("#csv-import-next").click();
+    // Load mode step — default "Team hierarchy", click Import
+    await page.locator("#csv-import-next").click();
+    await page.waitForTimeout(300);
+
+    // Ensure horizontal layout is active (default)
+    const layout = await page
+      .locator(".root-dropzone")
+      .getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    // Find the BigTeam
+    const bigTeam = page.locator(".team").filter({ hasText: "BigTeam" });
+    await expect(bigTeam).toBeVisible();
+
+    // Get all direct member entries in the BigTeam's member-slot
+    const memberSlot = bigTeam.locator(
+      ":scope > .team-body > .member-slot"
+    );
+
+    // Count visible entries (width > 0, not clipped by overflow)
+    const { total, visible } = await memberSlot.evaluate((slot) => {
+      const slotRect = slot.getBoundingClientRect();
+      const entries = slot.querySelectorAll(":scope > .member-entry");
+      let total = entries.length;
+      let visible = 0;
+      for (const e of entries) {
+        const r = e.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0 && r.bottom <= slotRect.bottom + 1) {
+          visible++;
+        }
+      }
+      return { total, visible };
+    });
+
+    // All 15 people should be visible (not clipped)
+    expect(total).toBe(15);
+    expect(visible).toBe(15);
+
+    // Member-slot should use column wrap in horizontal layout
+    await expect(memberSlot).toHaveCSS("flex-direction", "column");
+    await expect(memberSlot).toHaveCSS("flex-wrap", "wrap");
+  });
+
+  test("horizontal packing stacks entries into columns", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Import a CSV with many people in one team
+    const names = Array.from({ length: 10 }, (_, i) => `Person${i + 1}`);
+    const csvContent = [
+      "Name,Role,Location,Timezone,Team",
+      ...names.map((n) => `${n},Engineer,Remote,EST (UTC−5),PackTeam`),
+    ].join("\n");
+
+    await page.locator("#action-bar-import-csv").click();
+    await page.locator("#csv-file-input").setInputFiles({
+      name: "pack.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csvContent),
+    });
+    await page.locator("#csv-import-next").click();
+    await page.locator("#csv-import-next").click();
+    await page.locator("#csv-import-next").click();
+    await page.waitForTimeout(300);
+
+    // Ensure horizontal layout
+    const layout = await page
+      .locator(".root-dropzone")
+      .getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const team = page.locator(".team").filter({ hasText: "PackTeam" });
+    const memberSlot = team.locator(":scope > .team-body > .member-slot");
+
+    // CSS column wrap should stack entries into columns.
+    // Multiple entries should share the same x position (stacked vertically).
+    const { uniqueXPositions, entryCount } = await memberSlot.evaluate(
+      (slot) => {
+        const entries = slot.querySelectorAll(":scope > .member-entry");
+        const xSet = new Set<number>();
+        for (const e of entries) {
+          xSet.add(Math.round(e.getBoundingClientRect().left));
+        }
+        return { uniqueXPositions: xSet.size, entryCount: entries.length };
+      }
+    );
+
+    // With 10 entries, there should be multiple columns but fewer than 10
+    // (meaning some entries share a column)
+    expect(uniqueXPositions).toBeGreaterThan(1);
+    expect(uniqueXPositions).toBeLessThan(entryCount);
+  });
+
+  test("switching to vertical removes column wrappers", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Import CSV with multiple people
+    const names = Array.from({ length: 8 }, (_, i) => `Person${i + 1}`);
+    const csvContent = [
+      "Name,Role,Location,Timezone,Team",
+      ...names.map((n) => `${n},Engineer,Remote,EST (UTC−5),WrapTeam`),
+    ].join("\n");
+
+    await page.locator("#action-bar-import-csv").click();
+    await page.locator("#csv-file-input").setInputFiles({
+      name: "wrap.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csvContent),
+    });
+    await page.locator("#csv-import-next").click();
+    await page.locator("#csv-import-next").click();
+    await page.locator("#csv-import-next").click();
+    await page.waitForTimeout(300);
+
+    // Start in horizontal mode — should have column wrappers
+    const layout = await page
+      .locator(".root-dropzone")
+      .getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const team = page.locator(".team").filter({ hasText: "WrapTeam" });
+    const memberSlot = team.locator(":scope > .team-body > .member-slot");
+
+    // In horizontal mode, slot should have an inline width set by applyPacking
+    const inlineWidth = await memberSlot.evaluate((el) => el.style.width);
+    expect(inlineWidth).not.toBe("");
+
+    // Switch to vertical layout
+    await page.locator('[data-action="toggle-root-layout"]').click();
+    await page.waitForTimeout(300);
+
+    // Inline width should be cleared after switching to vertical
+    const inlineWidthAfter = await memberSlot.evaluate((el) => el.style.width);
+    expect(inlineWidthAfter).toBe("");
+
+    // Entries should still exist as direct children
+    const entries = await memberSlot.locator(":scope > .member-entry").count();
+    expect(entries).toBe(8);
+  });
+
+  test("entries stack vertically in a column in horizontal mode", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Import CSV with 1 person so they share a column with the manager
+    const csvContent = [
+      "Name,Role,Location,Timezone,Team",
+      "Alice,Engineer,Remote,EST (UTC−5),SmallTeam",
+    ].join("\n");
+
+    await page.locator("#action-bar-import-csv").click();
+    await page.locator("#csv-file-input").setInputFiles({
+      name: "small.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csvContent),
+    });
+    await page.locator("#csv-import-next").click();
+    await page.locator("#csv-import-next").click();
+    await page.locator("#csv-import-next").click();
+    await page.waitForTimeout(300);
+
+    // Ensure horizontal layout
+    const layout = await page
+      .locator(".root-dropzone")
+      .getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const team = page.locator(".team").filter({ hasText: "SmallTeam" });
+    const memberSlot = team.locator(":scope > .team-body > .member-slot");
+
+    // Both the manager-slot and member-entry should be in the same column (stacked vertically)
+    const positions = await memberSlot.evaluate((slot) => {
+      const managerSlot = slot.querySelector(":scope > .manager-slot");
+      const entry = slot.querySelector(":scope > .member-entry");
+      const slotRect = slot.getBoundingClientRect();
+      const mRect = managerSlot!.getBoundingClientRect();
+      const eRect = entry!.getBoundingClientRect();
+      return {
+        managerX: Math.round(mRect.left - slotRect.left),
+        entryX: Math.round(eRect.left - slotRect.left),
+        managerY: Math.round(mRect.top - slotRect.top),
+        entryY: Math.round(eRect.top - slotRect.top),
+      };
+    });
+
+    // Manager and entry should be in the same column (similar x)
+    expect(Math.abs(positions.managerX - positions.entryX)).toBeLessThan(15);
+    // Entry should be below manager
+    expect(positions.entryY).toBeGreaterThan(positions.managerY);
   });
 });

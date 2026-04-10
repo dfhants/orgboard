@@ -412,7 +412,7 @@ test.describe("CSV Import Modal", () => {
     // Alex's team should contain Jordan's Team and Morgan's Team as nested teams
     const alexTeam = rootTeams.first();
     const nestedTeams = alexTeam.locator(
-      "> .team-body > .member-slot > .member-entry > .child-team > .team"
+      "> .team-body > .subteam-slot > .member-entry > .child-team > .team"
     );
     await expect(nestedTeams).toHaveCount(2);
     const nestedNames = await nestedTeams

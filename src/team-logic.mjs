@@ -5,14 +5,11 @@ export function isTeamInside(teams, draggedTeamId, targetTeamId) {
     const current = queue.shift();
     const currentTeam = teams[current];
     if (!currentTeam) continue;
-    for (const member of currentTeam.members) {
-      if (member.type !== "team") {
-        continue;
-      }
-      if (member.id === targetTeamId) {
+    for (const sub of currentTeam.subTeams) {
+      if (sub.id === targetTeamId) {
         return true;
       }
-      queue.push(member.id);
+      queue.push(sub.id);
     }
   }
 
@@ -21,7 +18,7 @@ export function isTeamInside(teams, draggedTeamId, targetTeamId) {
 
 export function findParentTeam(teams, teamId) {
   for (const t of Object.values(teams)) {
-    if (t.members.some((m) => m.type === "team" && m.id === teamId)) {
+    if (t.subTeams.some((m) => m.id === teamId)) {
       return t;
     }
   }
@@ -51,7 +48,7 @@ export function cleanupManagerOverrides(state) {
     }
     // Clean up member overrides
     for (const member of team.members) {
-      if (member.type !== "employee" || !member.managerOverride) continue;
+      if (!member.managerOverride) continue;
       // Remove if override matches team's actual manager
       if (member.managerOverride === team.manager) {
         delete member.managerOverride;
@@ -72,18 +69,18 @@ export function cleanupManagerOverrides(state) {
 }
 
 export function countNestedTeams(team) {
-  return team.members.filter((member) => member.type === "team").length;
+  return (team.subTeams ?? []).length;
 }
 
 export function countDirectEmployees(team) {
-  return team.members.filter((member) => member.type === "employee").length;
+  return (team.members ?? []).length;
 }
 
 export function countTeamMemberships(teams, employeeId) {
   let count = 0;
   for (const team of Object.values(teams)) {
     if (team.manager === employeeId) count++;
-    if (team.members.some((m) => m.type === "employee" && m.id === employeeId)) count++;
+    if (team.members.some((m) => m.id === employeeId)) count++;
   }
   return count;
 }
@@ -94,11 +91,10 @@ export function collectAllEmployeesInTeam(teams, teamId) {
   const ids = [];
   if (team.manager) ids.push(team.manager);
   for (const m of team.members) {
-    if (m.type === "employee") {
-      ids.push(m.id);
-    } else if (m.type === "team") {
-      ids.push(...collectAllEmployeesInTeam(teams, m.id));
-    }
+    ids.push(m.id);
+  }
+  for (const sub of team.subTeams) {
+    ids.push(...collectAllEmployeesInTeam(teams, sub.id));
   }
   return ids;
 }
@@ -110,9 +106,9 @@ export function buildHierarchyTree(state, teamId) {
   const managerEmp = team.manager ? state.employees[team.manager] : null;
 
   // Collect direct employee members
-  const employeeMembers = team.members.filter((m) => m.type === "employee");
+  const employeeMembers = team.members;
   // Collect nested teams
-  const nestedTeamMembers = team.members.filter((m) => m.type === "team");
+  const nestedTeamMembers = team.subTeams;
 
   // Group employees by their effective manager
   const childrenByManager = new Map(); // managerId -> [ {employee, isOverride} ]
@@ -199,10 +195,8 @@ export function computeTeamStats(state, teamId) {
     timezones[emp.timezone] = (timezones[emp.timezone] || 0) + 1;
   }
   const nestedStats = [];
-  for (const m of team.members) {
-    if (m.type === "team") {
-      nestedStats.push(computeTeamStats(state, m.id));
-    }
+  for (const sub of team.subTeams) {
+    nestedStats.push(computeTeamStats(state, sub.id));
   }
   return {
     teamId: team.id,
@@ -259,7 +253,7 @@ export function computeManagerChanges(state) {
     const newManagerNames = new Set();
     for (const team of Object.values(state.teams)) {
       if (team.manager === emp.id) continue; // they are the manager here, not a report
-      const memberEntry = team.members.find((m) => m.type === "employee" && m.id === emp.id);
+      const memberEntry = team.members.find((m) => m.id === emp.id);
       if (memberEntry) {
         const effectiveManagerId = memberEntry.managerOverride ?? team.manager;
         if (effectiveManagerId && state.employees[effectiveManagerId]) {

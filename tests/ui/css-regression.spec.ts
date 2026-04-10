@@ -223,14 +223,15 @@ test.describe("Team Panel", () => {
         member: memSlot ? get(memSlot) : null,
       };
     });
-    // Collapsed slots should have min-width/min-height of 0
-    if (styles.manager) {
-      expect(styles.manager.minWidth).toBe("0px");
-      expect(styles.manager.minHeight).toBe("0px");
-    }
+    // Collapsed member-slot should have min-width/min-height of 0
     if (styles.member) {
       expect(styles.member.minWidth).toBe("0px");
       expect(styles.member.minHeight).toBe("0px");
+    }
+    // Collapsed manager-slot should also shrink to 0
+    if (styles.manager) {
+      expect(styles.manager.minWidth).toBe("0px");
+      expect(styles.manager.minHeight).toBe("0px");
     }
   });
 });
@@ -238,22 +239,31 @@ test.describe("Team Panel", () => {
 /* ── Slots & dropzones ── */
 
 test.describe("Slots and Dropzones", () => {
-  test("manager and member slots have 143px minimum", async ({ page }) => {
+  test("manager and member slots have correct minimums", async ({ page }) => {
     const styles = await page.evaluate(() => {
       const team = document.querySelector(
         '.team[data-team-id="t1"]'
       )!;
       const body = team.querySelector(".team-body")!;
-      const mgrSlot = body.querySelector(":scope > .manager-slot")!;
       const memSlot = body.querySelector(":scope > .member-slot")!;
+      const mgrSlot = memSlot.querySelector(":scope > .manager-slot")!;
+      const mgrRect = mgrSlot.getBoundingClientRect();
       const get = (el: Element) => {
         const cs = getComputedStyle(el);
         return { minWidth: cs.minWidth, minHeight: cs.minHeight };
       };
-      return { manager: get(mgrSlot), member: get(memSlot) };
+      return {
+        manager: get(mgrSlot),
+        managerActual: { w: Math.round(mgrRect.width), h: Math.round(mgrRect.height) },
+        member: get(memSlot),
+      };
     });
-    expect(styles.manager.minWidth).toBe("143px");
-    expect(styles.manager.minHeight).toBe("143px");
+    // Manager slot is an invisible wrapper when occupied (min 0),
+    // but the person-card inside is 120×120 so actual size ≥ 120
+    expect(styles.manager.minWidth).toBe("0px");
+    expect(styles.manager.minHeight).toBe("0px");
+    expect(styles.managerActual.w).toBeGreaterThanOrEqual(120);
+    expect(styles.managerActual.h).toBeGreaterThanOrEqual(120);
     expect(styles.member.minWidth).toBe("143px");
     expect(styles.member.minHeight).toBe("143px");
   });
@@ -571,17 +581,18 @@ test.describe("Empty Note Visibility", () => {
     await expect(mgrNote).toHaveCSS("font-style", "italic");
   });
 
-  test("empty note in slot is absolutely positioned and centered", async ({
+  test("empty note in slot is statically positioned and centered", async ({
     page,
   }) => {
     const mgrNote = page.locator(
       '.team[data-team-id="t4"] .manager-slot .empty-note'
     );
-    await expect(mgrNote).toHaveCSS("position", "absolute");
+    await expect(mgrNote).toHaveCSS("position", "static");
     await expect(mgrNote).toHaveCSS("display", "grid");
     await expect(mgrNote).toHaveCSS("place-items", "center");
-    // inset: 0 means the note fills the entire slot
-    await expect(mgrNote).toHaveCSS("inset", "0px");
+    // Sized to match a person-card (120×120)
+    await expect(mgrNote).toHaveCSS("width", "120px");
+    await expect(mgrNote).toHaveCSS("height", "120px");
   });
 
   test("empty note in slot has no overflow hidden", async ({ page }) => {

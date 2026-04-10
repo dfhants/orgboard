@@ -971,7 +971,7 @@ export function setupEventListeners() {
       state.employees[employeeId] = { id: employeeId, name, location: location || "Remote", timezone, role: role || "Team Member", notes: modal.querySelector("#ap-notes").value.trim(), requested: modal.querySelector("#ap-requested").checked, level: modal.querySelector("#ap-level").value ? Number(modal.querySelector("#ap-level").value) : null, currentManager: modal.querySelector("#ap-current-manager").value.trim() };
 
       if (targetTeamId) {
-        insertMember(targetTeamId, { type: "employee", id: employeeId });
+        insertMember(targetTeamId, { id: employeeId });
       } else {
         state.unassignedEmployees.push(employeeId);
       }
