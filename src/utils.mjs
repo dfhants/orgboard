@@ -343,3 +343,19 @@ export function inferTimezoneFromLocation(location) {
   }
   return "GMT (UTC+0)";
 }
+
+// ─── Name cleaning ───
+
+/**
+ * Clean a name string: strip [C] contingent marker, (On Leave), and redundant
+ * self-references like "Sydney Green (Sydney Green)". Applied to both employee
+ * names and resolved manager names so they match during hierarchy building.
+ */
+export function cleanName(raw) {
+  let name = raw;
+  name = name.replace(/\s*\[C\]\s*$/, "").trim();
+  name = name.replace(/\s*\(On Leave\)\s*$/i, "").trim();
+  const dupeMatch = name.match(/^(.+?)\s*\(\1\)\s*$/);
+  if (dupeMatch) name = dupeMatch[1].trim();
+  return name;
+}

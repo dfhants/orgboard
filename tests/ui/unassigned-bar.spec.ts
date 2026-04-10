@@ -291,4 +291,28 @@ test.describe("Unassigned Bar", () => {
     // No person cards in unassigned
     await expect(drawer.locator(".person-card")).toHaveCount(0);
   });
+
+  test("drawer has consistent height when empty vs populated", async ({ page }) => {
+    const drawer = page.locator("#unassigned-drawer");
+
+    // Measure height with employees
+    const populatedBox = await drawer.boundingBox();
+    expect(populatedBox).toBeTruthy();
+    const populatedHeight = populatedBox!.height;
+
+    // Delete all unassigned employees
+    const count = Number(await drawer.locator(".unassigned-count").textContent());
+    expect(count).toBeGreaterThan(0);
+    await drawer.locator(".delete-all-unassigned").click();
+    await page.locator("#delete-all-unassigned-confirm").click();
+    await expect(drawer.locator(".person-card")).toHaveCount(0);
+
+    // Measure height when empty
+    const emptyBox = await drawer.boundingBox();
+    expect(emptyBox).toBeTruthy();
+    const emptyHeight = emptyBox!.height;
+
+    // Heights should match (fixed 200px)
+    expect(emptyHeight).toBe(populatedHeight);
+  });
 });

@@ -4,7 +4,7 @@ import {
   teamSequence, setTeamSequence,
   randomTeamColors,
 } from './state.mjs';
-import { escapeHtml, pickRandomItem, inferTimezoneFromLocation, inferLevelFromTitle } from './utils.mjs';
+import { escapeHtml, pickRandomItem, inferTimezoneFromLocation, inferLevelFromTitle, cleanName } from './utils.mjs';
 import { createIcons, render } from './render.mjs';
 
 export function parseCSV(text) {
@@ -153,7 +153,7 @@ export function loadCsvData(rows, headers, mapping, loadMode) {
     const name = rawName;
     const location = getValue(row, "location") || "Remote";
     const managerRaw = getValue(row, "manager");
-    const resolvedManager = resolveManager(managerRaw);
+    const resolvedManager = cleanName(resolveManager(managerRaw));
 
     setEmployeeSequence(employeeSequence + 1);
     const id = `p${employeeSequence}`;
