@@ -594,17 +594,6 @@ export function renderChecksPanelContent(panel) {
   `;
 }
 
-export function syncShellHeight() {
-  const drawer = document.getElementById("unassigned-drawer");
-  const shell = document.querySelector(".page-shell");
-  if (!shell) return;
-  // Derive target height from state, not getBoundingClientRect(), because the
-  // drawer CSS-transitions its max-height and measuring mid-transition returns
-  // the old value.  Max-height: 200px expanded, 52px collapsed (see unassigned.css).
-  const drawerH = drawer ? (state.unassignedBarCollapsed ? 52 : 200) : 0;
-  shell.style.height = `calc(100vh - 52px - ${drawerH}px)`;
-}
-
 /**
  * Size member-slots in horizontal layout so CSS flex-flow: column wrap
  * produces the right number of columns.
@@ -701,7 +690,6 @@ export function observeShellResize() {
   const shell = document.querySelector(".page-shell");
   if (!shell) return;
   packingObserver = new ResizeObserver(() => {
-    syncShellHeight();
     applyPacking();
   });
   packingObserver.observe(shell);
@@ -771,7 +759,6 @@ export function render() {
   if (shell) {
     shell.style.marginRight = "";
     shell.style.marginLeft = "";
-    shell.style.height = "";
     shell.dataset.layout = state.rootLayout;
   }
 
@@ -849,7 +836,6 @@ export function render() {
   renderStatsPanel();
   renderTabs();
   createIcons();
-  syncShellHeight();
   applyHorizontalPacking();
 
   // Update scroll indicators after all layout is settled

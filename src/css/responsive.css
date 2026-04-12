@@ -1,10 +1,10 @@
 /* Default transition on unassigned bar for closing animations */
 .unassigned-bar {
-  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease, right 300ms cubic-bezier(0.22, 1, 0.36, 1), left 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease, margin-right 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .page-shell {
-  transition: margin-left 300ms cubic-bezier(0.22, 1, 0.36, 1), margin-right 300ms cubic-bezier(0.22, 1, 0.36, 1), height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: margin-left 300ms cubic-bezier(0.22, 1, 0.36, 1), margin-right 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (max-width: 760px) {

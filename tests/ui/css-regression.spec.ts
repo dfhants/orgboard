@@ -539,7 +539,7 @@ test.describe("Stats Panel", () => {
 test.describe("Layout Adjustments — Stats Panel Open", () => {
   test("unassigned bar shifts right when panel opens", async ({ page }) => {
     const barBefore = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".unassigned-bar")!).right
+      getComputedStyle(document.querySelector(".unassigned-bar")!).marginRight
     );
     expect(barBefore).toBe("40px");
 
@@ -548,7 +548,7 @@ test.describe("Layout Adjustments — Stats Panel Open", () => {
     await page.waitForTimeout(350);
 
     const barAfter = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".unassigned-bar")!).right
+      getComputedStyle(document.querySelector(".unassigned-bar")!).marginRight
     );
     expect(barAfter).toBe("320px");
   });

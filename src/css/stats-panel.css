@@ -771,8 +771,8 @@ summary.stats-section-title {
 /* ─── Layout adjustments when stats panel is open ─── */
 
 body.stats-panel-open .unassigned-bar {
-  right: 320px;
-  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease, right 300ms cubic-bezier(0.22, 1, 0.36, 1), left 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  margin-right: 320px;
+  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease, margin-right 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 body.stats-panel-open .page-shell {

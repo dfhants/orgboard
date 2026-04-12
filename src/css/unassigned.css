@@ -1,10 +1,8 @@
 /* ─── Unassigned drawer ─── */
 
 .unassigned-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 40px;
+  flex-shrink: 0;
+  margin-right: 40px;
   z-index: 100;
   border-top: 1px solid var(--line-soft);
   background: rgba(255, 255, 255, 0.88);

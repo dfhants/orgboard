@@ -3,7 +3,8 @@
 .page-shell {
   padding: var(--space);
   overflow: auto;
-  height: calc(100vh - 52px - 52px);
+  flex: 1;
+  min-height: 0;
   margin-left: 0;
   margin-right: 40px;
 }
