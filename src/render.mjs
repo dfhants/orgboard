@@ -438,7 +438,6 @@ function renderStatsPanel() {
   const notesOpen = state.notesPanelOpen;
   const anyOpen = statsOpen || checksOpen || notesOpen;
   panel.className = `stats-panel${anyOpen ? " is-open" : ""}`;
-  document.body.classList.toggle("stats-panel-open", anyOpen);
 
   if (!anyOpen) {
     // Use cached check results for badge count (already evaluated at start of render())

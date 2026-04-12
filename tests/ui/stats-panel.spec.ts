@@ -59,34 +59,28 @@ test.describe("Stats Panel", () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test("unassigned bar adjusts right when panel opens", async ({ page }) => {
-    const drawer = page.locator("#unassigned-drawer");
-    const rightBefore = await drawer.evaluate((el) => {
-      return window.getComputedStyle(el).right;
-    });
-    expect(rightBefore).toBe("40px");
+  test("main content shrinks when panel opens", async ({ page }) => {
+    const shell = page.locator(".page-shell");
+    const widthBefore = await shell.evaluate((el) => el.getBoundingClientRect().width);
 
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
-    // Wait for transition
     await page.waitForTimeout(400);
-    const rightAfter = await drawer.evaluate((el) => {
-      return window.getComputedStyle(el).right;
-    });
-    expect(rightAfter).toBe("320px");
+    const widthAfter = await shell.evaluate((el) => el.getBoundingClientRect().width);
+    expect(widthAfter).toBeLessThan(widthBefore);
   });
 
-  test("page-shell has right margin for collapsed stats panel", async ({ page }) => {
-    const shell = page.locator(".page-shell");
-    const marginRight = await shell.evaluate((el) => window.getComputedStyle(el).marginRight);
-    expect(marginRight).toBe("40px");
+  test("stats panel is 40px wide when collapsed", async ({ page }) => {
+    const panel = page.locator("#stats-panel");
+    const width = await panel.evaluate((el) => window.getComputedStyle(el).width);
+    expect(width).toBe("40px");
   });
 
-  test("page-shell right margin expands when stats panel opens", async ({ page }) => {
+  test("stats panel is 320px wide when open", async ({ page }) => {
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
     await page.waitForTimeout(400);
-    const shell = page.locator(".page-shell");
-    const marginRight = await shell.evaluate((el) => window.getComputedStyle(el).marginRight);
-    expect(marginRight).toBe("320px");
+    const panel = page.locator("#stats-panel");
+    const width = await panel.evaluate((el) => window.getComputedStyle(el).width);
+    expect(width).toBe("320px");
   });
 
   test("stats update after deleting an employee", async ({ page }) => {

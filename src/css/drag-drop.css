@@ -21,21 +21,18 @@
   padding: 0;
   display: flex;
   gap: var(--space);
-  align-content: flex-start;
-  align-items: flex-start;
   transition: all var(--transition);
-  flex-grow: 1;
 }
 
 .root-dropzone[data-layout="horizontal"] {
   flex-flow: row nowrap;
-  align-items: stretch;
-  height: 100%;
+  width: fit-content;
 }
 
 .root-dropzone[data-layout="vertical"] {
   flex-flow: column nowrap;
   width: 100%;
+  height: fit-content;
 }
 
 .dropzone.is-over,

@@ -432,18 +432,18 @@ test.describe("Stats Panel", () => {
     expect(width).toBe("320px");
   });
 
-  test("panel is fixed positioned at right edge", async ({ page }) => {
+  test("panel is a grid child at right edge", async ({ page }) => {
     const styles = await page.evaluate(() => {
       const panel = document.querySelector(".stats-panel")!;
       const cs = getComputedStyle(panel);
+      const rect = panel.getBoundingClientRect();
       return {
-        position: cs.position,
-        right: cs.right,
         zIndex: cs.zIndex,
+        rightEdge: Math.round(rect.right),
+        viewportWidth: window.innerWidth,
       };
     });
-    expect(styles.position).toBe("fixed");
-    expect(styles.right).toBe("0px");
+    expect(styles.rightEdge).toBe(styles.viewportWidth);
     expect(styles.zIndex).toBe("95");
   });
 
@@ -537,35 +537,30 @@ test.describe("Stats Panel", () => {
 });
 
 test.describe("Layout Adjustments — Stats Panel Open", () => {
-  test("unassigned bar shifts right when panel opens", async ({ page }) => {
-    const barBefore = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".unassigned-bar")!).marginRight
+  test("main content shrinks when panel opens", async ({ page }) => {
+    const shellWidthBefore = await page.evaluate(() =>
+      document.querySelector(".page-shell")!.getBoundingClientRect().width
     );
-    expect(barBefore).toBe("40px");
 
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
-    // Wait for transition
     await page.waitForTimeout(350);
 
-    const barAfter = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".unassigned-bar")!).marginRight
+    const shellWidthAfter = await page.evaluate(() =>
+      document.querySelector(".page-shell")!.getBoundingClientRect().width
     );
-    expect(barAfter).toBe("320px");
+    expect(shellWidthAfter).toBeLessThan(shellWidthBefore);
   });
 
-  test("page-shell gets margin-right when panel opens", async ({ page }) => {
-    const before = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".page-shell")!).marginRight
-    );
-    expect(before).toBe("40px");
-
+  test("unassigned bar and page-shell share same width", async ({ page }) => {
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
     await page.waitForTimeout(350);
 
-    const after = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".page-shell")!).marginRight
-    );
-    expect(after).toBe("320px");
+    const widths = await page.evaluate(() => {
+      const shell = document.querySelector(".page-shell")!.getBoundingClientRect().width;
+      const bar = document.querySelector(".unassigned-bar")!.getBoundingClientRect().width;
+      return { shell: Math.round(shell), bar: Math.round(bar) };
+    });
+    expect(widths.shell).toBe(widths.bar);
   });
 });
 

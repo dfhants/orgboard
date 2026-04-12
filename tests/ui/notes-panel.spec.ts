@@ -81,9 +81,9 @@ test.describe("Notes Panel", () => {
   });
 
   test("unassigned bar has no left offset", async ({ page }) => {
-    const left = await page.evaluate(() =>
-      getComputedStyle(document.querySelector(".unassigned-bar")!).left
+    const leftEdge = await page.evaluate(() =>
+      document.querySelector(".unassigned-bar")!.getBoundingClientRect().left
     );
-    expect(left).toBe("0px");
+    expect(leftEdge).toBe(0);
   });
 });

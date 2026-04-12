@@ -9,8 +9,8 @@
   padding: var(--space);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: var(--space);
-  align-self: flex-start;
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition);
 }
@@ -187,18 +187,19 @@
 }
 
 .team-body {
-  display: grid;
+  display: flex;
   gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
 }
 
 .team-body.horizontal {
-  display: flex;
   flex-flow: row nowrap;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .team-body.vertical {
+  flex-flow: column nowrap;
   max-width: 100%;
 }
 
@@ -300,31 +301,23 @@
 }
 
 .member-slot.layout-horizontal {
-  height: 100%;
-  overflow: hidden;
-  flex-flow: column wrap;
+  flex-direction: column;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  max-height: 100%;
+  width: max-content;
   align-content: flex-start;
 }
 
 .member-slot.layout-vertical {
-  width: 100%;
-  overflow: hidden;
-}
-
-/* Packing wrapper — column in horizontal mode, row in vertical mode */
-.people-column {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 0 0 auto;
-}
-
-.people-row {
-  display: flex;
   flex-direction: row;
-  gap: 10px;
-  flex: 0 0 auto;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: max-content;
 }
+
+/* Packing wrappers removed — CSS flex-wrap handles columns/rows natively */
 
 .team[data-view="collapsed"] .team-body {
   display: grid;
@@ -374,8 +367,7 @@
 }
 
 .child-team {
-  width: max-content;
-  height: max-content;
+  flex-shrink: 0;
 }
 
 /* ── Layout cascade ──
@@ -383,29 +375,23 @@
    Vertical: page scrolls down, teams must fit shell width. */
 
 .page-shell[data-layout="horizontal"] .team {
-  height: 100%;
+  max-height: 100%;
+  width: fit-content;
 }
 
 .page-shell[data-layout="vertical"] .team {
   max-width: 100%;
-  width: max-content;
+  height: fit-content;
 }
 
 .page-shell[data-layout="horizontal"] .child-team {
-  height: 100%;
+  max-height: 100%;
+  width: fit-content;
 }
 
 .page-shell[data-layout="vertical"] .child-team {
   max-width: 100%;
-}
-
-.page-shell[data-layout="horizontal"] .member-entry {
-  max-height: 100%;
-}
-
-.page-shell[data-layout="horizontal"] .member-entry:has(.child-team) {
-  height: 100%;
-  max-height: max-content;
+  height: fit-content;
 }
 
 .page-shell[data-layout="vertical"] .member-entry {

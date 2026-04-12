@@ -1,10 +1,8 @@
 /* ─── Stats panel (right sidebar) ─── */
 
 .stats-panel {
-  position: fixed;
-  top: 52px;
-  right: 0;
-  bottom: 0;
+  grid-column: 2;
+  grid-row: 2 / 4;
   width: 40px;
   z-index: 95;
   background: rgba(255, 255, 255, 0.92);
@@ -768,17 +766,8 @@ summary.stats-section-title {
   gap: 4px;
 }
 
-/* ─── Layout adjustments when stats panel is open ─── */
-
-body.stats-panel-open .unassigned-bar {
-  margin-right: 320px;
-  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease, margin-right 300ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-body.stats-panel-open .page-shell {
-  margin-right: 320px;
-  transition: margin-right 300ms cubic-bezier(0.22, 1, 0.36, 1);
-}
+/* Layout adjustments when stats panel is open are handled by CSS grid —
+   the panel width change automatically resizes sibling grid tracks. */
 
 /* ─── Manager changes section ─── */
 
