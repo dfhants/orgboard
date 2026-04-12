@@ -594,102 +594,274 @@ export function renderChecksPanelContent(panel) {
 }
 
 /**
- * Size member-slots in horizontal layout so CSS flex-flow: column wrap
- * produces the right number of columns.
+ * Tighten the layout after rendering.
  *
- * Counts boxes, measures their effective flex heights (including margins),
- * computes how many columns are needed, and sets the slot width accordingly.
+ * CSS flex column-wrap (horizontal mode) and row-wrap (vertical mode) cannot
+ * auto-size the cross-axis of the container. We measure actual rendered
+ * content bottom-up and set explicit heights (horizontal) or widths (vertical)
+ * so that containers, teams, and the root dropzone shrink-wrap their children.
  *
- * Vertical mode doesn't need JS sizing — CSS flex-wrap: wrap handles row
- * layout natively.  We still clean up stale inline widths when switching.
+ * Must be called after every DOM mutation that changes card counts or layout.
  */
-export function applyPacking() {
-  // Clean up stale column wrappers from previous approach
-  for (const w of document.querySelectorAll(".member-slot > .people-column, .member-slot > .people-row")) {
-    const parent = w.parentElement;
-    while (w.firstChild) parent.insertBefore(w.firstChild, w);
-    w.remove();
-    parent.classList.remove("has-columns");
+export function tightenLayout() {
+  const rootDropzone = document.querySelector(".root-dropzone");
+  if (!rootDropzone) return;
+
+  const isHorizontal = state.rootLayout === "horizontal";
+
+  // --- Reset previously set inline sizes ---
+  // Skip slots with a dragging-source — their dimensions are frozen
+  // to prevent collapse when the dragged card is display:none.
+  const resetProp = isHorizontal ? "height" : "width";
+  rootDropzone.style[resetProp] = "";
+  for (const team of document.querySelectorAll(".team")) {
+    team.style[resetProp] = "";
+  }
+  for (const slot of document.querySelectorAll(".member-slot")) {
+    if (slot.dataset.dragFrozen) continue;
+    slot.style[resetProp] = "";
+    // Also clear the opposite axis from a previous mode
+    slot.style[isHorizontal ? "width" : "height"] = "";
+  }
+  for (const subSlot of document.querySelectorAll(".subteam-slot")) {
+    subSlot.style[resetProp] = "";
+    // Also clear the opposite axis from a previous mode
+    subSlot.style[isHorizontal ? "width" : "height"] = "";
+  }
+  // Reset member-entry wrappers around child teams
+  for (const entry of document.querySelectorAll(".subteam-slot > .member-entry")) {
+    entry.style[resetProp] = "";
+    entry.style[isHorizontal ? "width" : "height"] = "";
   }
 
-  // Clear inline widths when not in horizontal mode
-  if (state.rootLayout !== "horizontal") {
-    for (const slot of document.querySelectorAll(".member-slot")) {
-      slot.style.width = "";
-    }
-    return;
-  }
+  // Force reflow so measurements reflect natural CSS sizes
+  void document.body.offsetHeight;
 
-  const slots = document.querySelectorAll(".member-slot.layout-horizontal");
-  for (const slot of slots) {
-    // Collapsed teams use facepile dots — no packing needed.
-    const team = slot.closest('.team');
-    if (team?.dataset.view === 'collapsed') { slot.style.width = ''; continue; }
-
-    // During drag, skip the source slot — keep its width stable to prevent
-    // layout oscillation from the ResizeObserver feedback loop.
-    if (slot.querySelector(":scope > .dragging-source")) {
-      continue;
-    }
-
-    const boxes = [...slot.querySelectorAll(":scope > .manager-slot, :scope > .member-entry:not(.dragging-source)")];
-    if (boxes.length === 0) { slot.style.width = ""; continue; }
-
-    const slotStyle = getComputedStyle(slot);
-    const availableHeight = slot.clientHeight
-      - parseFloat(slotStyle.paddingTop)
-      - parseFloat(slotStyle.paddingBottom);
-    const gap = parseFloat(slotStyle.columnGap) || parseFloat(slotStyle.gap) || 10;
-    const rowGap = parseFloat(slotStyle.rowGap) || parseFloat(slotStyle.gap) || 10;
-
-    // Measure each box's effective height in the flex context (including margins)
-    const measurements = boxes.map((b) => {
-      const s = getComputedStyle(b);
-      const mt = parseFloat(s.marginTop) || 0;
-      const mb = parseFloat(s.marginBottom) || 0;
-      return {
-        flexHeight: b.offsetHeight + mt + mb,
-        flexWidth: b.offsetWidth + (parseFloat(s.marginLeft) || 0) + (parseFloat(s.marginRight) || 0),
-      };
-    });
-
-    // Compute how many columns we need by greedy packing
-    let cols = 1;
-    let colUsed = 0;
-    let maxColWidth = 0;
-    let curColMaxWidth = 0;
-    for (let i = 0; i < measurements.length; i++) {
-      const { flexHeight, flexWidth } = measurements[i];
-      if (colUsed > 0 && colUsed + rowGap + flexHeight > availableHeight) {
-        if (curColMaxWidth > maxColWidth) maxColWidth = curColMaxWidth;
-        cols++;
-        colUsed = flexHeight;
-        curColMaxWidth = flexWidth;
-      } else {
-        colUsed += (colUsed > 0 ? rowGap : 0) + flexHeight;
-        if (flexWidth > curColMaxWidth) curColMaxWidth = flexWidth;
-      }
-    }
-    if (curColMaxWidth > maxColWidth) maxColWidth = curColMaxWidth;
-
-    // Set width: cols * maxCardWidth + (cols-1) * columnGap + padding
-    const padding = parseFloat(slotStyle.paddingLeft) + parseFloat(slotStyle.paddingRight);
-    const totalWidth = cols * maxColWidth + (cols - 1) * gap + padding;
-    slot.style.width = `${Math.ceil(totalWidth)}px`;
+  if (isHorizontal) {
+    tightenHorizontal(rootDropzone);
+  } else {
+    tightenVertical(rootDropzone);
   }
 }
 
-// Backwards-compat alias used by tests
-export const applyHorizontalPacking = applyPacking;
+/**
+ * Horizontal mode: tighten heights bottom-up.
+ * container (.member-slot) → subteam-slot → parent (.team) → grandparent (.root-dropzone)
+ *
+ * Must process deepest nested teams first so their measured heights are
+ * available when tightening parent containers.
+ */
+function tightenHorizontal(rootDropzone) {
+  // Collect all expanded teams and sort deepest-first (by nesting depth)
+  const allTeams = [...document.querySelectorAll(".team")].filter(
+    (t) => t.dataset.view !== "collapsed"
+  );
+  allTeams.sort((a, b) => {
+    const depthOf = (el) => {
+      let d = 0;
+      let p = el.parentElement;
+      while (p) { if (p.classList?.contains("team")) d++; p = p.parentElement; }
+      return d;
+    };
+    return depthOf(b) - depthOf(a); // deepest first
+  });
 
-// Re-run packing when the page-shell resizes (window resize, drawer toggle, etc.)
+  for (const team of allTeams) {
+    const teamBody = team.querySelector(":scope > .team-body");
+    if (!teamBody) continue;
+
+    // 1. Tighten the member-slot (container) to its cards
+    const slot = teamBody.querySelector(":scope > .member-slot.layout-horizontal");
+    if (slot && !slot.dataset.dragFrozen) {
+      const children = slot.querySelectorAll(
+        ":scope > .manager-slot, :scope > .member-entry:not(.dragging-source), :scope > .drag-preview-entry, :scope > .empty-note"
+      );
+      if (children.length > 0) {
+        const slotTop = slot.getBoundingClientRect().top;
+        const cs = getComputedStyle(slot);
+        const maxBottom = Math.max(
+          ...Array.from(children, (c) => c.getBoundingClientRect().bottom)
+        );
+        slot.style.height =
+          maxBottom - slotTop + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth) + "px";
+      }
+    }
+
+    // 2. Tighten member-entry wrappers around child teams in the subteam-slot.
+    //    These are the intermediate wrappers (member-entry > child-team > team)
+    //    that must pass the height constraint through — like demo .parent.
+    const subSlot = teamBody.querySelector(":scope > .subteam-slot");
+    if (subSlot && subSlot.children.length > 0) {
+      for (const entry of subSlot.querySelectorAll(":scope > .member-entry:not(.dragging-source)")) {
+        const childTeam = entry.querySelector(":scope > .child-team");
+        if (!childTeam) continue;
+        const innerTeam = childTeam.querySelector(":scope > .team");
+        if (!innerTeam || innerTeam.getBoundingClientRect().height === 0) continue;
+        const entryTop = entry.getBoundingClientRect().top;
+        const cs = getComputedStyle(entry);
+        const innerBottom = innerTeam.getBoundingClientRect().bottom;
+        entry.style.height =
+          innerBottom - entryTop + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth) + "px";
+      }
+
+      // Now tighten the subteam-slot itself to its child entries
+      const visibleChildren = [...subSlot.children].filter(
+        (c) => !c.classList.contains("dragging-source") && c.getBoundingClientRect().height > 0
+      );
+      if (visibleChildren.length > 0) {
+        const subTop = subSlot.getBoundingClientRect().top;
+        const cs = getComputedStyle(subSlot);
+        const maxBottom = Math.max(
+          ...Array.from(visibleChildren, (c) => c.getBoundingClientRect().bottom)
+        );
+        subSlot.style.height =
+          maxBottom - subTop + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth) + "px";
+      }
+    }
+
+    // 3. Tighten the team itself to its tallest body child
+    const directChildren = teamBody.querySelectorAll(
+      ":scope > .member-slot, :scope > .subteam-slot"
+    );
+    if (directChildren.length === 0) continue;
+
+    const teamTop = team.getBoundingClientRect().top;
+    const cs = getComputedStyle(team);
+    const maxBottom = Math.max(
+      ...Array.from(directChildren, (c) => c.getBoundingClientRect().bottom)
+    );
+    team.style.height =
+      maxBottom - teamTop + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth) + "px";
+  }
+
+  // 4. Tighten root-dropzone (grandparent) to its tallest child
+  const gpChildren = rootDropzone.querySelectorAll(":scope > .team, :scope > .member-entry");
+  if (gpChildren.length === 0) return;
+
+  const gpTop = rootDropzone.getBoundingClientRect().top;
+  const gpCs = getComputedStyle(rootDropzone);
+  const gpMaxBottom = Math.max(
+    ...Array.from(gpChildren, (c) => c.getBoundingClientRect().bottom)
+  );
+  rootDropzone.style.height =
+    gpMaxBottom - gpTop + parseFloat(gpCs.paddingBottom) + parseFloat(gpCs.borderBottomWidth) + "px";
+}
+
+/**
+ * Vertical mode: tighten widths bottom-up.
+ * container (.member-slot) → parent (.team) → grandparent (.root-dropzone)
+ */
+/**
+ * Vertical mode: tighten widths bottom-up.
+ * container (.member-slot) → subteam-slot → parent (.team) → grandparent (.root-dropzone)
+ *
+ * Must process deepest nested teams first (same as horizontal).
+ */
+function tightenVertical(rootDropzone) {
+  // Collect all expanded teams and sort deepest-first
+  const allTeams = [...document.querySelectorAll(".team")].filter(
+    (t) => t.dataset.view !== "collapsed"
+  );
+  allTeams.sort((a, b) => {
+    const depthOf = (el) => {
+      let d = 0;
+      let p = el.parentElement;
+      while (p) { if (p.classList?.contains("team")) d++; p = p.parentElement; }
+      return d;
+    };
+    return depthOf(b) - depthOf(a); // deepest first
+  });
+
+  for (const team of allTeams) {
+    const teamBody = team.querySelector(":scope > .team-body");
+    if (!teamBody) continue;
+
+    // 1. Tighten the member-slot (container) to its cards
+    const slot = teamBody.querySelector(":scope > .member-slot.layout-vertical");
+    if (slot && !slot.dataset.dragFrozen) {
+      const children = slot.querySelectorAll(
+        ":scope > .manager-slot, :scope > .member-entry:not(.dragging-source), :scope > .drag-preview-entry, :scope > .empty-note"
+      );
+      if (children.length > 0) {
+        const slotLeft = slot.getBoundingClientRect().left;
+        const cs = getComputedStyle(slot);
+        const maxRight = Math.max(
+          ...Array.from(children, (c) => c.getBoundingClientRect().right)
+        );
+        slot.style.width =
+          maxRight - slotLeft + parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth) + "px";
+      }
+    }
+
+    // 2. Tighten member-entry wrappers around child teams in the subteam-slot.
+    const subSlot = teamBody.querySelector(":scope > .subteam-slot");
+    if (subSlot && subSlot.children.length > 0) {
+      for (const entry of subSlot.querySelectorAll(":scope > .member-entry:not(.dragging-source)")) {
+        const childTeam = entry.querySelector(":scope > .child-team");
+        if (!childTeam) continue;
+        const innerTeam = childTeam.querySelector(":scope > .team");
+        if (!innerTeam || innerTeam.getBoundingClientRect().width === 0) continue;
+        const entryLeft = entry.getBoundingClientRect().left;
+        const cs = getComputedStyle(entry);
+        const innerRight = innerTeam.getBoundingClientRect().right;
+        entry.style.width =
+          innerRight - entryLeft + parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth) + "px";
+      }
+
+      // Now tighten the subteam-slot itself to its child entries
+      const visibleChildren = [...subSlot.children].filter(
+        (c) => !c.classList.contains("dragging-source") && c.getBoundingClientRect().width > 0
+      );
+      if (visibleChildren.length > 0) {
+        const subLeft = subSlot.getBoundingClientRect().left;
+        const cs = getComputedStyle(subSlot);
+        const maxRight = Math.max(
+          ...Array.from(visibleChildren, (c) => c.getBoundingClientRect().right)
+        );
+        subSlot.style.width =
+          maxRight - subLeft + parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth) + "px";
+      }
+    }
+
+    // 3. Tighten the team itself to its widest body child
+    const directChildren = teamBody.querySelectorAll(
+      ":scope > .member-slot, :scope > .subteam-slot"
+    );
+    if (directChildren.length === 0) continue;
+
+    const teamLeft = team.getBoundingClientRect().left;
+    const cs = getComputedStyle(team);
+    const maxRight = Math.max(
+      ...Array.from(directChildren, (c) => c.getBoundingClientRect().right)
+    );
+    team.style.width =
+      maxRight - teamLeft + parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth) + "px";
+  }
+
+  // 4. Tighten root-dropzone (grandparent) to its widest child
+  const gpChildren = rootDropzone.querySelectorAll(":scope > .team, :scope > .member-entry");
+  if (gpChildren.length === 0) return;
+
+  const gpLeft = rootDropzone.getBoundingClientRect().left;
+  const gpCs = getComputedStyle(rootDropzone);
+  const gpMaxRight = Math.max(
+    ...Array.from(gpChildren, (c) => c.getBoundingClientRect().right)
+  );
+  rootDropzone.style.width =
+    gpMaxRight - gpLeft + parseFloat(gpCs.paddingRight) + parseFloat(gpCs.borderRightWidth) + "px";
+}
+
+// Backwards-compat alias used by drag-drop.mjs
+export const applyHorizontalPacking = tightenLayout;
+
+// Re-run tightenLayout when the page-shell resizes (window resize, drawer toggle, etc.)
 let packingObserver = null;
 export function observeShellResize() {
   packingObserver?.disconnect();
   const shell = document.querySelector(".page-shell");
   if (!shell) return;
   packingObserver = new ResizeObserver(() => {
-    applyPacking();
+    tightenLayout();
   });
   packingObserver.observe(shell);
 }

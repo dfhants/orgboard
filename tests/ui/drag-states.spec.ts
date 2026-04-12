@@ -564,8 +564,8 @@ test.describe("Slot Stability During Drag", () => {
     }, slotSel);
 
     // With display:none the source card is removed from flow, so the
-    // source slot may shrink.  But the packing guard preserves its width
-    // during drag — verify it hasn't collapsed significantly (> 25%).
+    // source slot may shrink.  CSS min-width + tightenLayout preserves
+    // its width during drag — verify it hasn't collapsed significantly (> 25%).
     expect(widthDuring).toBeGreaterThanOrEqual(widthBefore * 0.75);
 
     await dragCancel(page, '.person-card[data-id="p2"]');

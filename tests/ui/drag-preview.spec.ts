@@ -247,9 +247,9 @@ test.describe("Drag Preview — Hysteresis", () => {
     // a different raw index
     const coords = await page.evaluate((sel) => {
       const slot = document.querySelector(sel)!;
-      // Entries are direct children of member-slot (or inside .people-column wrappers)
+      // Entries are direct children of member-slot
       const entries = [
-        ...slot.querySelectorAll(":scope > .member-entry, :scope > .people-column .member-entry"),
+        ...slot.querySelectorAll(":scope > .member-entry"),
       ].filter(
         (e) =>
           !e.classList.contains("dragging-source") &&
@@ -289,8 +289,8 @@ test.describe("Drag Preview — Hysteresis", () => {
       const slot = document.querySelector(sel)!;
       const preview = slot.querySelector(".drag-preview-entry");
       if (!preview) return null;
-      // Entries may be inside .people-column wrappers in horizontal layout
-      const entries = [...slot.querySelectorAll(":scope > .member-entry, :scope > .people-column .member-entry")].filter(
+      // Entries are direct children of member-slot
+      const entries = [...slot.querySelectorAll(":scope > .member-entry")].filter(
         (n) => !n.classList.contains("dragging-source")
       );
       return entries.indexOf(preview);
@@ -327,8 +327,8 @@ test.describe("Drag Preview — Hysteresis", () => {
       const slot = document.querySelector(sel)!;
       const preview = slot.querySelector(".drag-preview-entry");
       if (!preview) return null;
-      // Entries may be inside .people-column wrappers in horizontal layout
-      const entries = [...slot.querySelectorAll(":scope > .member-entry, :scope > .people-column .member-entry")].filter(
+      // Entries are direct children of member-slot
+      const entries = [...slot.querySelectorAll(":scope > .member-entry")].filter(
         (n) => !n.classList.contains("dragging-source")
       );
       return entries.indexOf(preview);

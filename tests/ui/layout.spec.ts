@@ -62,42 +62,45 @@ test.describe("Root Dropzone Fills Viewport", () => {
     await page.waitForSelector(".team");
   });
 
-  test("root dropzone height fills the visible page-shell area", async ({
+  test("root dropzone height is tight to tallest team", async ({
     page,
   }) => {
-    const dims = await page.evaluate(() => {
-      const shell = document.querySelector(".page-shell")!;
+    const data = await page.evaluate(() => {
       const dropzone = document.querySelector(".root-dropzone")!;
+      const teams = dropzone.querySelectorAll(":scope > .team");
+      if (teams.length === 0) return null;
+      const dropzoneRect = dropzone.getBoundingClientRect();
+      const maxBottom = Math.max(...Array.from(teams, (t) => t.getBoundingClientRect().bottom));
+      const cs = getComputedStyle(dropzone);
+      const expectedBottom = maxBottom + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
       return {
-        shellHeight: shell.clientHeight,
-        dropzoneHeight: dropzone.getBoundingClientRect().height,
-        shellPaddingTop: parseFloat(getComputedStyle(shell).paddingTop),
-        shellPaddingBottom: parseFloat(getComputedStyle(shell).paddingBottom),
+        dropzoneBottom: Math.round(dropzoneRect.bottom),
+        expectedBottom: Math.round(expectedBottom),
       };
     });
-    const availableHeight =
-      dims.shellHeight - dims.shellPaddingTop - dims.shellPaddingBottom;
-    // Dropzone should fill at least the visible area (minus padding & gap)
-    expect(dims.dropzoneHeight).toBeGreaterThanOrEqual(availableHeight - 30);
+    expect(data).not.toBeNull();
+    // Dropzone bottom should be tight to the tallest team (within tolerance)
+    expect(Math.abs(data!.dropzoneBottom - data!.expectedBottom)).toBeLessThan(2);
   });
 
-  test("root dropzone stretches to full width of page-shell", async ({
+  test("root dropzone fits its content width in horizontal mode", async ({
     page,
   }) => {
     const dims = await page.evaluate(() => {
-      const shell = document.querySelector(".page-shell")!;
       const dropzone = document.querySelector(".root-dropzone")!;
+      const teams = dropzone.querySelectorAll(":scope > .team");
+      const teamWidths = Array.from(teams, (t) => t.getBoundingClientRect().width);
       return {
-        shellClientWidth: shell.clientWidth,
         dropzoneWidth: dropzone.getBoundingClientRect().width,
-        shellPaddingLeft: parseFloat(getComputedStyle(shell).paddingLeft),
-        shellPaddingRight: parseFloat(getComputedStyle(shell).paddingRight),
+        teamCount: teams.length,
+        totalTeamWidth: teamWidths.reduce((a, b) => a + b, 0),
       };
     });
-    const availableWidth =
-      dims.shellClientWidth - dims.shellPaddingLeft - dims.shellPaddingRight;
-    // Dropzone width should match available content width
-    expect(dims.dropzoneWidth).toBeGreaterThanOrEqual(availableWidth - 2);
+    // Dropzone should have positive width and contain all teams
+    expect(dims.dropzoneWidth).toBeGreaterThan(0);
+    expect(dims.teamCount).toBeGreaterThan(0);
+    // Dropzone width should be at least the sum of team widths (plus gaps)
+    expect(dims.dropzoneWidth).toBeGreaterThanOrEqual(dims.totalTeamWidth);
   });
 
   test("root dropzone expands beyond viewport when content overflows vertically", async ({
@@ -135,13 +138,13 @@ test.describe("People Group Structure", () => {
   test("employee entries are direct children of member-slot", async ({
     page,
   }) => {
-    // t1 has employees — they should be inside .member-slot (possibly wrapped in .people-column in horizontal layout)
+    // t1 has employees — they should be inside .member-slot as direct children
     const memberSlot = page.locator(
       '.team[data-team-id="t1"] > .team-body > .member-slot'
     );
     await expect(memberSlot).toBeAttached();
 
-    // Employee entries should be inside member-slot (direct or via .people-column)
+    // Employee entries should be direct children of member-slot
     const employeeEntries = memberSlot.locator('.member-entry[data-member-type="employee"]');
     await expect(employeeEntries).toHaveCount(2); // p2 and p3
   });
@@ -279,7 +282,7 @@ test.describe("Horizontal Layout Flow", () => {
     expect(uniqueXPositions).toBeLessThan(entryCount);
   });
 
-  test("switching to vertical removes column wrappers", async ({ page }) => {
+  test("switching to vertical clears horizontal tighten sizes", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".team");
 
@@ -301,7 +304,7 @@ test.describe("Horizontal Layout Flow", () => {
     await page.locator("#csv-import-next").click();
     await page.waitForTimeout(300);
 
-    // Start in horizontal mode — should have column wrappers
+    // Start in horizontal mode — tightenLayout sets inline height
     const layout = await page
       .locator(".root-dropzone")
       .getAttribute("data-layout");
@@ -313,17 +316,17 @@ test.describe("Horizontal Layout Flow", () => {
     const team = page.locator(".team").filter({ hasText: "WrapTeam" });
     const memberSlot = team.locator(":scope > .team-body > .member-slot");
 
-    // In horizontal mode, slot should have an inline width set by applyPacking
-    const inlineWidth = await memberSlot.evaluate((el) => el.style.width);
-    expect(inlineWidth).not.toBe("");
+    // In horizontal mode, slot should have an inline height set by tightenLayout
+    const inlineHeight = await memberSlot.evaluate((el) => el.style.height);
+    expect(inlineHeight).not.toBe("");
 
     // Switch to vertical layout
     await page.locator('[data-action="toggle-root-layout"]').click();
     await page.waitForTimeout(300);
 
-    // Inline width should be cleared after switching to vertical
-    const inlineWidthAfter = await memberSlot.evaluate((el) => el.style.width);
-    expect(inlineWidthAfter).toBe("");
+    // Inline height should be cleared after switching to vertical
+    const inlineHeightAfter = await memberSlot.evaluate((el) => el.style.height);
+    expect(inlineHeightAfter).toBe("");
 
     // Entries should still exist as direct children
     const entries = await memberSlot.locator(":scope > .member-entry").count();
@@ -382,5 +385,169 @@ test.describe("Horizontal Layout Flow", () => {
     expect(Math.abs(positions.managerX - positions.entryX)).toBeLessThan(15);
     // Entry should be below manager
     expect(positions.entryY).toBeGreaterThan(positions.managerY);
+  });
+});
+
+test.describe("Tighten Layout — Horizontal", () => {
+  test("member-slots are tight to content height", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Ensure horizontal layout
+    const layout = await page.locator(".root-dropzone").getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const data = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.member-slot.layout-horizontal'), (slot) => {
+        const team = slot.closest('.team');
+        if (team?.getAttribute('data-view') === 'collapsed') return null;
+        const children = slot.querySelectorAll(':scope > .manager-slot, :scope > .member-entry');
+        if (children.length === 0) return null;
+        const slotRect = slot.getBoundingClientRect();
+        const maxBottom = Math.max(...Array.from(children, (c) => c.getBoundingClientRect().bottom));
+        const cs = getComputedStyle(slot);
+        const expectedBottom = maxBottom + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
+        return {
+          slotBottom: Math.round(slotRect.bottom),
+          expectedBottom: Math.round(expectedBottom),
+        };
+      }).filter(Boolean)
+    );
+    expect(data.length).toBeGreaterThan(0);
+    for (const { slotBottom, expectedBottom } of data as any[]) {
+      expect(Math.abs(slotBottom - expectedBottom)).toBeLessThan(2);
+    }
+  });
+
+  test("teams are tight to tallest child height", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    const layout = await page.locator(".root-dropzone").getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const data = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.team'), (team) => {
+        if (team.getAttribute('data-view') === 'collapsed') return null;
+        const body = team.querySelector(':scope > .team-body');
+        if (!body) return null;
+        const children = body.querySelectorAll(':scope > .member-slot, :scope > .subteam-slot');
+        if (children.length === 0) return null;
+        const teamRect = team.getBoundingClientRect();
+        const maxBottom = Math.max(...Array.from(children, (c) => c.getBoundingClientRect().bottom));
+        const cs = getComputedStyle(team);
+        const expectedBottom = maxBottom + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
+        return {
+          teamBottom: Math.round(teamRect.bottom),
+          expectedBottom: Math.round(expectedBottom),
+        };
+      }).filter(Boolean)
+    );
+    expect(data.length).toBeGreaterThan(0);
+    for (const { teamBottom, expectedBottom } of data as any[]) {
+      expect(Math.abs(teamBottom - expectedBottom)).toBeLessThan(2);
+    }
+  });
+
+  test("root-dropzone is tight to tallest team height", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    const layout = await page.locator(".root-dropzone").getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const data = await page.evaluate(() => {
+      const gp = document.querySelector('.root-dropzone');
+      if (!gp) return null;
+      const children = gp.querySelectorAll(':scope > .team');
+      if (children.length === 0) return null;
+      const gpRect = gp.getBoundingClientRect();
+      const maxBottom = Math.max(...Array.from(children, (c) => c.getBoundingClientRect().bottom));
+      const gpCs = getComputedStyle(gp);
+      const expectedBottom = maxBottom + parseFloat(gpCs.paddingBottom) + parseFloat(gpCs.borderBottomWidth);
+      return {
+        gpBottom: Math.round(gpRect.bottom),
+        expectedBottom: Math.round(expectedBottom),
+      };
+    });
+    expect(data).not.toBeNull();
+    expect(Math.abs(data!.gpBottom - data!.expectedBottom)).toBeLessThan(2);
+  });
+});
+
+test.describe("Tighten Layout — Vertical", () => {
+  test("member-slots are tight to content width", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    // Switch to vertical layout
+    const layout = await page.locator(".root-dropzone").getAttribute("data-layout");
+    if (layout !== "vertical") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const data = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.member-slot.layout-vertical'), (slot) => {
+        const team = slot.closest('.team');
+        if (team?.getAttribute('data-view') === 'collapsed') return null;
+        const children = slot.querySelectorAll(':scope > .manager-slot, :scope > .member-entry');
+        if (children.length === 0) return null;
+        const slotRect = slot.getBoundingClientRect();
+        const maxRight = Math.max(...Array.from(children, (c) => c.getBoundingClientRect().right));
+        const cs = getComputedStyle(slot);
+        const expectedRight = maxRight + parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth);
+        return {
+          slotRight: Math.round(slotRect.right),
+          expectedRight: Math.round(expectedRight),
+        };
+      }).filter(Boolean)
+    );
+    expect(data.length).toBeGreaterThan(0);
+    for (const { slotRight, expectedRight } of data as any[]) {
+      expect(Math.abs(slotRight - expectedRight)).toBeLessThan(2);
+    }
+  });
+
+  test("teams are tight to widest child width", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".team");
+
+    const layout = await page.locator(".root-dropzone").getAttribute("data-layout");
+    if (layout !== "vertical") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const data = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.team'), (team) => {
+        if (team.getAttribute('data-view') === 'collapsed') return null;
+        const body = team.querySelector(':scope > .team-body');
+        if (!body) return null;
+        const children = body.querySelectorAll(':scope > .member-slot, :scope > .subteam-slot');
+        if (children.length === 0) return null;
+        const teamRect = team.getBoundingClientRect();
+        const maxRight = Math.max(...Array.from(children, (c) => c.getBoundingClientRect().right));
+        const cs = getComputedStyle(team);
+        const expectedRight = maxRight + parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth);
+        return {
+          teamRight: Math.round(teamRect.right),
+          expectedRight: Math.round(expectedRight),
+        };
+      }).filter(Boolean)
+    );
+    expect(data.length).toBeGreaterThan(0);
+    for (const { teamRight, expectedRight } of data as any[]) {
+      expect(Math.abs(teamRight - expectedRight)).toBeLessThan(2);
+    }
   });
 });

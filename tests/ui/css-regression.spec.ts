@@ -234,6 +234,57 @@ test.describe("Team Panel", () => {
       expect(styles.manager.minHeight).toBe("0px");
     }
   });
+
+  test("collapsed team is as small as possible in horizontal mode", async ({
+    page,
+  }) => {
+    // Default layout is horizontal; Research (t3) is collapsed
+    const team = page.locator('.team[data-team-id="t3"]');
+    await expect(team).toHaveAttribute("data-view", "collapsed");
+
+    const maxHeight = await team.evaluate(
+      (el) => getComputedStyle(el).maxHeight
+    );
+    // Should not stretch to 100% of the shell; should be min-content
+    expect(maxHeight).not.toBe("100%");
+
+    const box = await team.boundingBox();
+    expect(box).toBeTruthy();
+
+    // An expanded team (t1) should be taller than the collapsed team
+    const expandedBox = await page
+      .locator('.team[data-team-id="t1"]')
+      .boundingBox();
+    expect(expandedBox).toBeTruthy();
+    expect(box!.height).toBeLessThan(expandedBox!.height);
+  });
+
+  test("collapsed team is as small as possible in vertical mode", async ({
+    page,
+  }) => {
+    // Switch to vertical layout
+    await page.locator('[data-action="toggle-root-layout"]').click();
+    await page.waitForTimeout(200);
+
+    const team = page.locator('.team[data-team-id="t3"]');
+    await expect(team).toHaveAttribute("data-view", "collapsed");
+
+    const maxWidth = await team.evaluate(
+      (el) => getComputedStyle(el).maxWidth
+    );
+    // Should not stretch to 100% of the shell; should be min-content
+    expect(maxWidth).not.toBe("100%");
+
+    const box = await team.boundingBox();
+    expect(box).toBeTruthy();
+
+    // An expanded team (t1) should be wider than the collapsed team
+    const expandedBox = await page
+      .locator('.team[data-team-id="t1"]')
+      .boundingBox();
+    expect(expandedBox).toBeTruthy();
+    expect(box!.width).toBeLessThan(expandedBox!.width);
+  });
 });
 
 /* ── Slots & dropzones ── */

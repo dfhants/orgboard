@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 
-test.describe("Packing — Slot Width During Drag", () => {
+test.describe("Layout — Slot Stability During Drag", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".team");

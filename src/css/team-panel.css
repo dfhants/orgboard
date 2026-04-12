@@ -256,21 +256,27 @@
 .member-slot {
   min-height: 143px;
   min-width: 143px;
-  transition: all var(--transition);
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
 }
 
 /* ── Sub-team slot: hidden when empty, visible during team drags ── */
 .subteam-slot {
   display: flex;
-  flex-flow: column nowrap;
+  flex-shrink: 0;
   gap: 10px;
   align-items: flex-start;
   align-content: flex-start;
-  transition: all var(--transition);
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
 }
 
 .team-body.horizontal > .subteam-slot {
   flex-flow: row nowrap;
+  max-height: 100%;
+}
+
+.team-body.vertical > .subteam-slot {
+  flex-flow: column nowrap;
+  max-width: 100%;
 }
 
 .subteam-slot:empty,
@@ -287,6 +293,23 @@
 .member-entry {
   position: relative;
   flex: 0 0 auto;
+}
+
+/* In horizontal mode, member-entries wrapping child teams must
+   pass the height constraint through (like demo .parent). */
+.team-body.horizontal > .subteam-slot > .member-entry {
+  display: flex;
+  flex-shrink: 0;
+  max-height: 100%;
+  width: fit-content;
+}
+
+/* In vertical mode, pass width constraint through. */
+.team-body.vertical > .subteam-slot > .member-entry {
+  display: flex;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: fit-content;
 }
 
 /* Override absolute positioning from .slot > .empty-note (drag-drop.css)
@@ -367,7 +390,19 @@
 }
 
 .child-team {
+  display: flex;
   flex-shrink: 0;
+}
+
+/* Child teams inside subteam-slot must respect the parent's constraints */
+.team-body.horizontal > .subteam-slot .child-team {
+  max-height: 100%;
+  width: fit-content;
+}
+
+.team-body.vertical > .subteam-slot .child-team {
+  max-width: 100%;
+  height: fit-content;
 }
 
 /* ── Layout cascade ──
@@ -382,6 +417,16 @@
 .page-shell[data-layout="vertical"] .team {
   max-width: 100%;
   height: fit-content;
+}
+
+.page-shell[data-layout="horizontal"] .team[data-view="collapsed"],
+.page-shell[data-layout="horizontal"] .child-team[data-view="collapsed"] {
+  max-height: max-content;
+}
+
+.page-shell[data-layout="vertical"] .team[data-view="collapsed"],
+.page-shell[data-layout="vertical"] .child-team[data-view="collapsed"] {
+  max-width: max-content;
 }
 
 .page-shell[data-layout="horizontal"] .child-team {

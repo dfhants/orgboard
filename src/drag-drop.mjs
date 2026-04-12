@@ -9,7 +9,7 @@ import {
   insertSubTeam,
 } from './operations.mjs';
 import { isTeamInside } from './team-logic.mjs';
-import { render, applyHorizontalPacking } from './render.mjs';
+import { render, applyHorizontalPacking as tightenLayout } from './render.mjs';
 
 export function canDrop(dropKind, teamId) {
   if (!dragState) {
@@ -115,74 +115,17 @@ function computeRawInsertionIndex(entries, event) {
   return colEntries[colEntries.length - 1].idx + 1;
 }
 
-/**
- * Column-aware insertion index for horizontal layouts where entries live
- * inside .people-column wrappers.  Iterate columns left-to-right, entries
- * top-to-bottom within each column.
- */
-function computeColumnInsertionIndex(flatEntries, columns, event) {
-  let flatIdx = 0;
-  for (let ci = 0; ci < columns.length; ci++) {
-    const col = columns[ci];
-    const colRect = col.getBoundingClientRect();
-    const colEntries = [...col.children].filter(
-      n => n.classList.contains("member-entry") && !n.classList.contains("drag-preview-entry") && !n.classList.contains("dragging-source")
-    );
-
-    // Determine if cursor is within this column's horizontal band.
-    // For the last column, extend to infinity on the right.
-    const isLastCol = ci === columns.length - 1;
-    const inColumn = isLastCol
-      ? event.clientX >= colRect.left
-      : event.clientX < colRect.right + (columns[ci + 1].getBoundingClientRect().left - colRect.right) / 2;
-
-    if (inColumn) {
-      for (const entry of colEntries) {
-        const r = entry.getBoundingClientRect();
-        if (event.clientY < r.top + r.height / 2) {
-          return flatIdx;
-        }
-        flatIdx++;
-      }
-      // Below all entries in this column
-      return flatIdx;
-    }
-
-    flatIdx += colEntries.length;
-  }
-
-  return flatEntries.length;
-}
-
 export function getMemberInsertionIndex(dropzone, event) {
-  const columns = [...dropzone.querySelectorAll(":scope > .people-column")];
-  const isColumnLayout = columns.length > 0;
-
-  // Collect member-entry nodes: from column wrappers or as direct children
-  let entries;
-  if (isColumnLayout) {
-    entries = [];
-    for (const col of columns) {
-      for (const child of col.children) {
-        if (child.classList.contains("member-entry") && !child.classList.contains("drag-preview-entry") && !child.classList.contains("dragging-source")) {
-          entries.push(child);
-        }
-      }
-    }
-  } else {
-    entries = [...dropzone.querySelectorAll(
-      ':scope > .member-entry:not(.drag-preview-entry):not(.dragging-source)'
-    )];
-  }
+  const entries = [...dropzone.querySelectorAll(
+    ':scope > .member-entry:not(.drag-preview-entry):not(.dragging-source)'
+  )];
 
   if (entries.length === 0) {
     const teamId = dropzone.dataset.teamId;
     return teamId ? getTeam(teamId).members.length : 0;
   }
 
-  const rawIndex = isColumnLayout
-    ? computeColumnInsertionIndex(entries, columns, event)
-    : computeRawInsertionIndex(entries, event);
+  const rawIndex = computeRawInsertionIndex(entries, event);
 
   // Map visual position to array index using data-member-index attributes
   function visualToArrayIndex(visIdx) {
@@ -320,82 +263,46 @@ function updateDropPreview(dropzone, event) {
     setDropPreview(createDropPreview(dropzone));
   }
 
-  // Place the preview in the correct container based on drag type
-  const columns = [...dropzone.querySelectorAll(":scope > .people-column")];
-  const isColumnLayout = columns.length > 0;
+  // Place preview among direct children.
+  // Temporarily detach the preview so its presence doesn't shift entry
+  // rects and cause computeRawInsertionIndex to oscillate.
+  const previewWasInDropzone = dropPreview.parentElement === dropzone;
+  const previewNextSibling = dropPreview.nextSibling;
+  if (previewWasInDropzone) {
+    dropPreview.remove();
+  }
 
-  if (dragState.type === "employee" && isColumnLayout) {
-    // Column layout: entries are inside .people-column wrappers.
-    // Collect flat entry list across all columns (left→right, top→bottom).
-    const flatEntries = [];
-    for (const col of columns) {
-      for (const child of col.children) {
-        if (child.classList.contains("member-entry") && !child.classList.contains("drag-preview-entry") && !child.classList.contains("dragging-source")) {
-          flatEntries.push(child);
-        }
+  const entries = [...dropzone.children].filter(
+    (node) =>
+      node.classList.contains("member-entry") &&
+      !node.classList.contains("drag-preview-entry") &&
+      !node.classList.contains("dragging-source"),
+  );
+  const insertPos = computeRawInsertionIndex(entries, event);
+  const anchor = entries[insertPos] ?? null;
+
+  // Check current logical position (where preview was before detach)
+  let currentPos = -1;
+  if (previewWasInDropzone) {
+    currentPos = 0;
+    // Count member-entries that come before the preview's old position
+    let node = dropzone.firstChild;
+    const refNode = previewNextSibling; // what was after the preview
+    while (node && node !== refNode) {
+      if (node.classList?.contains("member-entry") && !node.classList.contains("dragging-source")) {
+        currentPos++;
       }
+      node = node.nextSibling;
     }
+  }
+  const moved = currentPos !== insertPos;
 
-    const insertPos = computeColumnInsertionIndex(flatEntries, columns, event);
-
-    // Unwrap columns back to flat children in the dropzone
-    for (const col of columns) {
-      while (col.firstChild) dropzone.insertBefore(col.firstChild, col);
-      col.remove();
-    }
-    dropzone.classList.remove("has-columns");
-
-    // Re-collect entries after unwrap (same elements, now direct children)
-    const entries = [...dropzone.children].filter(
-      n => n.classList.contains("member-entry") && !n.classList.contains("drag-preview-entry") && !n.classList.contains("dragging-source")
-    );
-    const anchor = entries[insertPos] ?? null;
+  if (moved) {
     dropzone.insertBefore(dropPreview, anchor);
-
-    // Repack into columns (including the preview)
-    applyHorizontalPacking();
-  } else {
-    // Flat layout — place preview among direct children.
-    // Temporarily detach the preview so its presence doesn't shift entry
-    // rects and cause computeRawInsertionIndex to oscillate.
-    const previewWasInDropzone = dropPreview.parentElement === dropzone;
-    const previewNextSibling = dropPreview.nextSibling;
-    if (previewWasInDropzone) {
-      dropPreview.remove();
-    }
-
-    const entries = [...dropzone.children].filter(
-      (node) =>
-        node.classList.contains("member-entry") &&
-        !node.classList.contains("drag-preview-entry") &&
-        !node.classList.contains("dragging-source"),
-    );
-    const insertPos = computeRawInsertionIndex(entries, event);
-    const anchor = entries[insertPos] ?? null;
-
-    // Check current logical position (where preview was before detach)
-    let currentPos = -1;
-    if (previewWasInDropzone) {
-      currentPos = 0;
-      // Count member-entries that come before the preview's old position
-      let node = dropzone.firstChild;
-      const refNode = previewNextSibling; // what was after the preview
-      while (node && node !== refNode) {
-        if (node.classList?.contains("member-entry") && !node.classList.contains("dragging-source")) {
-          currentPos++;
-        }
-        node = node.nextSibling;
-      }
-    }
-    const moved = currentPos !== insertPos;
-
-    if (moved) {
-      dropzone.insertBefore(dropPreview, anchor);
-      applyHorizontalPacking();
-    } else if (previewWasInDropzone) {
-      // Re-insert at original position (since we detached it)
-      dropzone.insertBefore(dropPreview, previewNextSibling);
-    }
+    tightenLayout();
+  } else if (previewWasInDropzone) {
+    // Re-insert at original position (since we detached it)
+    dropzone.insertBefore(dropPreview, previewNextSibling);
   }
 }
 
@@ -498,6 +405,15 @@ export function setupDragDropListeners() {
     setCustomDragImage(event, draggable, previewNode);
 
     if (!isCopyMode && sourceElement) {
+      // Freeze the member-slot's dimensions before hiding the source element,
+      // so CSS max-content doesn't cause the slot to shrink when the card
+      // becomes display:none.
+      const memberSlot = sourceElement.closest(".member-slot");
+      if (memberSlot) {
+        memberSlot.style.width = memberSlot.offsetWidth + "px";
+        memberSlot.style.height = memberSlot.offsetHeight + "px";
+        memberSlot.dataset.dragFrozen = "true";
+      }
       setTimeout(() => {
         sourceElement.classList.add("dragging-source");
       }, 0);
@@ -507,12 +423,20 @@ export function setupDragDropListeners() {
   document.addEventListener("dragend", () => {
     if (dragState?.sourceElement) {
       dragState.sourceElement.classList.remove("dragging-source");
+      // Unfreeze the member-slot dimensions and re-tighten
+      const memberSlot = dragState.sourceElement.closest(".member-slot");
+      if (memberSlot) {
+        memberSlot.style.width = "";
+        memberSlot.style.height = "";
+        delete memberSlot.dataset.dragFrozen;
+      }
     }
     removeDragImageProxy();
     removeDropPreview();
     resetInsertionHysteresis();
     setDragState(null);
     clearDropHighlights();
+    tightenLayout();
   });
 
   document.addEventListener("dragover", (event) => {
