@@ -2,11 +2,6 @@ import { test, expect } from "./fixtures";
 import { dragAndDrop, dragHover, dragCancel } from "./helpers";
 
 test.describe("Drag and Drop — Move", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("move employee between teams", async ({ page }) => {
     // Milo (p2) starts in Product (t1) member slot
     const sourceSlot = page.locator(
@@ -197,20 +192,11 @@ test.describe("Drag and Drop — Move", () => {
       '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot'
     );
 
-    // Wait for async class cleanup (setTimeout(0) in dragstart handler
-    // can leave a stale dragging-source class after rejected drops)
-    await page.waitForTimeout(50);
-    await page.evaluate(() => {
-      document.querySelectorAll(".dragging-source").forEach((el) => {
-        el.classList.remove("dragging-source");
-      });
-    });
-
     // Manager should still be Ava, not Milo
     await expect(
       managerSlot.locator('.person-card[data-id="p1"]')
     ).toBeVisible();
-    // Milo should still be in member slot (visible after timeout cleanup)
+    // Milo should still be in member slot
     await expect(
       page.locator(
         '.team[data-team-id="t1"] > .team-body > .member-slot .person-card[data-id="p2"]'

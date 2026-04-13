@@ -152,6 +152,10 @@ export function loadScenario(id) {
       if (!team.members) team.members = [];
     }
   }
+  // Normalize activeSortLayers for older state
+  if (result && !result.activeSortLayers) {
+    result.activeSortLayers = [];
+  }
   return result;
 }
 

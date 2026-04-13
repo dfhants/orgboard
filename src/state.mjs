@@ -35,6 +35,7 @@ export const createInitialState = () => ({
   checksPanelOpen: false,
   notesPanelOpen: false,
   notes: "",
+  activeSortLayers: [],
   unassignedEmployees: ["p9", "p10"],
   employees: {
     p1: { id: "p1", name: "Ava Richardson", location: "San Francisco, CA", timezone: "PST (UTC−8)", role: "Product Director", notes: "", requested: false, level: 8, currentManager: "" },
@@ -105,6 +106,7 @@ export const createBlankState = () => ({
   checksPanelOpen: false,
   notesPanelOpen: false,
   notes: "",
+  activeSortLayers: [],
   unassignedEmployees: [],
   employees: {},
   teams: {},
@@ -118,12 +120,6 @@ export function setState(s) { state = s; }
 
 export let dragState = null;
 export function setDragState(ds) { dragState = ds; }
-
-export let dropPreview = null;
-export function setDropPreview(dp) { dropPreview = dp; }
-
-export let dragImageProxy = null;
-export function setDragImageProxy(p) { dragImageProxy = p; }
 
 export let employeeSequence = 10;
 export function setEmployeeSequence(v) { employeeSequence = v; }

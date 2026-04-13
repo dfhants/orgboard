@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Notes Panel", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("collapsed sidebar shows Notes strip with label", async ({ page }) => {
     const panel = page.locator("#stats-panel");
     await expect(panel).toBeVisible();

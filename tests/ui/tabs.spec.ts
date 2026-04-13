@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Scenario Tabs", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("default single tab on fresh load", async ({ page }) => {
     const tabs = page.locator(".scenario-tab");
     await expect(tabs).toHaveCount(1);
@@ -81,7 +76,7 @@ test.describe("Scenario Tabs", () => {
     const tabInput = page.locator(".scenario-tab-input");
     await tabInput.fill("Persistent Tab Name");
     await tabInput.press("Enter");
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     await page.reload();
     await page.waitForSelector(".team");
@@ -114,7 +109,7 @@ test.describe("Scenario Tabs", () => {
     await page.locator('[data-landing-action="demo"]').click();
     await page.waitForSelector(".team");
     await expect(page.locator(".scenario-tab")).toHaveCount(3);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // Reload
     await page.reload();
@@ -135,7 +130,7 @@ test.describe("Scenario Tabs", () => {
     await page.locator(".scenario-tab").first().click();
     await page.waitForSelector(".team");
     // Wait for IDB flush (300ms debounce + async write)
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(350);
 
     // Reload
     await page.reload();

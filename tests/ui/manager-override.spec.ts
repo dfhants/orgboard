@@ -2,11 +2,6 @@ import { test, expect } from "./fixtures";
 import { dragAndDrop } from "./helpers";
 
 test.describe("Manager Override", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("clicking split button opens manager picker modal", async ({
     page,
   }) => {

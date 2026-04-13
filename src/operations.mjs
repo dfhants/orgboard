@@ -5,7 +5,7 @@ import {
   randomTeamColors,
 } from './state.mjs';
 import { isTeamInside, normalizeInsertIndex, cleanupManagerOverrides, collectAllEmployeesInTeam, findParentTeam } from './team-logic.mjs';
-import { pickRandomItem } from './utils.mjs';
+import { pickRandomItem, parseUtcOffset } from './utils.mjs';
 
 function nextTeamName() {
   const existingNames = new Set(Object.values(state.teams).map((t) => t.name));
@@ -203,8 +203,13 @@ export function copyTeamToTarget(teamId, targetTeamId, insertIndex) {
 }
 
 export function deleteEmployee(employeeId) {
+  const isUnassigned = state.unassignedEmployees.includes(employeeId);
   removeEmployeeFromCurrentLocation(employeeId);
-  delete state.employees[employeeId];
+  if (isUnassigned) {
+    delete state.employees[employeeId];
+  } else {
+    state.unassignedEmployees.push(employeeId);
+  }
   cleanupManagerOverrides(state);
 }
 
@@ -233,4 +238,49 @@ export function deleteTeam(teamId) {
 export function toggleTeamLayout(teamId) {
   const team = getTeam(teamId);
   team.ownLayout = team.ownLayout === "collapsed" ? "expanded" : "collapsed";
+}
+
+/** Sort keys and their comparator factories. */
+export const sortKeys = {
+  name:     { label: "Name",     compare: (dir) => (a, b) => dir * a.name.localeCompare(b.name) },
+  role:     { label: "Role",     compare: (dir) => (a, b) => dir * a.role.localeCompare(b.role) },
+  level:    { label: "Level",    compare: (dir) => (a, b) => dir * ((a.level ?? 0) - (b.level ?? 0)) },
+  timezone: { label: "Timezone", compare: (dir) => (a, b) => dir * (parseUtcOffset(a.timezone || "") - parseUtcOffset(b.timezone || "")) },
+  location: { label: "Location", compare: (dir) => (a, b) => dir * a.location.localeCompare(b.location) },
+};
+
+/**
+ * Sort all teams' members in place using multiple sort layers.
+ * Layers are applied in priority order (first layer = primary sort).
+ * @param {{ key: string, direction: "asc"|"desc" }[]} layers
+ */
+export function sortAllTeams(layers) {
+  if (!layers || layers.length === 0) return;
+  const comparators = layers
+    .map(({ key, direction }) => {
+      const entry = sortKeys[key];
+      if (!entry) return null;
+      const dir = direction === "desc" ? -1 : 1;
+      return entry.compare(dir);
+    })
+    .filter(Boolean);
+  if (comparators.length === 0) return;
+
+  const cmp = (a, b) => {
+    for (const fn of comparators) {
+      const result = fn(a, b);
+      if (result !== 0) return result;
+    }
+    return 0;
+  };
+
+  for (const team of Object.values(state.teams)) {
+    if (team.members.length < 2) continue;
+    team.members.sort((a, b) => {
+      const ea = state.employees[a.id];
+      const eb = state.employees[b.id];
+      if (!ea || !eb) return 0;
+      return cmp(ea, eb);
+    });
+  }
 }

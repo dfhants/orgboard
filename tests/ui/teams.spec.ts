@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Team Expand / Collapse", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("collapse a team by clicking its titlebar", async ({ page }) => {
     const team = page.locator('.team[data-team-id="t1"]');
     await expect(team).toHaveAttribute("data-view", "expanded");

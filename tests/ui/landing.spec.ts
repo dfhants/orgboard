@@ -113,7 +113,7 @@ test.describe("Landing Page", () => {
     // Dismiss landing with demo data
     await page.locator('[data-landing-action="demo"]').click();
     await page.waitForSelector(".team");
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // Create second tab (landing page appears)
     await page.locator(".scenario-tab-add").click();
@@ -567,7 +567,7 @@ test.describe("CSV Import into Existing Scenario", () => {
       await page.goto("/");
       await page.locator('[data-landing-action="demo"]').click();
       await page.waitForSelector(".team");
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(350);
       await use(page);
     },
   });

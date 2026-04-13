@@ -31,6 +31,8 @@
 
 .team[data-view="collapsed"] {
   max-height: min-content;
+  min-width: 0;
+  min-height: 0;
 }
 
 .team[data-view="collapsed"].is-over {
@@ -394,38 +396,25 @@
   flex-shrink: 0;
 }
 
-/* Child teams inside subteam-slot must respect the parent's constraints */
-.team-body.horizontal > .subteam-slot .child-team {
-  max-height: 100%;
-  width: fit-content;
-}
-
-.team-body.vertical > .subteam-slot .child-team {
-  max-width: 100%;
-  height: fit-content;
-}
-
 /* ── Layout cascade ──
    Horizontal: page scrolls sideways, teams must fit shell height.
    Vertical: page scrolls down, teams must fit shell width. */
 
 .page-shell[data-layout="horizontal"] .team {
   max-height: 100%;
-  width: fit-content;
+  width: max-content;
 }
 
 .page-shell[data-layout="vertical"] .team {
   max-width: 100%;
-  height: fit-content;
+  height: max-content;
 }
 
-.page-shell[data-layout="horizontal"] .team[data-view="collapsed"],
-.page-shell[data-layout="horizontal"] .child-team[data-view="collapsed"] {
+.page-shell[data-layout="horizontal"] .team[data-view="collapsed"] {
   max-height: max-content;
 }
 
-.page-shell[data-layout="vertical"] .team[data-view="collapsed"],
-.page-shell[data-layout="vertical"] .child-team[data-view="collapsed"] {
+.page-shell[data-layout="vertical"] .team[data-view="collapsed"] {
   max-width: max-content;
 }
 
@@ -437,10 +426,6 @@
 .page-shell[data-layout="vertical"] .child-team {
   max-width: 100%;
   height: fit-content;
-}
-
-.page-shell[data-layout="vertical"] .member-entry {
-  max-width: 100%;
 }
 
 /* ─── Team menu popover ─── */

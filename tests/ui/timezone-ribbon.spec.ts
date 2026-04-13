@@ -2,11 +2,6 @@ import { test, expect } from "./fixtures";
 import { dragAndDrop } from "./helpers";
 
 test.describe("Timezone Spread Ribbon", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("each team has a data-tz-gap attribute", async ({ page }) => {
     const teams = page.locator(".team");
     const count = await teams.count();
@@ -112,11 +107,6 @@ test.describe("Timezone Spread Ribbon", () => {
 });
 
 test.describe("Check-Status Ribbon", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   async function addHasManagerCheck(page: import("@playwright/test").Page) {
     await page.click(".checks-strip");
     await page.click(".checks-add-button");
@@ -233,11 +223,6 @@ test.describe("Check-Status Ribbon", () => {
 });
 
 test.describe("Pin to Ribbon", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   async function addTwoChecks(page: import("@playwright/test").Page) {
     await page.click(".checks-strip");
     await page.click(".checks-add-button");
@@ -352,7 +337,7 @@ test.describe("Pin to Ribbon", () => {
 
     // Close panel, wait for debounced save, then reload
     await page.click('[data-action="close-right-panel"]');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
     await page.reload();
     await page.waitForSelector(".team");
 

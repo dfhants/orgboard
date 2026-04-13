@@ -1,10 +1,7 @@
-import { test, expect } from "./fixtures";
+import { test, expect, addUnassignedPeople } from "./fixtures";
 
 test.describe("Persistence (SQLite)", () => {
   test("state survives page reload — teams and members preserved", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-
     // Verify initial state has 2 root teams
     await expect(page.locator(".root-dropzone > .team")).toHaveCount(2);
 
@@ -16,7 +13,7 @@ test.describe("Persistence (SQLite)", () => {
     await input.press("Enter");
 
     // Wait for debounced save to flush
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // Reload the page
     await page.reload();
@@ -32,9 +29,6 @@ test.describe("Persistence (SQLite)", () => {
   });
 
   test("notes survive page reload", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-
     // Open notes panel
     await page.locator('[data-action="toggle-notes-panel"]').first().click();
 
@@ -43,7 +37,7 @@ test.describe("Persistence (SQLite)", () => {
     await textarea.fill("These are my persistent notes");
 
     // Wait for debounced save
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // Reload
     await page.reload();
@@ -55,9 +49,6 @@ test.describe("Persistence (SQLite)", () => {
   });
 
   test("employee additions survive page reload", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-
     // Count initial unassigned
     const initialCount = await page.locator(".roster-cards .person-card").count();
 
@@ -68,7 +59,7 @@ test.describe("Persistence (SQLite)", () => {
     await page.locator("#add-person-submit").click();
 
     // Wait for save
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // Reload
     await page.reload();
@@ -80,9 +71,6 @@ test.describe("Persistence (SQLite)", () => {
   });
 
   test("export button triggers file download", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-
     // Click export and intercept the download
     const downloadPromise = page.waitForEvent("download");
     await page.locator("#export-db-btn").click();
@@ -92,9 +80,6 @@ test.describe("Persistence (SQLite)", () => {
   });
 
   test("recovers from corrupt IndexedDB by resetting to fresh DB", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-
     // Write garbage bytes into the IndexedDB slot where the SQLite binary lives
     await page.evaluate(async () => {
       const garbage = new Uint8Array([0, 1, 2, 3, 4, 5]);
@@ -135,18 +120,13 @@ test.describe("Persistence (SQLite)", () => {
   });
 
   test("rapid mutations do not cause errors", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-
-    // Perform several rapid mutations
+    // Perform several rapid state mutations that each trigger a render + DB save
     for (let i = 0; i < 5; i++) {
-      await page.locator("#add-person-btn").click();
-      await page.locator("#ap-name").fill(`Rapid Person ${i}`);
-      await page.locator("#add-person-submit").click();
+      await addUnassignedPeople(page, 1, `Rapid ${i}`);
     }
 
     // Wait for saves to flush
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // No errors — page still functional
     await expect(page.locator(".roster-cards .person-card")).toHaveCount(7); // 2 initial + 5 new

@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Stats Panel", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("stats panel renders collapsed by default with strip icon and label", async ({ page }) => {
     const panel = page.locator("#stats-panel");
     await expect(panel).toBeVisible();
@@ -64,7 +59,7 @@ test.describe("Stats Panel", () => {
     const widthBefore = await shell.evaluate((el) => el.getBoundingClientRect().width);
 
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(350);
     const widthAfter = await shell.evaluate((el) => el.getBoundingClientRect().width);
     expect(widthAfter).toBeLessThan(widthBefore);
   });
@@ -77,7 +72,7 @@ test.describe("Stats Panel", () => {
 
   test("stats panel is 320px wide when open", async ({ page }) => {
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(350);
     const panel = page.locator("#stats-panel");
     const width = await panel.evaluate((el) => window.getComputedStyle(el).width);
     expect(width).toBe("320px");
@@ -96,7 +91,8 @@ test.describe("Stats Panel", () => {
     await deleteBtn.click();
 
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
-    await expect(totalRow).toHaveText("9");
+    // Deleting from a team moves to unassigned — total stays the same
+    await expect(totalRow).toHaveText("10");
   });
 
   test("stats update after adding a person", async ({ page }) => {

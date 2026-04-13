@@ -2,11 +2,6 @@ import { test, expect } from "./fixtures";
 import { dragAndDropCopy } from "./helpers";
 
 test.describe("Drag and Drop — Copy", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("holding C key during drag copies employee instead of moving", async ({
     page,
   }) => {

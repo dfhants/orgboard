@@ -1,10 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Checks Panel", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
 
   // ─── Sidebar strip layout ───
 
@@ -305,7 +301,12 @@ test.describe("Checks Panel", () => {
     await page.locator('.check-type-card[data-type="has-manager"]').click();
     await page.click("#criterion-submit");
 
-    // Default demo data: Field team (t4) has no manager, others do
+    // Default demo data: 4 teams (>3 threshold) → details are collapsible
+    const collapsible = page.locator(".check-details-collapsible");
+    await expect(collapsible).toHaveCount(1);
+    // Expand the collapsible to reveal detail rows
+    await collapsible.locator(".check-details-toggle").click();
+
     const details = page.locator(".check-detail-row");
     const failDetails = details.filter({ has: page.locator('[data-lucide="x"]') });
     // At least one team should fail (Field has no manager)
@@ -326,6 +327,70 @@ test.describe("Checks Panel", () => {
     const summary = page.locator(".checks-summary");
     await expect(summary).toBeVisible();
     await expect(summary.locator(".checks-summary-count")).toContainText("1/1 passing");
+  });
+
+  // ─── Collapsible check details ───
+
+  test("check details are collapsible when more than 3 teams", async ({ page }) => {
+    await page.click(".checks-strip");
+    await page.click(".checks-add-button");
+    await page.locator('.check-type-card[data-type="has-manager"]').click();
+    await page.click("#criterion-submit");
+
+    // Demo data has 4 teams → exceeds threshold of 3
+    const collapsible = page.locator(".check-details-collapsible");
+    await expect(collapsible).toHaveCount(1);
+    // Collapsed by default
+    await expect(collapsible).not.toHaveAttribute("open");
+    // Detail rows exist but are hidden
+    await expect(page.locator(".check-detail-row").first()).toBeHidden();
+  });
+
+  test("collapsible toggle shows team count label", async ({ page }) => {
+    await page.click(".checks-strip");
+    await page.click(".checks-add-button");
+    await page.locator('.check-type-card[data-type="has-manager"]').click();
+    await page.click("#criterion-submit");
+
+    const toggle = page.locator(".check-details-toggle");
+    await expect(toggle).toBeVisible();
+    // 1 failing / 4 teams (Field has no manager)
+    await expect(toggle).toContainText("1 failing");
+    await expect(toggle).toContainText("4 teams");
+  });
+
+  test("clicking toggle expands and collapses details", async ({ page }) => {
+    await page.click(".checks-strip");
+    await page.click(".checks-add-button");
+    await page.locator('.check-type-card[data-type="has-manager"]').click();
+    await page.click("#criterion-submit");
+
+    const collapsible = page.locator(".check-details-collapsible");
+    const toggle = collapsible.locator(".check-details-toggle");
+    const firstRow = page.locator(".check-detail-row").first();
+
+    // Expand
+    await toggle.click();
+    await expect(collapsible).toHaveAttribute("open", "");
+    await expect(firstRow).toBeVisible();
+
+    // Collapse
+    await toggle.click();
+    await expect(collapsible).not.toHaveAttribute("open");
+    await expect(firstRow).toBeHidden();
+  });
+
+  test("check with 3 or fewer teams shows details inline without collapsible", async ({ page }) => {
+    // Add a scenario-scoped check (all-assigned) which produces a single detail row
+    await page.click(".checks-strip");
+    await page.click(".checks-add-button");
+    await page.locator('.check-type-card[data-type="all-assigned"]').click();
+    await page.click("#criterion-submit");
+
+    // all-assigned is a scenario-scoped check with 1 detail row → below threshold
+    await expect(page.locator(".check-details-collapsible")).toHaveCount(0);
+    await expect(page.locator(".check-details")).toHaveCount(1);
+    await expect(page.locator(".check-detail-row").first()).toBeVisible();
   });
 
   // ─── Criteria persist across panel close/open ───
@@ -353,7 +418,7 @@ test.describe("Checks Panel", () => {
     // Close the panel so saved state has it closed
     await page.click('[data-action="close-right-panel"]');
     // Wait for DB flush
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
 
     // Reload — state should persist
     await page.reload();
@@ -366,11 +431,6 @@ test.describe("Checks Panel", () => {
 });
 
 test.describe("Checks Panel – Level Field", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("level badge shows on person cards in demo data", async ({ page }) => {
     const levelBadges = page.locator(".person-level");
     const count = await levelBadges.count();

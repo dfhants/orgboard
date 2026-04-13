@@ -8,6 +8,7 @@ import {
 } from './state.mjs';
 import { countDirectEmployees, countNestedTeams, countTeamMemberships, collectAllEmployeesInTeam, buildHierarchyTree, computeTeamStats, computeGlobalStats, computeManagerChanges } from './team-logic.mjs';
 import { evaluateAllChecks, describeCriterion, checkTypes } from './checks.mjs';
+import { sortAllTeams } from './operations.mjs';
 import { debouncedSave } from './scenarios.mjs';
 
 export const createIcons = (opts) => _createIcons({ icons, ...opts });
@@ -247,6 +248,230 @@ export function renderTeam(teamId, options = {}) {
   `;
 }
 
+/* ── Compact tree layout (custom Reingold-Tilford) ── */
+
+const NODE_W = 140;   // node width
+const NODE_H = 62;    // baseline node height used for layout and connector anchoring
+const LEAF_H = 28;    // compact leaf-row height
+const H_GAP = 6;      // minimum horizontal gap between nodes
+const V_GAP = 40;     // vertical gap between levels
+
+function hierarchyNodeKey(node) {
+  if (!node) return "";
+  if (node.type === "root" || node.type === "team") {
+    return `team:${node.teamId || ""}`;
+  }
+  if (node.type === "employee" && node.employee?.id) {
+    return `emp:${node.teamId || ""}:${node.employee.id}`;
+  }
+  return "";
+}
+
+/**
+ * Bundle leaf children into leaf-group pseudo-nodes.
+ * A "leaf" is any child with no children of its own.
+ * This collapses N horizontal leaves into 1 vertical column.
+ */
+function bundleLeaves(node, collapsedKeys = new Set()) {
+  if (!node.children || node.children.length === 0) return node;
+  const nodeKey = hierarchyNodeKey(node);
+  const isCollapsed = nodeKey && collapsedKeys.has(nodeKey);
+  const processed = node.children.map(c => bundleLeaves(c, collapsedKeys));
+  const branches = [];
+  const leaves = [];
+  for (const child of processed) {
+    const isLeaf = !child.children || child.children.length === 0;
+    const isBranchType = child.type === "root" || child.type === "team";
+    if (isLeaf && !isBranchType) {
+      leaves.push(child);
+    } else {
+      branches.push(child);
+    }
+  }
+  const newChildren = [...branches];
+  if (leaves.length > 0) {
+    newChildren.push({ type: "leaf-group", members: leaves, children: [] });
+  }
+  return {
+    ...node,
+    __nodeKey: nodeKey,
+    __collapsible: newChildren.length > 0,
+    __collapsed: !!isCollapsed,
+    children: isCollapsed ? [] : newChildren,
+  };
+}
+
+/**
+ * Reingold-Tilford tree layout.
+ * Each laid-out node stores: { data, children, x (relative to parent), absX (after resolve) }
+ */
+function layoutNode(data) {
+  const kids = (data.children || []).map(c => layoutNode(c));
+  const n = { data, children: kids, x: 0 };
+
+  if (kids.length === 0) return n;
+  if (kids.length === 1) {
+    kids[0].x = 0;
+    return n;
+  }
+
+  // Place children left-to-right, shifting each to avoid overlap with all previous subtrees
+  kids[0].x = 0;
+  for (let i = 1; i < kids.length; i++) {
+    const rightContour = getContour(kids, i, "right"); // contour of kids[0..i-1] combined
+    const leftContour = getLeftContour(kids[i]);
+    let shift = 0;
+    const depth = Math.min(rightContour.length, leftContour.length);
+    for (let d = 0; d < depth; d++) {
+      const needed = rightContour[d] - leftContour[d] + NODE_W + H_GAP;
+      if (needed > shift) shift = needed;
+    }
+    kids[i].x = shift;
+  }
+
+  // Centre parent over first and last child
+  n.x = 0; // will be relative to caller
+  const mid = (kids[0].x + kids[kids.length - 1].x) / 2;
+  // Shift all children so parent is at 0
+  for (const k of kids) k.x -= mid;
+
+  return n;
+}
+
+/** Get the left contour (min x at each depth) of a single subtree */
+function getLeftContour(node) {
+  const c = [];
+  (function walk(n, x, d) {
+    if (d >= c.length) c.push(x);
+    else if (x < c[d]) c[d] = x;
+    for (const ch of n.children) walk(ch, x + ch.x, d + 1);
+  })(node, 0, 0);
+  return c;
+}
+
+/** Get the combined right contour (max x at each depth) of kids[0..endIdx-1] */
+function getContour(kids, endIdx, side) {
+  const c = [];
+  for (let i = 0; i < endIdx; i++) {
+    const offX = kids[i].x;
+    (function walk(n, x, d) {
+      if (d >= c.length) c.push(x);
+      else if (side === "right" ? x > c[d] : x < c[d]) c[d] = x;
+      for (const ch of n.children) walk(ch, x + ch.x, d + 1);
+    })(kids[i], offX, 0);
+  }
+  return c;
+}
+
+/** Flatten tree with absolute positions */
+function flatten(node, absX, depth, out) {
+  const x = absX;
+  const y = depth * (NODE_H + V_GAP);
+
+  if (node.data.type === "leaf-group") {
+    out.leafGroups.push({ members: node.data.members, x, y });
+  } else {
+    out.nodes.push({ node: node.data, x, y });
+  }
+
+  for (const child of node.children) {
+    const cx = absX + child.x;
+    const cy = (depth + 1) * (NODE_H + V_GAP);
+    out.edges.push({ x1: x, y1: y, x2: cx, y2: cy, isOverride: !!child.data.isOverride });
+    flatten(child, cx, depth + 1, out);
+  }
+}
+
+/** Lay out one or more trees side by side */
+export function computeTreeLayout(trees, collapsedKeys = new Set()) {
+  const bundled = trees.map(t => bundleLeaves(t, collapsedKeys));
+  const layouts = bundled.map(t => layoutNode(t));
+
+  const out = { nodes: [], edges: [], leafGroups: [] };
+  let xOffset = 0;
+
+  for (const laid of layouts) {
+    // Find leftmost position in this tree
+    const leftC = getLeftContour(laid);
+    const minLeft = Math.min(...leftC);
+    const shift = xOffset - minLeft;
+
+    flatten(laid, shift, 0, out);
+
+    // Find rightmost position to set offset for next tree
+    const rightC = [];
+    (function walk(n, x, d) {
+      if (d >= rightC.length) rightC.push(x);
+      else if (x > rightC[d]) rightC[d] = x;
+      for (const ch of n.children) walk(ch, x + ch.x, d + 1);
+    })(laid, shift, 0);
+    const maxRight = Math.max(...rightC);
+    xOffset = maxRight + NODE_W + H_GAP * 3;
+  }
+
+  // Normalise so min x = 0
+  const allX = [...out.nodes.map(n => n.x), ...out.leafGroups.map(g => g.x)];
+  if (allX.length > 0) {
+    const minX = Math.min(...allX);
+    for (const n of out.nodes) n.x -= minX;
+    for (const g of out.leafGroups) g.x -= minX;
+    for (const e of out.edges) { e.x1 -= minX; e.x2 -= minX; }
+  }
+  return out;
+}
+
+function renderNodeHtml(node, editMode, x, y) {
+  const isRoot = node.type === "root";
+  const isTeamNode = node.type === "team";
+
+  if (isRoot || isTeamNode) {
+    const emp = node.employee;
+    const teamName = node.teamName || "";
+    const color = node.teamColor || "var(--accent)";
+    if (emp) {
+      const tz = colorForTimezone(emp.timezone);
+      const clickAttr = editMode ? `data-tree-click="manager" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"` : "";
+      const toggleHtml = !editMode && node.__collapsible
+        ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
+        : "";
+      const movedClass = editMode && node.isOverride ? " tree-node--moved" : "";
+      return `
+        <div class="tree-node tree-node-manager${editMode ? ' tree-node--editable' : ''}${movedClass}" ${clickAttr} style="left:${x}px;top:${y}px;--node-accent:${color}">
+          ${toggleHtml}
+          <div class="tree-node-color" style="background:${tz}"></div>
+          <div class="tree-node-name">${escapeHtml(emp.name)}</div>
+          <div class="tree-node-role">${escapeHtml(emp.role)}</div>
+          <div class="tree-node-team">${escapeHtml(teamName)}</div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="tree-node tree-node-manager tree-node-empty" style="left:${x}px;top:${y}px;--node-accent:${color}">
+          <div class="tree-node-name">No manager</div>
+          <div class="tree-node-team">${escapeHtml(teamName)}</div>
+        </div>
+      `;
+    }
+  } else {
+    const emp = node.employee;
+    const tz = colorForTimezone(emp.timezone);
+    const overrideClass = node.isOverride ? " tree-node-override" : "";
+    const clickAttr = editMode ? `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"` : "";
+    const toggleHtml = !editMode && node.__collapsible
+      ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
+      : "";
+    const movedClass = editMode && node.isOverride ? " tree-node--moved" : "";
+    return `
+      <div class="tree-node tree-node-member${overrideClass}${editMode ? ' tree-node--editable' : ''}${movedClass}" ${clickAttr} style="left:${x}px;top:${y}px">
+        ${toggleHtml}
+        <div class="tree-node-color" style="background:${tz}"></div>
+        <div class="tree-node-name">${escapeHtml(emp.name)}</div>
+        <div class="tree-node-role">${escapeHtml(emp.role)}</div>
+      </div>
+    `;
+  }
+}
+
 export function renderHierarchyNode(node, editMode) {
   if (!node) return "";
 
@@ -302,9 +527,59 @@ export function renderHierarchyNode(node, editMode) {
   return nodeHtml;
 }
 
+export function renderCompactTree(trees, editMode, collapsedKeys = new Set()) {
+  const layout = computeTreeLayout(trees, collapsedKeys);
+  const halfW = NODE_W / 2;
+
+  // Compute canvas bounds accounting for leaf group stacks
+  let maxY = 0;
+  for (const n of layout.nodes) maxY = Math.max(maxY, n.y + NODE_H);
+  for (const g of layout.leafGroups) maxY = Math.max(maxY, g.y + g.members.length * LEAF_H + 4);
+
+  const maxX = Math.max(
+    ...layout.nodes.map(n => n.x + NODE_W),
+    ...layout.leafGroups.map(g => g.x + NODE_W),
+    0
+  );
+
+  // SVG connector lines
+  const lines = layout.edges.map(e => {
+    const x1 = e.x1 + halfW, y1 = e.y1 + NODE_H;
+    const x2 = e.x2 + halfW, y2 = e.y2;
+    const midY = y1 + (y2 - y1) * 0.5;
+    const cls = e.isOverride ? ' class="tree-line-override"' : '';
+    return `<path d="M${x1},${y1} V${midY} H${x2} V${y2}"${cls} />`;
+  }).join("");
+
+  const svg = `<svg class="tree-lines" width="${maxX}" height="${maxY}" xmlns="http://www.w3.org/2000/svg">${lines}</svg>`;
+  const nodesHtml = layout.nodes.map(n => renderNodeHtml(n.node, editMode, n.x, n.y)).join("");
+
+  // Render leaf group stacks
+  const groupsHtml = layout.leafGroups.map(g => {
+    const rows = g.members.map(member => {
+      const emp = member.employee;
+      const tz = colorForTimezone(emp.timezone);
+      const overrideClass = member.isOverride ? " tree-leaf-override" : "";
+      const movedClass = editMode && member.isOverride ? " tree-leaf-row--moved" : "";
+      const clickAttr = editMode ? `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${member.teamId}"` : "";
+      return `<div class="tree-leaf-row${overrideClass}${movedClass}${editMode ? ' tree-node--editable' : ''}" ${clickAttr}>
+        <span class="tree-leaf-tz" style="background:${tz}"></span>
+        <span class="tree-leaf-text">
+          <span class="tree-leaf-name">${escapeHtml(emp.name)}</span>
+          <span class="tree-leaf-role">${escapeHtml(emp.role)}</span>
+        </span>
+      </div>`;
+    }).join("");
+    return `<div class="tree-leaf-group" style="left:${g.x}px;top:${g.y}px">${rows}</div>`;
+  }).join("");
+
+  return `<div class="tree-canvas" style="width:${maxX}px;height:${maxY}px">${svg}${nodesHtml}${groupsHtml}</div>`;
+}
+
 export function rerenderHierarchyInPlace(modal) {
   const teamId = modal.dataset.teamId || null;
   const editMode = modal.dataset.editMode === "true";
+  const collapsedKeys = new Set(JSON.parse(modal.dataset.collapsedKeys || "[]"));
 
   let trees;
   if (teamId) {
@@ -316,21 +591,23 @@ export function rerenderHierarchyInPlace(modal) {
     if (trees.length === 0) return;
   }
 
-  const editToggleClass = editMode ? " is-active" : "";
-  const editLabel = editMode ? "Done editing" : "Edit overrides";
   const title = teamId ? `${escapeHtml(trees[0].teamName)} — Reporting Hierarchy` : "Reporting Hierarchy";
+  const actionButtons = editMode
+    ? `<button class="toolbar-button modal-submit" type="button" data-action="save-tree-edit">Save</button>
+          <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
+    : `<button class="toolbar-button hierarchy-edit-toggle" type="button" data-action="toggle-tree-edit"><i data-lucide="pencil"></i> Edit overrides</button>
+          <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
   modal.innerHTML = `
     <div class="modal-panel hierarchy-modal-panel">
       <div class="hierarchy-modal-header">
         <h3 class="modal-title">${title}</h3>
         <div class="hierarchy-modal-actions">
-          <button class="toolbar-button hierarchy-edit-toggle${editToggleClass}" type="button" data-action="toggle-tree-edit" title="${editLabel}"><i data-lucide="pencil"></i> ${editLabel}</button>
-          <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>
+          ${actionButtons}
         </div>
       </div>
-      ${editMode ? '<p class="hierarchy-edit-banner">Click a person to change their reporting line</p>' : ''}
+      ${editMode ? '<p class="hierarchy-edit-banner">Click a person to reassign their manager. Save to keep changes or Cancel to revert.</p>' : ''}
       <div class="tree-container">
-        <ul class="tree-root">${trees.map((t) => `<li class="tree-branch">${renderHierarchyNode(t, editMode)}</li>`).join("")}</ul>
+        ${renderCompactTree(trees, editMode, collapsedKeys)}
       </div>
     </div>
   `;
@@ -538,6 +815,25 @@ export function renderChecksPanelContent(panel) {
       </div>
     `).join("") : "";
 
+    const DETAIL_COLLAPSE_THRESHOLD = 3;
+    const detailCount = result ? result.details.length : 0;
+    const failCount = result ? result.details.filter((d) => !d.passed).length : 0;
+    let detailsHtml = "";
+    if (detailRows) {
+      if (detailCount > DETAIL_COLLAPSE_THRESHOLD) {
+        const label = failCount > 0
+          ? `${failCount} failing / ${detailCount} teams`
+          : `${detailCount} teams`;
+        detailsHtml = `
+          <details class="check-details-collapsible">
+            <summary class="check-details-toggle">${escapeHtml(label)}</summary>
+            <div class="check-details">${detailRows}</div>
+          </details>`;
+      } else {
+        detailsHtml = `<div class="check-details">${detailRows}</div>`;
+      }
+    }
+
     return `
       <div class="check-card ${statusClass}" data-criterion-id="${criterion.id}">
         <div class="check-card-header">
@@ -559,7 +855,7 @@ export function renderChecksPanelContent(panel) {
             </button>
           </div>
         </div>
-        ${detailRows ? `<div class="check-details">${detailRows}</div>` : ""}
+        ${detailsHtml}
       </div>
     `;
   }).join("");
@@ -933,6 +1229,9 @@ export function render() {
     shell.dataset.layout = state.rootLayout;
   }
 
+  // Re-apply active sort so teams stay sorted after drag-drop / mutations
+  sortAllTeams(state.activeSortLayers);
+
   // Evaluate checks once so renderTeam() can use cached results for ribbons
   lastCheckResults = evaluateAllChecks(state, globalCriteria.filter((c) => c.enabled));
 
@@ -952,29 +1251,31 @@ export function render() {
     </div>
   `;
 
-  let actionBar = document.getElementById('action-bar');
-  if (!actionBar) {
-    actionBar = document.createElement('div');
-    actionBar.id = 'action-bar';
-    actionBar.className = 'action-bar';
-    document.body.appendChild(actionBar);
-  }
-  actionBar.innerHTML = `
-    ${renderRootLayoutButton()}
-    <span class="action-bar-divider"></span>
-    <button id="add-person-btn" class="team-control-button" type="button" data-action="add-root-person" title="Add person" aria-label="Add person"><i data-lucide="user-plus"></i></button>
-    <button class="team-control-button" type="button" data-action="add-root-team" title="Add team" aria-label="Add team"><i data-lucide="users"></i></button>
-    <button class="team-control-button" type="button" id="action-bar-import-csv" title="Import CSV" aria-label="Import CSV"><i data-lucide="upload"></i></button>
-    <span class="action-bar-divider"></span>
-    <button class="team-control-button" type="button" data-action="view-hierarchy" title="View hierarchy" aria-label="View hierarchy"><i data-lucide="network"></i></button>
-  `;
-
   let drawer = document.getElementById('unassigned-drawer');
   if (!drawer) {
     drawer = document.createElement('section');
     drawer.id = 'unassigned-drawer';
     document.body.appendChild(drawer);
   }
+
+  let actionBarEl = document.getElementById('action-bar');
+  if (!actionBarEl) {
+    actionBarEl = document.createElement('div');
+    actionBarEl.id = 'action-bar';
+    actionBarEl.className = 'action-bar';
+    document.body.appendChild(actionBarEl);
+  }
+  actionBarEl.innerHTML = `
+    ${renderRootLayoutButton()}
+    <span class="action-bar-divider"></span>
+    <button id="add-person-btn" class="team-control-button" type="button" data-action="add-root-person" title="Add person" aria-label="Add person"><i data-lucide="user-plus"></i></button>
+    <button class="team-control-button" type="button" data-action="add-root-team" title="Add team" aria-label="Add team"><i data-lucide="users"></i></button>
+    <button class="team-control-button" type="button" id="action-bar-import-csv" title="Import CSV" aria-label="Import CSV"><i data-lucide="upload"></i></button>
+    <span class="action-bar-divider"></span>
+    <button class="team-control-button${state.activeSortLayers?.length ? ' is-active' : ''}" type="button" data-action="open-sort-modal" title="Sort all teams" aria-label="Sort all teams"><i data-lucide="arrow-up-down"></i></button>
+    <button class="team-control-button" type="button" data-action="view-hierarchy" title="View hierarchy" aria-label="View hierarchy"><i data-lucide="network"></i></button>
+  `;
+
   drawer.className = `unassigned-bar${barCollapsed ? ' is-collapsed' : ''}`;
   drawer.innerHTML = `
     <div class="unassigned-bar-header">

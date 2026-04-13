@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Initial Render", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("toolbar renders with logo, title, and add-person button", async ({
     page,
   }) => {

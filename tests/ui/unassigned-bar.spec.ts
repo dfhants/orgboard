@@ -1,12 +1,7 @@
-import { test, expect } from "./fixtures";
+import { test, expect, addUnassignedPeople } from "./fixtures";
 import { dragAndDrop } from "./helpers";
 
 test.describe("Unassigned Bar", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("collapse unassigned bar", async ({ page }) => {
     const drawer = page.locator("#unassigned-drawer");
     await expect(drawer).not.toHaveClass(/is-collapsed/);
@@ -66,12 +61,8 @@ test.describe("Unassigned Bar", () => {
   });
 
   test("horizontal scroll with many people", async ({ page }) => {
-    // Add 50 people to unassigned bar
-    for (let i = 0; i < 50; i++) {
-      await page.locator("#add-person-btn").click();
-      await page.locator("#ap-name").fill(`Person ${i}`);
-      await page.locator("#add-person-submit").click();
-    }
+    // Bulk-add 50 people via test hook (much faster than UI loop)
+    await addUnassignedPeople(page, 50);
 
     const roster = page.locator("#unassigned-drawer .roster-cards");
     await expect(roster).toBeVisible();
@@ -88,12 +79,8 @@ test.describe("Unassigned Bar", () => {
   });
 
   test("fade indicators appear based on scroll position", async ({ page }) => {
-    // Add enough people to overflow
-    for (let i = 0; i < 20; i++) {
-      await page.locator("#add-person-btn").click();
-      await page.locator("#ap-name").fill(`Scroller ${i}`);
-      await page.locator("#add-person-submit").click();
-    }
+    // Bulk-add people to overflow the roster
+    await addUnassignedPeople(page, 20, "Scroller");
 
     const wrapper = page.locator("#unassigned-drawer .roster-cards-wrapper");
     const roster = page.locator("#unassigned-drawer .roster-cards");
@@ -124,12 +111,8 @@ test.describe("Unassigned Bar", () => {
   test("drag-and-drop still works with scrolled unassigned bar", async ({
     page,
   }) => {
-    // Add people to make it scrollable
-    for (let i = 0; i < 15; i++) {
-      await page.locator("#add-person-btn").click();
-      await page.locator("#ap-name").fill(`Dragger ${i}`);
-      await page.locator("#add-person-submit").click();
-    }
+    // Bulk-add people to make it scrollable
+    await addUnassignedPeople(page, 15, "Dragger");
 
     const drawer = page.locator("#unassigned-drawer");
     const countBefore = Number(

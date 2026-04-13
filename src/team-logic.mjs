@@ -37,13 +37,8 @@ export function cleanupManagerOverrides(state) {
   for (const team of Object.values(state.teams)) {
     // Clean up team manager's own override
     if (team.managerOverride) {
-      if (!state.employees[team.managerOverride]) {
+      if (team.managerOverride === team.manager || !state.employees[team.managerOverride]) {
         delete team.managerOverride;
-      } else {
-        const stillManager = Object.values(state.teams).some((t) => t.manager === team.managerOverride);
-        if (!stillManager) {
-          delete team.managerOverride;
-        }
       }
     }
     // Clean up member overrides
@@ -59,9 +54,7 @@ export function cleanupManagerOverrides(state) {
         delete member.managerOverride;
         continue;
       }
-      // Remove if overridden manager is no longer in any manager slot
-      const stillManager = Object.values(state.teams).some((t) => t.manager === member.managerOverride);
-      if (!stillManager) {
+      if (member.managerOverride === member.id) {
         delete member.managerOverride;
       }
     }
@@ -103,54 +96,53 @@ export function buildHierarchyTree(state, teamId) {
   const team = state.teams[teamId];
   if (!team) return null;
 
-  const managerEmp = team.manager ? state.employees[team.manager] : null;
-
-  // Collect direct employee members
-  const employeeMembers = team.members;
-  // Collect nested teams
-  const nestedTeamMembers = team.subTeams;
+  const rootManagerId = team.manager || "__root__";
 
   // Group employees by their effective manager
   const childrenByManager = new Map(); // managerId -> [ {employee, isOverride} ]
-
-  for (const member of employeeMembers) {
+  for (const member of team.members) {
     const emp = state.employees[member.id];
     if (!emp) continue;
-    const effectiveManagerId = member.managerOverride ?? (team.manager || "__root__");
+    const effectiveManagerId = member.managerOverride ?? rootManagerId;
     const isOverride = !!member.managerOverride && member.managerOverride !== team.manager;
     if (!childrenByManager.has(effectiveManagerId)) childrenByManager.set(effectiveManagerId, []);
     childrenByManager.get(effectiveManagerId).push({ employee: emp, isOverride, teamId });
   }
 
-  // Build nested team subtrees
-  const nestedTrees = nestedTeamMembers.map((m) => {
-    const nested = state.teams[m.id];
-    if (!nested) return null;
+  // Build nested subtrees grouped by their effective parent manager.
+  // A nested team's managerOverride indicates which person in this tree that
+  // team's manager reports to; if absent, it reports to the root manager.
+  const nestedByManager = new Map(); // managerId -> [ {subtree, isOverride} ]
+  for (const m of team.subTeams) {
+    const nestedTeam = state.teams[m.id];
+    if (!nestedTeam) continue;
     const subtree = buildHierarchyTree(state, m.id);
-    return subtree;
-  }).filter(Boolean);
-
-  // Build tree nodes for a given manager's direct reports
-  function buildChildNodes(managerId) {
-    const directReports = childrenByManager.get(managerId) || [];
-    return directReports.map(({ employee, isOverride, teamId: tid }) => {
-      // This employee might also be a manager elsewhere — check if anyone reports to them
-      const subordinates = buildChildNodes(employee.id);
-      return { employee, children: subordinates, isOverride, teamId: tid, type: "employee" };
-    });
+    if (!subtree) continue;
+    const effectiveParent = nestedTeam.managerOverride ?? rootManagerId;
+    if (!nestedByManager.has(effectiveParent)) nestedByManager.set(effectiveParent, []);
+    nestedByManager.get(effectiveParent).push({ subtree, isOverride: !!nestedTeam.managerOverride });
   }
 
-  const rootManagerId = team.manager || "__root__";
+  const placedTeams = new Set();
+
+  function buildChildNodes(managerId) {
+    const empNodes = (childrenByManager.get(managerId) || []).map(({ employee, isOverride: io, teamId: tid }) => ({
+      employee,
+      children: buildChildNodes(employee.id),
+      isOverride: io,
+      teamId: tid,
+      type: "employee",
+    }));
+    const teamNodes = (nestedByManager.get(managerId) || []).map(({ subtree, isOverride: io }) => {
+      placedTeams.add(subtree.teamId);
+      return { ...subtree, type: "team", isOverride: io };
+    });
+    return [...empNodes, ...teamNodes];
+  }
+
   const directChildren = buildChildNodes(rootManagerId);
 
-  // Add nested team subtrees as children of the root
-  const nestedTreeNodes = nestedTrees.map((subtree) => ({
-    ...subtree,
-    type: "team",
-    isOverride: false,
-  }));
-
-  // Also attach any employees whose override points to a manager NOT in this tree (orphans go to root)
+  // Orphaned employees: their managerOverride points to someone not in this tree
   const allAccountedFor = new Set();
   function collectIds(nodes) {
     for (const n of nodes) {
@@ -160,18 +152,28 @@ export function buildHierarchyTree(state, teamId) {
   }
   collectIds(directChildren);
 
-  const orphans = [];
-  for (const [managerId, reports] of childrenByManager) {
+  const orphanEmps = [];
+  for (const [, reports] of childrenByManager) {
     for (const r of reports) {
       if (!allAccountedFor.has(r.employee.id)) {
-        orphans.push({ employee: r.employee, children: [], isOverride: r.isOverride, teamId: r.teamId, type: "employee" });
+        orphanEmps.push({ employee: r.employee, children: [], isOverride: r.isOverride, teamId: r.teamId, type: "employee" });
+      }
+    }
+  }
+
+  // Orphaned nested teams: their managerOverride points to someone not in this tree
+  const orphanTeams = [];
+  for (const [, items] of nestedByManager) {
+    for (const { subtree, isOverride: io } of items) {
+      if (!placedTeams.has(subtree.teamId)) {
+        orphanTeams.push({ ...subtree, type: "team", isOverride: io });
       }
     }
   }
 
   return {
-    employee: managerEmp,
-    children: [...directChildren, ...nestedTreeNodes, ...orphans],
+    employee: team.manager ? state.employees[team.manager] : null,
+    children: [...directChildren, ...orphanEmps, ...orphanTeams],
     isOverride: !!team.managerOverride,
     managerOverride: team.managerOverride || null,
     teamId,

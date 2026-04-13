@@ -133,6 +133,9 @@ export async function dragHover(
  * Cancel an in-progress drag by dispatching dragend on the source element.
  */
 export async function dragCancel(page: Page, sourceSelector: string) {
+  // Wait for the deferred setTimeout(0) in dragstart that adds .dragging-source,
+  // so that dragend's cleanup actually finds and removes the class.
+  await page.waitForTimeout(50);
   await page.evaluate((src) => {
     const source = document.querySelector(src) as HTMLElement;
     if (source) {

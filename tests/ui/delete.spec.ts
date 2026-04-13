@@ -1,22 +1,32 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Delete", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
-  test("delete an employee via card delete button", async ({ page }) => {
+  test("delete an employee from a team moves them to unassigned", async ({ page }) => {
     // Milo Hartwell (p2) is a member of Product team t1
-    const card = page.locator('.person-card[data-id="p2"]');
+    const card = page.locator('.team[data-team-id="t1"] .person-card[data-id="p2"]');
     await expect(card).toBeVisible();
 
     // Hover to reveal actions, then click delete
     await card.hover();
     await card.locator(".card-delete-button").click();
 
+    // Card should be gone from the team
+    await expect(page.locator('.team[data-team-id="t1"] .person-card[data-id="p2"]')).toHaveCount(0);
+
+    // Card should now appear in the unassigned bar
+    await expect(page.locator('#unassigned-drawer .person-card[data-id="p2"]')).toBeVisible();
+  });
+
+  test("delete an employee from unassigned removes them entirely", async ({ page }) => {
+    // Eli Vasquez (p9) is in the unassigned bar
+    const card = page.locator('#unassigned-drawer .person-card[data-id="p9"]');
+    await expect(card).toBeVisible();
+
+    await card.hover();
+    await card.locator(".card-delete-button").click();
+
     // Card should be gone from the entire page
-    await expect(page.locator('.person-card[data-id="p2"]')).toHaveCount(0);
+    await expect(page.locator('.person-card[data-id="p9"]')).toHaveCount(0);
   });
 
   test("delete a team removes it from the board", async ({ page }) => {
@@ -59,5 +69,8 @@ test.describe("Delete", () => {
         '.team[data-team-id="t1"] > .team-body > .member-slot > .manager-slot .person-card'
       )
     ).toHaveCount(0);
+
+    // Manager should be in the unassigned bar
+    await expect(page.locator('#unassigned-drawer .person-card[data-id="p1"]')).toBeVisible();
   });
 });

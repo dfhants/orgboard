@@ -59,6 +59,24 @@ describe("employee-count", () => {
     // t1: p1=Engineer, p3=Engineer; t2: p5=QA Engineer
     assert.ok(r.passed);
   });
+
+  it("supports <= filter on level", () => {
+    const r = runCheck("employee-count", { operator: ">=", value: 1, filter: { field: "level", op: "<=", value: 5 } });
+    // t1: p2=5, p3=5; t2: p5=5
+    assert.ok(r.passed);
+  });
+
+  it("supports != filter on role", () => {
+    const r = runCheck("employee-count", { operator: ">=", value: 1, filter: { field: "role", op: "!=", value: "Engineer" } });
+    // t1: p2 Designer ≠ Engineer; t2: p4 Manager ≠ Engineer
+    assert.ok(r.passed);
+  });
+
+  it("supports == filter on role", () => {
+    const r = runCheck("employee-count", { operator: "==", value: 0, filter: { field: "role", op: "==", value: "CEO" } });
+    // No one has role CEO
+    assert.ok(r.passed);
+  });
 });
 
 // ─── distinct-values ───
@@ -129,6 +147,41 @@ describe("manager-match", () => {
     // t1: manager p1 NYC, p2 London ≠ NYC
     assert.ok(!r.passed);
   });
+
+  it("fails when team has no manager", () => {
+    const r = runCheck("manager-match", { field: "location", match: "any" }, {
+      teams: {
+        t1: { id: "t1", name: "NoMgr", manager: null, members: [{ id: "p2" }], color: "#aaa", subTeams: [] },
+      },
+    });
+    assert.ok(!r.passed);
+    assert.ok(r.details[0].message.includes("No manager"));
+  });
+
+  it("passes when manager has no members to compare", () => {
+    const r = runCheck("manager-match", { field: "location", match: "any" }, {
+      teams: {
+        t1: { id: "t1", name: "Solo", manager: "p1", members: [], color: "#aaa", subTeams: [] },
+      },
+    });
+    assert.ok(r.passed);
+    assert.ok(r.details[0].message.includes("No members"));
+  });
+
+  it("passes with 'majority' when more than half match", () => {
+    const r = runCheck("manager-match", { field: "location", match: "majority" }, {
+      teams: {
+        t1: { id: "t1", name: "Team", manager: "p1", members: [{ id: "p2" }, { id: "p3" }], color: "#a", subTeams: [] },
+      },
+      employees: {
+        p1: { id: "p1", name: "A", role: "R", location: "NYC", timezone: "", notes: "", requested: false, level: 5 },
+        p2: { id: "p2", name: "B", role: "R", location: "NYC", timezone: "", notes: "", requested: false, level: 5 },
+        p3: { id: "p3", name: "C", role: "R", location: "London", timezone: "", notes: "", requested: false, level: 5 },
+      },
+    });
+    // 1 of 2 members match → 50%, not > 50% → fails
+    assert.ok(!r.passed);
+  });
 });
 
 // ─── max-direct-reports ───
@@ -143,6 +196,15 @@ describe("max-direct-reports", () => {
     const r = runCheck("max-direct-reports", { maxReports: 1 });
     // t1 has 2 direct member employees
     assert.ok(!r.passed);
+  });
+
+  it("passes when team has no manager", () => {
+    const r = runCheck("max-direct-reports", { maxReports: 1 }, {
+      teams: {
+        t1: { id: "t1", name: "NoMgr", manager: null, members: [{ id: "p2" }, { id: "p3" }], color: "#a", subTeams: [] },
+      },
+    });
+    assert.ok(r.passed);
   });
 });
 
@@ -198,6 +260,21 @@ describe("scenario-count", () => {
 
   it("counts unassigned people", () => {
     const r = runCheck("scenario-count", { subject: "unassigned", operator: "==", value: 1 }, { unassignedEmployees: ["p99"] });
+    assert.ok(r.passed);
+  });
+
+  it("counts managers", () => {
+    const r = runCheck("scenario-count", { subject: "managers", operator: ">=", value: 2 });
+    assert.ok(r.passed);
+  });
+
+  it("counts people", () => {
+    const r = runCheck("scenario-count", { subject: "people", operator: ">=", value: 1 });
+    assert.ok(r.passed);
+  });
+
+  it("defaults to 0 for unknown subject", () => {
+    const r = runCheck("scenario-count", { subject: "bogus", operator: "==", value: 0 });
     assert.ok(r.passed);
   });
 });
@@ -364,6 +441,92 @@ describe("describeCriterion", () => {
   it("describes role-coverage", () => {
     const d = describeCriterion("role-coverage", { rolePattern: "Designer" });
     assert.ok(d.includes("Designer"));
+  });
+
+  it("describes distinct-values", () => {
+    const d = describeCriterion("distinct-values", { operator: ">=", value: 2, field: "timezone" });
+    assert.ok(d.includes("2"));
+    assert.ok(d.includes("timezone"));
+  });
+
+  it("describes has-manager", () => {
+    const d = describeCriterion("has-manager", {});
+    assert.ok(d.toLowerCase().includes("manager"));
+  });
+
+  it("describes manager-match", () => {
+    const d = describeCriterion("manager-match", { field: "location", match: "all" });
+    assert.ok(d.includes("location"));
+    assert.ok(d.includes("all members"));
+  });
+
+  it("describes max-direct-reports", () => {
+    const d = describeCriterion("max-direct-reports", { maxReports: 5 });
+    assert.ok(d.includes("5"));
+    assert.ok(d.toLowerCase().includes("direct"));
+  });
+
+  it("describes requested-limit", () => {
+    const d = describeCriterion("requested-limit", { operator: "<=", value: 2 });
+    assert.ok(d.includes("2"));
+    assert.ok(d.toLowerCase().includes("position"));
+  });
+
+  it("describes employee-count with != filter op", () => {
+    const d = describeCriterion("employee-count", {
+      operator: ">=", value: 1,
+      filter: { field: "role", op: "!=", value: "Intern" },
+    });
+    assert.ok(d.includes("is not"));
+  });
+
+  it("describes employee-count with == filter op", () => {
+    const d = describeCriterion("employee-count", {
+      operator: ">=", value: 1,
+      filter: { field: "role", op: "==", value: "Engineer" },
+    });
+    assert.ok(d.includes(" is "));
+  });
+
+  it("describes employee-count with contains filter op", () => {
+    const d = describeCriterion("employee-count", {
+      operator: ">=", value: 1,
+      filter: { field: "role", op: "contains", value: "Eng" },
+    });
+    assert.ok(d.includes("contains"));
+  });
+
+  it("returns Unknown check for bogus type", () => {
+    const d = describeCriterion("bogus-type", {});
+    assert.equal(d, "Unknown check");
+  });
+
+  it("describes manager-changed with singular person", () => {
+    const d = describeCriterion("manager-changed", { operator: "<=", value: 1 });
+    assert.ok(d.includes("person"));
+    assert.ok(!d.includes("people"));
+  });
+
+  it("describes max-direct-reports singular", () => {
+    const d = describeCriterion("max-direct-reports", { maxReports: 1 });
+    assert.ok(d.includes("report"));
+    assert.ok(!d.includes("reports"));
+  });
+
+  it("describes max-memberships singular", () => {
+    const d = describeCriterion("max-memberships", { maxTeams: 1 });
+    assert.ok(d.includes("team"));
+    assert.ok(!d.includes("teams"));
+  });
+
+  it("describes scenario-count with managers subject", () => {
+    const d = describeCriterion("scenario-count", { subject: "managers", operator: ">=", value: 2 });
+    assert.ok(d.includes("managers"));
+  });
+
+  it("describes scenario-count with unassigned subject", () => {
+    const d = describeCriterion("scenario-count", { subject: "unassigned", operator: "==", value: 0 });
+    assert.ok(d.includes("unassigned"));
   });
 });
 

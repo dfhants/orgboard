@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Layout — Slot Stability During Drag", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("member slot width does not collapse when dragging a card out", async ({
     page,
   }) => {

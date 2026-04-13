@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Floating Action Bar", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("action bar is visible and contains all buttons", async ({ page }) => {
     const bar = page.locator(".action-bar");
     await expect(bar).toBeVisible();
@@ -33,7 +28,12 @@ test.describe("Floating Action Bar", () => {
   });
 
   test("action bar repositions when drawer collapses", async ({ page }) => {
+    // Reload to get clean layout state from persisted DB
+    await page.reload();
+    await page.waitForSelector(".team");
     const bar = page.locator(".action-bar");
+    // Ensure drawer is fully expanded and layout settled before measuring
+    await expect(page.locator("#unassigned-drawer")).not.toHaveClass(/is-collapsed/);
     const barBefore = await bar.boundingBox();
 
     // Collapse the drawer
@@ -57,12 +57,7 @@ test.describe("Floating Action Bar", () => {
 });
 
 test.describe("Root Dropzone Fills Viewport", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
-  test("root dropzone height is tight to tallest team", async ({
+  test("root dropzone contains and vertically centers teams", async ({
     page,
   }) => {
     const data = await page.evaluate(() => {
@@ -70,17 +65,27 @@ test.describe("Root Dropzone Fills Viewport", () => {
       const teams = dropzone.querySelectorAll(":scope > .team");
       if (teams.length === 0) return null;
       const dropzoneRect = dropzone.getBoundingClientRect();
+      const minTop = Math.min(...Array.from(teams, (t) => t.getBoundingClientRect().top));
       const maxBottom = Math.max(...Array.from(teams, (t) => t.getBoundingClientRect().bottom));
-      const cs = getComputedStyle(dropzone);
-      const expectedBottom = maxBottom + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
       return {
-        dropzoneBottom: Math.round(dropzoneRect.bottom),
-        expectedBottom: Math.round(expectedBottom),
+        dropzoneTop: dropzoneRect.top,
+        dropzoneBottom: dropzoneRect.bottom,
+        dropzoneHeight: dropzoneRect.height,
+        contentTop: minTop,
+        contentBottom: maxBottom,
+        contentHeight: maxBottom - minTop,
       };
     });
     expect(data).not.toBeNull();
-    // Dropzone bottom should be tight to the tallest team (within tolerance)
-    expect(Math.abs(data!.dropzoneBottom - data!.expectedBottom)).toBeLessThan(2);
+    // Dropzone should fully contain all teams
+    expect(data!.dropzoneTop).toBeLessThanOrEqual(data!.contentTop);
+    expect(data!.dropzoneBottom).toBeGreaterThanOrEqual(data!.contentBottom);
+    // Teams should be approximately vertically centered (top/bottom space within 10%)
+    const topSpace = data!.contentTop - data!.dropzoneTop;
+    const bottomSpace = data!.dropzoneBottom - data!.contentBottom;
+    if (data!.dropzoneHeight > data!.contentHeight + 20) {
+      expect(Math.abs(topSpace - bottomSpace)).toBeLessThan(data!.dropzoneHeight * 0.1);
+    }
   });
 
   test("root dropzone fits its content width in horizontal mode", async ({
@@ -111,7 +116,7 @@ test.describe("Root Dropzone Fills Viewport", () => {
     await page.waitForTimeout(200);
 
     // Add many teams to exceed viewport height
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 15; i++) {
       await page.locator('[data-action="add-root-team"]').click();
     }
     await page.waitForTimeout(300);
@@ -129,12 +134,37 @@ test.describe("Root Dropzone Fills Viewport", () => {
   });
 });
 
-test.describe("People Group Structure", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+test.describe("Team Alignment", () => {
+  test("single empty team is left-aligned, not centered", async ({
+    page,
+  }) => {
+    // Create a new blank scenario with one empty team
+    await page.locator(".scenario-tab-add").click();
+    await page.getByRole("button", { name: /Start blank/ }).click();
+    await page.locator('[data-action="add-root-team"]').click();
     await page.waitForSelector(".team");
-  });
 
+    const data = await page.evaluate(() => {
+      const team = document.querySelector(".team")!;
+      const shell = document.querySelector(".page-shell")!;
+      const teamRect = team.getBoundingClientRect();
+      const shellRect = shell.getBoundingClientRect();
+      return {
+        shellLeft: shellRect.left,
+        teamLeft: teamRect.left,
+        shellWidth: shellRect.width,
+        teamWidth: teamRect.width,
+      };
+    });
+    // Team should be near the left edge of the shell (within padding)
+    const offset = data.teamLeft - data.shellLeft;
+    expect(offset).toBeLessThan(40);
+    // And NOT centered — there should be significant space to the right
+    expect(data.teamWidth).toBeLessThan(data.shellWidth / 2);
+  });
+});
+
+test.describe("People Group Structure", () => {
   test("employee entries are direct children of member-slot", async ({
     page,
   }) => {
@@ -455,7 +485,7 @@ test.describe("Tighten Layout — Horizontal", () => {
     }
   });
 
-  test("root-dropzone is tight to tallest team height", async ({ page }) => {
+  test("root-dropzone contains all teams in horizontal mode", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".team");
 
@@ -471,16 +501,19 @@ test.describe("Tighten Layout — Horizontal", () => {
       const children = gp.querySelectorAll(':scope > .team');
       if (children.length === 0) return null;
       const gpRect = gp.getBoundingClientRect();
+      const minTop = Math.min(...Array.from(children, (c) => c.getBoundingClientRect().top));
       const maxBottom = Math.max(...Array.from(children, (c) => c.getBoundingClientRect().bottom));
-      const gpCs = getComputedStyle(gp);
-      const expectedBottom = maxBottom + parseFloat(gpCs.paddingBottom) + parseFloat(gpCs.borderBottomWidth);
       return {
-        gpBottom: Math.round(gpRect.bottom),
-        expectedBottom: Math.round(expectedBottom),
+        gpTop: gpRect.top,
+        gpBottom: gpRect.bottom,
+        contentTop: minTop,
+        contentBottom: maxBottom,
       };
     });
     expect(data).not.toBeNull();
-    expect(Math.abs(data!.gpBottom - data!.expectedBottom)).toBeLessThan(2);
+    // Root-dropzone should fully contain all teams
+    expect(data!.gpTop).toBeLessThanOrEqual(data!.contentTop);
+    expect(data!.gpBottom).toBeGreaterThanOrEqual(data!.contentBottom);
   });
 });
 

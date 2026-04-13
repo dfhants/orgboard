@@ -1,6 +1,6 @@
 import {
   state, setState,
-  setDragState, setDropPreview, setDragImageProxy, setIsCopyMode,
+  setDragState, setIsCopyMode,
   employeeSequence, setEmployeeSequence,
   teamSequence, setTeamSequence,
   scenarios, setScenarios, activeScenarioId, setActiveScenarioId,
@@ -43,8 +43,6 @@ export function switchToScenario(id) {
   setActiveScenarioId(id);
   setShowLanding(!state.initialized);
   setDragState(null);
-  setDropPreview(null);
-  setDragImageProxy(null);
   setIsCopyMode(false);
   setEmployeeSequence(initializeSequence(state.employees, "p"));
   setTeamSequence(initializeSequence(state.teams, "t"));
@@ -68,8 +66,6 @@ export function createNewScenario() {
   setState(newState);
   setActiveScenarioId(id);
   setDragState(null);
-  setDropPreview(null);
-  setDragImageProxy(null);
   setIsCopyMode(false);
   setEmployeeSequence(initializeSequence(state.employees, "p"));
   setTeamSequence(initializeSequence(state.teams, "t"));

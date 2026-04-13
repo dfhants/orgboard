@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Edit Person", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("clicking edit button opens modal pre-filled with employee data", async ({
     page,
   }) => {

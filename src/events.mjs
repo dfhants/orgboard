@@ -8,7 +8,7 @@ import {
   globalCriteria, setGlobalCriteria,
 } from './state.mjs';
 import { escapeHtml, timezoneColors, colorForManager, colorForTimezone } from './utils.mjs';
-import { cleanupManagerOverrides, buildHierarchyTree, computeTeamStats } from './team-logic.mjs';
+import { cleanupManagerOverrides, buildHierarchyTree, computeTeamStats, findParentTeam } from './team-logic.mjs';
 import { checkTypes, describeCriterion } from './checks.mjs';
 import { saveCriterion, deleteCriterion } from './db.mjs';
 import {
@@ -16,6 +16,7 @@ import {
   deleteEmployee, deleteTeam, deleteAllUnassigned,
   toggleTeamLayout,
   insertMember,
+  sortKeys,
 } from './operations.mjs';
 import { openCsvImportModal } from './csv-import.mjs';
 import {
@@ -25,7 +26,7 @@ import {
 } from './scenarios.mjs';
 import {
   render, renderTabs, createIcons,
-  renderHierarchyNode, rerenderHierarchyInPlace,
+  renderHierarchyNode, rerenderHierarchyInPlace, renderCompactTree,
 } from './render.mjs';
 
 function openDeleteAllUnassignedModal() {
@@ -544,6 +545,147 @@ function openTeamStatsModal(teamId) {
   createIcons({ nameAttr: "data-lucide", attrs: { width: 15, height: 15 } });
 }
 
+function openSortModal() {
+  document.getElementById("sort-modal")?.remove();
+
+  const allKeys = Object.entries(sortKeys);
+  const hasExisting = state.activeSortLayers && state.activeSortLayers.length > 0;
+  let layers = hasExisting
+    ? state.activeSortLayers.map((l) => ({ ...l }))
+    : [{ key: "level", direction: "asc" }, { key: "name", direction: "asc" }];
+
+  function renderLayers() {
+    return layers.map((layer, i) => {
+      const keySelect = allKeys.map(([k, { label }]) =>
+        `<option value="${k}"${layer.key === k ? " selected" : ""}>${escapeHtml(label)}</option>`
+      ).join("");
+      const canRemove = layers.length > 1;
+      return `<div class="sort-layer" data-layer-index="${i}">
+        <span class="sort-layer-number">${i + 1}</span>
+        <select class="sort-layer-key">${keySelect}</select>
+        <button type="button" class="sort-layer-dir" data-dir="${layer.direction}" title="${layer.direction === 'asc' ? 'Ascending' : 'Descending'}">
+          <i data-lucide="${layer.direction === 'asc' ? 'arrow-up' : 'arrow-down'}"></i>
+        </button>
+        ${canRemove ? `<button type="button" class="sort-layer-remove" title="Remove"><i data-lucide="x"></i></button>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  function usedKeys() {
+    return new Set(layers.map((l) => l.key));
+  }
+
+  function rebuild() {
+    panel.querySelector(".sort-layers").innerHTML = renderLayers();
+    const used = usedKeys();
+    const addBtn = panel.querySelector("#sort-add-layer");
+    if (addBtn) addBtn.style.display = used.size >= allKeys.length ? "none" : "";
+    createIcons({ nameAttr: "data-lucide", attrs: { width: 13, height: 13 } });
+  }
+
+  const modal = document.createElement("div");
+  modal.id = "sort-modal";
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal-panel sort-modal-panel">
+      <h3 class="modal-title">Sort all teams</h3>
+      <div class="sort-layers"></div>
+      <button type="button" class="sort-add-layer-btn" id="sort-add-layer"><i data-lucide="plus"></i> Add sort level</button>
+      <div class="modal-actions">
+        ${hasExisting ? '<button id="sort-modal-clear" class="toolbar-button" type="button">Clear sort</button>' : ''}
+        <button id="sort-modal-cancel" class="toolbar-button" type="button">Cancel</button>
+        <button id="sort-modal-apply" class="toolbar-button primary" type="button">Apply</button>
+      </div>
+    </div>
+  `;
+  const panel = modal.querySelector(".modal-panel");
+  document.body.appendChild(modal);
+  rebuild();
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal || e.target.closest("#sort-modal-cancel")) {
+      modal.remove();
+      return;
+    }
+    if (e.target.closest("#sort-modal-apply")) {
+      state.activeSortLayers = layers.map((l) => ({ ...l }));
+      modal.remove();
+      render();
+      return;
+    }
+    if (e.target.closest("#sort-modal-clear")) {
+      state.activeSortLayers = [];
+      modal.remove();
+      render();
+      return;
+    }
+    if (e.target.closest("#sort-add-layer")) {
+      const used = usedKeys();
+      const next = allKeys.find(([k]) => !used.has(k));
+      if (next) {
+        layers.push({ key: next[0], direction: "asc" });
+        rebuild();
+      }
+      return;
+    }
+    const dirBtn = e.target.closest(".sort-layer-dir");
+    if (dirBtn) {
+      const idx = Number(dirBtn.closest(".sort-layer").dataset.layerIndex);
+      layers[idx].direction = layers[idx].direction === "asc" ? "desc" : "asc";
+      rebuild();
+      return;
+    }
+    const removeBtn = e.target.closest(".sort-layer-remove");
+    if (removeBtn) {
+      const idx = Number(removeBtn.closest(".sort-layer").dataset.layerIndex);
+      layers.splice(idx, 1);
+      rebuild();
+      return;
+    }
+  });
+
+  modal.addEventListener("change", (e) => {
+    const select = e.target.closest(".sort-layer-key");
+    if (select) {
+      const idx = Number(select.closest(".sort-layer").dataset.layerIndex);
+      layers[idx].key = select.value;
+      rebuild();
+    }
+  });
+}
+
+function snapshotOverrides() {
+  const snapshot = { teams: {}, members: {} };
+  for (const team of Object.values(state.teams)) {
+    snapshot.teams[team.id] = team.managerOverride ?? null;
+    snapshot.members[team.id] = {};
+    for (const member of team.members) {
+      snapshot.members[team.id][member.id] = member.managerOverride ?? null;
+    }
+  }
+  return snapshot;
+}
+
+function restoreOverrides(snapshot) {
+  for (const team of Object.values(state.teams)) {
+    const teamSnap = snapshot.teams?.[team.id];
+    if (teamSnap == null) {
+      delete team.managerOverride;
+    } else {
+      team.managerOverride = teamSnap;
+    }
+    const memberSnap = snapshot.members?.[team.id] || {};
+    for (const member of team.members) {
+      const val = memberSnap[member.id];
+      if (val == null) {
+        delete member.managerOverride;
+      } else {
+        member.managerOverride = val;
+      }
+    }
+  }
+}
+
 function openHierarchyModal(teamId) {
   document.getElementById("hierarchy-modal")?.remove();
 
@@ -562,24 +704,27 @@ function openHierarchyModal(teamId) {
   modal.className = "modal-overlay";
   if (teamId) modal.dataset.teamId = teamId;
   modal.dataset.editMode = "false";
+  modal.dataset.collapsedKeys = "[]";
 
   function renderModalContent(editMode) {
-    const treeHtml = trees.map((t) => renderHierarchyNode(t, editMode)).join("");
-    const editToggleClass = editMode ? " is-active" : "";
-    const editLabel = editMode ? "Done editing" : "Edit overrides";
+    const collapsedKeys = new Set(JSON.parse(modal.dataset.collapsedKeys || "[]"));
     const title = teamId ? `${escapeHtml(trees[0].teamName)} — Reporting Hierarchy` : "Reporting Hierarchy";
+    const actionButtons = editMode
+      ? `<button class="toolbar-button modal-submit" type="button" data-action="save-tree-edit">Save</button>
+            <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
+      : `<button class="toolbar-button hierarchy-edit-toggle" type="button" data-action="toggle-tree-edit"><i data-lucide="pencil"></i> Edit overrides</button>
+            <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
     modal.innerHTML = `
       <div class="modal-panel hierarchy-modal-panel">
         <div class="hierarchy-modal-header">
           <h3 class="modal-title">${title}</h3>
           <div class="hierarchy-modal-actions">
-            <button class="toolbar-button hierarchy-edit-toggle${editToggleClass}" type="button" data-action="toggle-tree-edit" title="${editLabel}"><i data-lucide="pencil"></i> ${editLabel}</button>
-            <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>
+            ${actionButtons}
           </div>
         </div>
-        ${editMode ? '<p class="hierarchy-edit-banner">Click a person to change their reporting line</p>' : ''}
+        ${editMode ? '<p class="hierarchy-edit-banner">Click a person to reassign their manager. Save to keep changes or Cancel to revert.</p>' : ''}
         <div class="tree-container">
-          <ul class="tree-root">${trees.map((t) => `<li class="tree-branch">${renderHierarchyNode(t, editMode)}</li>`).join("")}</ul>
+          ${renderCompactTree(trees, editMode, collapsedKeys)}
         </div>
       </div>
     `;
@@ -672,14 +817,62 @@ function openTreeOverridePopover(anchorEl, employeeId, teamId) {
   const team = getTeam(teamId);
   if (!team) return;
   const isManager = team.manager === employeeId;
-  const managers = getAllManagers().filter((m) => m.id !== employeeId && (isManager || m.id !== team.manager));
+
+  function getDisplayedRootTeamId(currentTeamId) {
+    const modalTeamId = document.getElementById("hierarchy-modal")?.dataset.teamId;
+    if (modalTeamId) return modalTeamId;
+    let rootId = currentTeamId;
+    while (true) {
+      const parent = findParentTeam(state.teams, rootId);
+      if (!parent) break;
+      rootId = parent.id;
+    }
+    return rootId;
+  }
+
+  function findEmployeeNode(node, targetId) {
+    if (!node) return null;
+    if (node.employee?.id === targetId) return node;
+    for (const child of node.children || []) {
+      const found = findEmployeeNode(child, targetId);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function collectDescendantEmployeeIds(node, out = new Set()) {
+    for (const child of node?.children || []) {
+      if (child.employee?.id) out.add(child.employee.id);
+      collectDescendantEmployeeIds(child, out);
+    }
+    return out;
+  }
+
+  function collectCandidateEmployees(node, blockedIds, out = []) {
+    if (!node) return out;
+    if (node.employee?.id && !blockedIds.has(node.employee.id)) {
+      out.push(node.employee);
+    }
+    for (const child of node.children || []) {
+      collectCandidateEmployees(child, blockedIds, out);
+    }
+    return out;
+  }
+
+  const rootTeamId = getDisplayedRootTeamId(teamId);
+  const tree = buildHierarchyTree(state, rootTeamId);
+  if (!tree) return;
+  const currentNode = findEmployeeNode(tree, employeeId);
+  const blockedIds = new Set([employeeId, ...collectDescendantEmployeeIds(currentNode)]);
+  const managers = collectCandidateEmployees(tree, blockedIds)
+    .filter((m) => isManager || m.id !== team.manager);
   if (managers.length === 0) return;
 
   const currentOverride = isManager ? (team.managerOverride ?? null) : (findMemberEntry(employeeId, teamId)?.managerOverride ?? null);
 
   const items = managers.map((m) => {
     const pillColor = colorForManager(m.id);
-    const isTeamMgr = team.manager === m.id;
+    const isTeamMgr = Object.values(state.teams).some((t) => t.manager === m.id);
     const isActive = currentOverride === m.id;
     return `
       <button class="tree-popover-item${isActive ? ' is-active' : ''}" type="button" data-tree-assign="${m.id}">
@@ -895,11 +1088,46 @@ export function setupEventListeners() {
     if (event.target.closest("[data-action='toggle-tree-edit']")) {
       const modal = document.getElementById("hierarchy-modal");
       if (modal) {
-        const isEdit = modal.dataset.editMode === "true";
-        modal.dataset.editMode = isEdit ? "false" : "true";
-        const teamId = modal.dataset.teamId;
+        modal.dataset.editMode = "true";
+        modal.dataset.editSnapshot = JSON.stringify(snapshotOverrides());
         rerenderHierarchyInPlace(modal);
       }
+      return;
+    }
+
+    if (event.target.closest("[data-action='save-tree-edit']")) {
+      const modal = document.getElementById("hierarchy-modal");
+      if (modal) {
+        modal.dataset.editMode = "false";
+        rerenderHierarchyInPlace(modal);
+        render();
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-action='cancel-tree-edit']")) {
+      const modal = document.getElementById("hierarchy-modal");
+      if (modal) {
+        const snapshot = JSON.parse(modal.dataset.editSnapshot || "{}");
+        restoreOverrides(snapshot);
+        cleanupManagerOverrides(state);
+        modal.dataset.editMode = "false";
+        rerenderHierarchyInPlace(modal);
+        render();
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-tree-toggle]")) {
+      const toggle = event.target.closest("[data-tree-toggle]");
+      const modal = document.getElementById("hierarchy-modal");
+      if (!modal || modal.dataset.editMode === "true") return;
+      const key = toggle.dataset.treeToggle;
+      const collapsed = new Set(JSON.parse(modal.dataset.collapsedKeys || "[]"));
+      if (collapsed.has(key)) collapsed.delete(key);
+      else collapsed.add(key);
+      modal.dataset.collapsedKeys = JSON.stringify([...collapsed]);
+      rerenderHierarchyInPlace(modal);
       return;
     }
 
@@ -1045,6 +1273,7 @@ export function setupEventListeners() {
         "add-root-team": () => addRandomRootTeam(),
         "add-child-team": () => addRandomTeamToTeam(teamId),
         "open-team-menu": () => { openTeamMenu(button, teamId); return false; },
+        "open-sort-modal": () => { openSortModal(); return false; },
         "open-team-stats": () => { openTeamStatsModal(teamId); return false; },
         "toggle-collapse": () => toggleTeamLayout(teamId),
         "toggle-root-layout": () => {

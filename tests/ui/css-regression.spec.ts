@@ -8,11 +8,6 @@ import { dragHover, dragCancel } from "./helpers";
  * Grouped by CSS section (mirrors src/css/ structure).
  */
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/");
-  await page.waitForSelector(".team");
-});
-
 /* ── Design tokens ── */
 
 test.describe("Design Tokens", () => {
@@ -389,51 +384,48 @@ test.describe("Dropzone Highlight State", () => {
   });
 });
 
-/* ── Drag previews ── */
+/* ── Drag source styling ── */
 
-test.describe("Drag Preview Styling", () => {
-  test("preview has dashed accent border and soft background", async ({
-    page,
-  }) => {
+test.describe("Drag Source Styling", () => {
+  test("dragging-source is semi-transparent", async ({ page }) => {
     await dragHover(
       page,
       '.person-card[data-id="p9"]',
       '.team[data-team-id="t4"] > .team-body > .member-slot'
     );
 
-    const styles = await page.evaluate(() => {
-      const preview = document.querySelector(".drag-preview-entry")!;
-      const cs = getComputedStyle(preview);
-      return {
-        borderStyle: cs.borderStyle,
-        borderColor: cs.borderColor,
-        backgroundColor: cs.backgroundColor,
-        borderRadius: cs.borderRadius,
-        position: cs.position,
-      };
+    const opacity = await page.evaluate(() => {
+      const source = document.querySelector(".dragging-source");
+      return source ? getComputedStyle(source).opacity : "not-found";
     });
-
-    expect(styles.borderStyle).toBe("dashed");
-    expect(styles.borderColor).toBe("rgb(79, 110, 247)");
-    expect(styles.backgroundColor).toBe("rgba(79, 110, 247, 0.08)");
-    expect(styles.borderRadius).toBe("14px");
-    expect(styles.position).toBe("relative");
+    expect(opacity).toBe("0.3");
 
     await dragCancel(page, '.person-card[data-id="p9"]');
   });
 
-  test("dragging-source is hidden", async ({ page }) => {
+  test("empty manager slot shows dashed accent border on drag hover", async ({ page }) => {
+    // Field (t4) has an empty manager slot
     await dragHover(
       page,
       '.person-card[data-id="p9"]',
-      '.team[data-team-id="t4"] > .team-body > .member-slot'
+      '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot'
     );
 
-    const display = await page.evaluate(() => {
-      const source = document.querySelector(".dragging-source");
-      return source ? getComputedStyle(source).display : "not-found";
+    const styles = await page.evaluate(() => {
+      const slot = document.querySelector(
+        '.team[data-team-id="t4"] > .team-body > .member-slot > .manager-slot'
+      )!;
+      const cs = getComputedStyle(slot);
+      return {
+        borderStyle: cs.borderStyle,
+        borderColor: cs.borderColor,
+        isOver: slot.classList.contains("is-over"),
+      };
     });
-    expect(display).toBe("none");
+
+    expect(styles.isOver).toBe(true);
+    expect(styles.borderStyle).toBe("dashed");
+    expect(styles.borderColor).toBe("rgb(79, 110, 247)");
 
     await dragCancel(page, '.person-card[data-id="p9"]');
   });
@@ -649,5 +641,92 @@ test.describe("Empty Note Visibility", () => {
       (el) => getComputedStyle(el).overflow
     );
     expect(overflow).toBe("visible");
+  });
+});
+
+/* ── Sidebar scrolling ── */
+
+test.describe("Sidebar Scrolling", () => {
+  test("checks panel body scrolls when content overflows", async ({
+    page,
+  }) => {
+    await page.click(".checks-strip");
+    await expect(page.locator("#stats-panel")).toHaveClass(/is-open/);
+
+    const result = await page.evaluate(() => {
+      const body = document.querySelector(
+        ".stats-panel-body.checks-panel-body"
+      ) as HTMLElement;
+      if (!body) return null;
+
+      // Inject tall content to force overflow
+      const tall = document.createElement("div");
+      tall.style.height = "3000px";
+      body.appendChild(tall);
+
+      const cs = getComputedStyle(body);
+      return {
+        overflowY: cs.overflowY,
+        minHeight: cs.minHeight,
+        isScrollable: body.scrollHeight > body.clientHeight,
+        childFlexShrink: Array.from(body.children).map(
+          (c) => getComputedStyle(c).flexShrink
+        ),
+      };
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.overflowY).toBe("auto");
+    expect(result!.minHeight).toBe("0px");
+    expect(result!.isScrollable).toBe(true);
+    // All children must not shrink, so content overflows naturally
+    for (const shrink of result!.childFlexShrink) {
+      expect(shrink).toBe("0");
+    }
+  });
+
+  test("stats panel body has overflow-y auto and min-height 0", async ({
+    page,
+  }) => {
+    await page.click(
+      ".stats-panel-strip:not(.checks-strip):not(.notes-strip)"
+    );
+    await expect(page.locator("#stats-panel")).toHaveClass(/is-open/);
+
+    const result = await page.evaluate(() => {
+      const body = document.querySelector(
+        ".stats-panel-body"
+      ) as HTMLElement;
+      const cs = getComputedStyle(body);
+      return {
+        overflowY: cs.overflowY,
+        minHeight: cs.minHeight,
+      };
+    });
+
+    expect(result.overflowY).toBe("auto");
+    expect(result.minHeight).toBe("0px");
+  });
+
+  test("notes panel body has min-height 0 for flex containment", async ({
+    page,
+  }) => {
+    await page.click(".notes-strip");
+    await expect(page.locator("#stats-panel")).toHaveClass(/is-open/);
+
+    const result = await page.evaluate(() => {
+      const body = document.querySelector(
+        ".notes-panel-body"
+      ) as HTMLElement;
+      if (!body) return null;
+      const cs = getComputedStyle(body);
+      return {
+        minHeight: cs.minHeight,
+        overflow: cs.overflow,
+      };
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.minHeight).toBe("0px");
   });
 });

@@ -30,6 +30,10 @@
   width: fit-content;
 }
 
+.root-dropzone:has(.empty-board) {
+  width: 100%;
+}
+
 .root-dropzone[data-layout="vertical"] {
   flex-flow: column nowrap;
   width: 100%;
@@ -43,6 +47,13 @@
   border-color: var(--accent);
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px rgba(79, 110, 247, 0.1);
+}
+
+.slot.manager-slot.is-over:not(:has(.person-card)),
+.slot.manager-slot.is-over:has(.person-card) {
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
 }
 
 .empty-note {
@@ -94,31 +105,8 @@
   font-size: 0.65rem;
 }
 
-.slot > .empty-note:has(~ .drag-preview-entry),
-.slot > .drag-preview-entry ~ .empty-note {
-  display: none;
-}
-
-/* ─── Drag previews ─── */
-
-.drag-preview-entry {
-  position: relative;
-  flex: 0 0 auto;
-  border: 1.5px dashed var(--accent);
-  border-radius: var(--radius-lg);
-  background: var(--accent-soft);
-}
-
-.drag-preview-entry::after {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border: 1px dashed rgba(79, 110, 247, 0.2);
-  border-radius: var(--radius);
-}
-
 .dragging-source {
-  display: none !important;
+  opacity: 0.3;
   pointer-events: none !important;
 }
 

@@ -268,26 +268,22 @@
 /* ─── Floating action bar ─── */
 
 .action-bar {
-  position: fixed;
-  bottom: 212px;
-  left: 50%;
-  transform: translateX(-50%);
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
   z-index: 110;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
+  margin-bottom: 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px) saturate(1.6);
   -webkit-backdrop-filter: blur(16px) saturate(1.6);
   border: 1px solid var(--line-soft);
   box-shadow: var(--shadow);
-  transition: bottom 300ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-body:has(.unassigned-bar.is-collapsed) .action-bar {
-  bottom: 64px;
 }
 
 .action-bar-divider {

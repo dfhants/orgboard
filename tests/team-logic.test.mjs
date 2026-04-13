@@ -8,6 +8,7 @@ import {
   countNestedTeams,
   countTeamMemberships,
   collectAllEmployeesInTeam,
+  findParentTeam,
   buildHierarchyTree,
   computeTeamStats,
   computeGlobalStats,
@@ -153,7 +154,7 @@ describe("cleanupManagerOverrides", () => {
     assert.equal(state.teams.t1.members[0].managerOverride, undefined);
   });
 
-  it("removes override pointing to employee who is not a manager anywhere", () => {
+  it("preserves override pointing to an existing employee even if they are not a team manager", () => {
     const state = {
       employees: {
         p1: makeEmployee("p1"),
@@ -168,7 +169,7 @@ describe("cleanupManagerOverrides", () => {
       },
     };
     cleanupManagerOverrides(state);
-    assert.equal(state.teams.t1.members[0].managerOverride, undefined);
+    assert.equal(state.teams.t1.members[0].managerOverride, "p3");
   });
 
   it("preserves valid overrides", () => {
@@ -218,7 +219,7 @@ describe("cleanupManagerOverrides", () => {
     assert.equal(state.teams.t1.managerOverride, undefined);
   });
 
-  it("removes team.managerOverride pointing to non-manager", () => {
+  it("preserves team.managerOverride pointing to an existing employee", () => {
     const state = {
       employees: {
         p1: makeEmployee("p1"),
@@ -230,7 +231,7 @@ describe("cleanupManagerOverrides", () => {
     };
     state.teams.t1.managerOverride = "p2"; // p2 is not a manager of any team
     cleanupManagerOverrides(state);
-    assert.equal(state.teams.t1.managerOverride, undefined);
+    assert.equal(state.teams.t1.managerOverride, "p2");
   });
 
   it("preserves valid team.managerOverride", () => {
@@ -247,6 +248,23 @@ describe("cleanupManagerOverrides", () => {
     state.teams.t1.managerOverride = "p3";
     cleanupManagerOverrides(state);
     assert.equal(state.teams.t1.managerOverride, "p3");
+  });
+
+  it("removes self-referential member overrides", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1"),
+        p2: makeEmployee("p2"),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [{ id: "p2", managerOverride: "p2" }],
+        }),
+      },
+    };
+    cleanupManagerOverrides(state);
+    assert.equal(state.teams.t1.members[0].managerOverride, undefined);
   });
 });
 
@@ -411,6 +429,39 @@ describe("buildHierarchyTree", () => {
     assert.equal(p2Node.children[0].isOverride, true);
   });
 
+  it("moves an overridden manager together with their directs", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1", { name: "Root" }),
+        p2: makeEmployee("p2", { name: "Manager A" }),
+        p3: makeEmployee("p3", { name: "Report" }),
+        p4: makeEmployee("p4", { name: "Manager B" }),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [
+            { id: "p2", managerOverride: "p4" },
+            { id: "p3", managerOverride: "p2" },
+            { id: "p4" },
+          ],
+        }),
+      },
+    };
+
+    const tree = buildHierarchyTree(state, "t1");
+    const p4Node = tree.children.find((c) => c.employee?.id === "p4");
+    assert.ok(p4Node, "manager B should remain a direct child of root");
+
+    const p2Node = p4Node.children.find((c) => c.employee?.id === "p2");
+    assert.ok(p2Node, "manager A should move under manager B");
+    assert.equal(p2Node.isOverride, true);
+
+    const p3Node = p2Node.children.find((c) => c.employee?.id === "p3");
+    assert.ok(p3Node, "report should stay under manager A after the move");
+    assert.equal(p3Node.isOverride, true);
+  });
+
   it("includes nested team subtrees", () => {
     const state = {
       employees: {
@@ -456,6 +507,84 @@ describe("buildHierarchyTree", () => {
   it("returns null for non-existent team", () => {
     const state = { employees: {}, teams: {} };
     assert.equal(buildHierarchyTree(state, "t99"), null);
+  });
+
+  it("nested team with managerOverride appears under that manager, not at root", () => {
+    const t2 = makeTeam("t2", { name: "Sub", manager: "p3", members: [] });
+    t2.managerOverride = "p2"; // t2's manager reports to p2, not p1
+    const state = {
+      employees: {
+        p1: makeEmployee("p1", { name: "Root Manager" }),
+        p2: makeEmployee("p2", { name: "Middle Manager" }),
+        p3: makeEmployee("p3", { name: "Sub Manager" }),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [{ id: "p2" }],
+          subTeams: [{ id: "t2" }],
+        }),
+        t2,
+      },
+    };
+    const tree = buildHierarchyTree(state, "t1");
+    // p2 should be a direct child of root (p1)
+    const p2Node = tree.children.find((c) => c.employee?.id === "p2");
+    assert.ok(p2Node, "p2 should be a direct child of root");
+    // t2 should be a child of p2, not a direct child of root
+    const t2AtRoot = tree.children.find((c) => c.type === "team" && c.teamId === "t2");
+    assert.equal(t2AtRoot, undefined, "t2 should not be at root when it has managerOverride");
+    const t2UnderP2 = p2Node.children.find((c) => c.type === "team" && c.teamId === "t2");
+    assert.ok(t2UnderP2, "t2 should appear under p2");
+    assert.equal(t2UnderP2.isOverride, true, "t2 node should be marked as override");
+  });
+
+  it("nested team without managerOverride remains at root", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1"),
+        p2: makeEmployee("p2"),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [{ id: "p2" }],
+          subTeams: [{ id: "t2" }],
+        }),
+        t2: makeTeam("t2", {
+          name: "Sub",
+          manager: null,
+          members: [],
+        }),
+      },
+    };
+    const tree = buildHierarchyTree(state, "t1");
+    const t2AtRoot = tree.children.find((c) => c.type === "team" && c.teamId === "t2");
+    assert.ok(t2AtRoot, "t2 without managerOverride should remain under root manager");
+    assert.equal(t2AtRoot.isOverride, false);
+  });
+
+  it("nested team with unreachable managerOverride falls back to root as orphan", () => {
+    const t2orphan = makeTeam("t2", { name: "Sub", manager: "p3", members: [] });
+    t2orphan.managerOverride = "p99"; // p99 does not exist in this tree
+    const state = {
+      employees: {
+        p1: makeEmployee("p1"),
+        p3: makeEmployee("p3"),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [],
+          subTeams: [{ id: "t2" }],
+        }),
+        t2: t2orphan,
+      },
+    };
+    // p99 doesn't exist in this tree, so t2 should still appear at top level as orphan
+    const tree = buildHierarchyTree(state, "t1");
+    const t2Node = tree.children.find((c) => c.type === "team" && c.teamId === "t2");
+    assert.ok(t2Node, "orphaned t2 should still appear in the tree");
   });
 });
 
@@ -727,5 +856,42 @@ describe("computeManagerChanges", () => {
     assert.equal(changes.length, 0);
     assert.equal(unchanged.length, 0);
     assert.equal(noOriginal.length, 0);
+  });
+});
+
+// ─── findParentTeam ─────────────────────────────────────────────────
+
+describe("findParentTeam", () => {
+  it("returns parent team when child is a sub-team", () => {
+    const teams = {
+      t1: { id: "t1", name: "Parent", subTeams: [{ id: "t2" }], members: [] },
+      t2: { id: "t2", name: "Child", subTeams: [], members: [] },
+    };
+    const parent = findParentTeam(teams, "t2");
+    assert.equal(parent.id, "t1");
+  });
+
+  it("returns null for a root team with no parent", () => {
+    const teams = {
+      t1: { id: "t1", name: "Root", subTeams: [], members: [] },
+    };
+    assert.equal(findParentTeam(teams, "t1"), null);
+  });
+
+  it("returns null for non-existent team id", () => {
+    const teams = {
+      t1: { id: "t1", name: "Only", subTeams: [], members: [] },
+    };
+    assert.equal(findParentTeam(teams, "t99"), null);
+  });
+
+  it("finds parent in deeply nested structure", () => {
+    const teams = {
+      t1: { id: "t1", name: "Top", subTeams: [{ id: "t2" }], members: [] },
+      t2: { id: "t2", name: "Mid", subTeams: [{ id: "t3" }], members: [] },
+      t3: { id: "t3", name: "Bottom", subTeams: [], members: [] },
+    };
+    assert.equal(findParentTeam(teams, "t3").id, "t2");
+    assert.equal(findParentTeam(teams, "t2").id, "t1");
   });
 });

@@ -10,6 +10,7 @@
     "lint:css": "stylelint \"src/css/**/*.css\"",
     "lint:css:fix": "stylelint \"src/css/**/*.css\" --fix",
     "test": "node --test 'tests/**/*.mjs'",
+    "test:cov": "node --test --experimental-test-coverage --test-coverage-include='src/**/*.mjs' 'tests/**/*.mjs'",
     "test:ui": "npx playwright test"
   },
   "keywords": [],
@@ -22,7 +23,8 @@
     "lightningcss": "^1.32.0",
     "playwright": "^1.59.1",
     "stylelint": "^16.25.0",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "vite-plugin-purgecss": "^0.2.13"
   },
   "dependencies": {
     "lucide": "^1.8.0",

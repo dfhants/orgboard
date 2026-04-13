@@ -1,11 +1,6 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Add Person", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector(".team");
-  });
-
   test("clicking add-person button opens the modal", async ({ page }) => {
     await page.locator("#add-person-btn").click();
     await expect(page.locator("#add-person-modal")).toBeVisible();

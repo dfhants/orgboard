@@ -3,13 +3,21 @@ import {
   state, scenarios, scenarioSequence, activeScenarioId,
   setState, setScenarios, setActiveScenarioId, setScenarioSequence,
   setShowLanding, setEmployeeSequence, setTeamSequence, setGlobalCriteria,
-  createBlankState,
+  createBlankState, employeeSequence,
 } from "./state.mjs";
 import { initializeSequence } from "./utils.mjs";
 import { generateScenarioId, nextScenarioName } from "./scenarios.mjs";
 import { render, observeShellResize } from "./render.mjs";
 import { setupDragDropListeners } from "./drag-drop.mjs";
 import { setupEventListeners } from "./events.mjs";
+
+/* ── Test hook (exposes state + render for fast test setup) ── */
+window.__test = {
+  getState: () => state,
+  render,
+  getEmployeeSequence: () => employeeSequence,
+  setEmployeeSequence: (v) => setEmployeeSequence(v),
+};
 
 /* ── Wire up event listeners ──────────────────────────── */
 setupDragDropListeners();
