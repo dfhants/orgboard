@@ -4,10 +4,10 @@ import {
   employeeSequence, setEmployeeSequence,
   teamSequence, setTeamSequence,
   scenarios, setScenarios, activeScenarioId, setActiveScenarioId,
-  scenarioSequence, setScenarioSequence, setShowLanding,
+  scenarioSequence, setScenarioSequence, setShowLanding, setGlobalCriteria,
   createInitialState, createBlankState,
 } from './state.mjs';
-import { saveScenario, loadScenario, deleteScenario, getMeta, setMeta, exportDB } from './db.mjs';
+import { saveScenario, loadScenario, deleteScenario, getMeta, setMeta, exportDB, importDB, listScenarios, listCriteria } from './db.mjs';
 import { initializeSequence } from './utils.mjs';
 
 export function generateScenarioId() {
@@ -122,4 +122,42 @@ export function handleExportDB() {
   a.download = "orgboard.db";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export async function handleImportDB(file) {
+  if (!file) return false;
+
+  const arrayBuffer = await file.arrayBuffer();
+  await importDB(arrayBuffer);
+
+  const existingScenarios = listScenarios();
+  if (existingScenarios.length === 0) {
+    throw new Error("Imported database has no scenarios.");
+  }
+
+  setScenarios(existingScenarios.map(({ id, name }) => ({ id, name })));
+  setScenarioSequence(0);
+  for (const scenario of scenarios) {
+    const match = scenario.name.match(/^Scenario\s+(\d+)$/);
+    if (match) setScenarioSequence(Math.max(scenarioSequence, Number(match[1])));
+  }
+
+  const lastActiveId = getMeta("activeScenarioId");
+  const target = scenarios.find((s) => s.id === lastActiveId) ?? scenarios[scenarios.length - 1];
+  setActiveScenarioId(target.id);
+
+  const loaded = loadScenario(target.id);
+  if (!loaded) {
+    throw new Error("Imported database is missing its active scenario state.");
+  }
+
+  setState(loaded);
+  setShowLanding(!loaded.initialized);
+  setDragState(null);
+  setIsCopyMode(false);
+  setEmployeeSequence(initializeSequence(loaded.employees, "p"));
+  setTeamSequence(initializeSequence(loaded.teams, "t"));
+  setGlobalCriteria(listCriteria());
+  setMeta("activeScenarioId", target.id);
+  return true;
 }

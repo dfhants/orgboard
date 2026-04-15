@@ -10,6 +10,7 @@ const DEBOUNCE_MS = 300;
 
 let db = null;
 let flushTimer = null;
+let SQLModule = null;
 
 // ─── IndexedDB helpers ───
 
@@ -101,7 +102,7 @@ function ensureSchema(database) {
 // ─── Public API ───
 
 export async function initDB() {
-  const SQL = await initSqlJs({
+  SQLModule = await initSqlJs({
     locateFile: () => sqlWasm,
   });
 
@@ -114,7 +115,7 @@ export async function initDB() {
   }
 
   try {
-    db = savedData ? new SQL.Database(savedData) : new SQL.Database();
+    db = savedData ? new SQLModule.Database(savedData) : new SQLModule.Database();
     ensureSchema(db);
   } catch (err) {
     console.warn("OrgBoard: stored database is corrupt, resetting to fresh DB.", err);
@@ -124,7 +125,7 @@ export async function initDB() {
     } catch (_) {
       // Best-effort clear
     }
-    db = new SQL.Database();
+    db = new SQLModule.Database();
     ensureSchema(db);  // If this throws, it's a real bug — let it propagate
   }
 
@@ -229,4 +230,22 @@ export function deleteCriterion(id) {
 export function exportDB() {
   if (!db) return null;
   return db.export();
+}
+
+export async function importDB(data) {
+  if (!SQLModule) {
+    SQLModule = await initSqlJs({
+      locateFile: () => sqlWasm,
+    });
+  }
+
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const imported = new SQLModule.Database(bytes);
+  ensureSchema(imported);
+
+  db = imported;
+  clearTimeout(flushTimer);
+
+  const idb = await openIDB();
+  await idbPut(idb, DB_KEY, db.export());
 }

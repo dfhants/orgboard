@@ -1,6 +1,7 @@
 import {
   state,
   dragState, setIsCopyMode,
+  boardZoom, setBoardZoom, BOARD_ZOOM_STEP,
   employeeSequence, setEmployeeSequence,
   scenarios, activeScenarioId,
   getTeam, getAllManagers, findMemberEntry,
@@ -8,7 +9,7 @@ import {
   globalCriteria, setGlobalCriteria,
 } from './state.mjs';
 import { escapeHtml, timezoneColors, colorForManager, colorForTimezone } from './utils.mjs';
-import { cleanupManagerOverrides, buildHierarchyTree, computeTeamStats, findParentTeam } from './team-logic.mjs';
+import { cleanupManagerOverrides, buildHierarchyTree, computeTeamStats, getValidManagerOverrideCandidates } from './team-logic.mjs';
 import { checkTypes, describeCriterion } from './checks.mjs';
 import { saveCriterion, deleteCriterion } from './db.mjs';
 import {
@@ -22,12 +23,46 @@ import { openCsvImportModal } from './csv-import.mjs';
 import {
   switchToScenario, createNewScenario,
   loadDemoData, loadBlankBoard,
-  closeScenario, renameScenario, handleExportDB,
+  closeScenario, renameScenario, handleExportDB, handleImportDB,
 } from './scenarios.mjs';
 import {
   render, renderTabs, createIcons,
-  renderHierarchyNode, rerenderHierarchyInPlace, renderCompactTree,
+  renderHierarchyNode, rerenderHierarchyInPlace, renderCompactTree, getHierarchyTreesForModal,
 } from './render.mjs';
+
+function syncBoardZoomUI() {
+  const shell = document.querySelector(".page-shell");
+  if (shell) shell.style.setProperty("--board-zoom", String(boardZoom));
+  const zoomLayer = document.querySelector(".board-zoom-layer");
+  if (zoomLayer) zoomLayer.style.zoom = String(boardZoom);
+  const label = document.getElementById("zoom-level-label");
+  if (label) label.textContent = `${Math.round(boardZoom * 100)}%`;
+}
+
+function openImportDBPicker() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".db,application/x-sqlite3,application/octet-stream";
+  input.style.display = "none";
+
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file) return;
+
+    try {
+      await handleImportDB(file);
+      render();
+      renderTabs();
+    } catch (err) {
+      console.error("OrgBoard: failed to import database", err);
+      alert("Could not import OrgBoard database. Please choose a valid orgboard.db export.");
+    }
+  }, { once: true });
+
+  document.body.appendChild(input);
+  input.click();
+}
 
 function openDeleteAllUnassignedModal() {
   document.getElementById("delete-all-unassigned-modal")?.remove();
@@ -689,33 +724,26 @@ function restoreOverrides(snapshot) {
 function openHierarchyModal(teamId) {
   document.getElementById("hierarchy-modal")?.remove();
 
-  let trees;
-  if (teamId) {
-    const tree = buildHierarchyTree(state, teamId);
-    if (!tree) return;
-    trees = [tree];
-  } else {
-    trees = state.rootTeams.map((id) => buildHierarchyTree(state, id)).filter(Boolean);
-    if (trees.length === 0) return;
-  }
+  const trees = getHierarchyTreesForModal(teamId || null);
+  if (trees.length === 0) return;
 
   const modal = document.createElement("div");
   modal.id = "hierarchy-modal";
-  modal.className = "modal-overlay";
+  modal.className = "modal-overlay modal-overlay-fullscreen";
   if (teamId) modal.dataset.teamId = teamId;
   modal.dataset.editMode = "false";
   modal.dataset.collapsedKeys = "[]";
+  modal.dataset.editSnapshot = JSON.stringify(snapshotOverrides());
 
   function renderModalContent(editMode) {
     const collapsedKeys = new Set(JSON.parse(modal.dataset.collapsedKeys || "[]"));
     const title = teamId ? `${escapeHtml(trees[0].teamName)} — Reporting Hierarchy` : "Reporting Hierarchy";
     const actionButtons = editMode
       ? `<button class="toolbar-button modal-submit" type="button" data-action="save-tree-edit">Save</button>
-            <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
-      : `<button class="toolbar-button hierarchy-edit-toggle" type="button" data-action="toggle-tree-edit"><i data-lucide="pencil"></i> Edit overrides</button>
-            <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
+        <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
+      : `<button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
     modal.innerHTML = `
-      <div class="modal-panel hierarchy-modal-panel">
+      <div class="modal-panel modal-panel-fullscreen hierarchy-modal-panel">
         <div class="hierarchy-modal-header">
           <h3 class="modal-title">${title}</h3>
           <div class="hierarchy-modal-actions">
@@ -728,11 +756,56 @@ function openHierarchyModal(teamId) {
         </div>
       </div>
     `;
-    createIcons();
+    createIcons({ nodes: modal.querySelectorAll('i[data-lucide]') });
   }
 
-  renderModalContent(false);
   document.body.appendChild(modal);
+  renderModalContent(false);
+}
+
+function closeHierarchyModal({ restoreUnsaved = true } = {}) {
+  const modal = document.getElementById("hierarchy-modal");
+  if (!modal) return;
+  if (restoreUnsaved && modal.dataset.editMode === "true") {
+    const snapshot = JSON.parse(modal.dataset.editSnapshot || "{}");
+    restoreOverrides(snapshot);
+    cleanupManagerOverrides(state);
+    render();
+  }
+  modal.remove();
+}
+
+function appendPopoverForMeasurement(popover, zIndex = 300) {
+  popover.style.position = "fixed";
+  popover.style.top = "0px";
+  popover.style.left = "0px";
+  popover.style.transform = "none";
+  popover.style.visibility = "hidden";
+  popover.style.zIndex = String(zIndex);
+  document.body.appendChild(popover);
+}
+
+function positionPopover(anchorEl, popover, { gap = 4, edgePadding = 8 } = {}) {
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const popRect = popover.getBoundingClientRect();
+  const maxLeft = Math.max(edgePadding, window.innerWidth - popRect.width - edgePadding);
+  const centeredLeft = anchorRect.left + (anchorRect.width - popRect.width) / 2;
+  const left = Math.min(Math.max(centeredLeft, edgePadding), maxLeft);
+
+  const belowTop = anchorRect.bottom + gap;
+  const aboveTop = anchorRect.top - popRect.height - gap;
+  const maxTop = Math.max(edgePadding, window.innerHeight - popRect.height - edgePadding);
+
+  let top = belowTop;
+  if (belowTop + popRect.height > window.innerHeight - edgePadding && aboveTop >= edgePadding) {
+    top = aboveTop;
+  } else {
+    top = Math.min(Math.max(belowTop, edgePadding), maxTop);
+  }
+
+  popover.style.left = `${Math.round(left)}px`;
+  popover.style.top = `${Math.round(top)}px`;
+  popover.style.visibility = "visible";
 }
 
 function openTeamMenu(anchorEl, teamId) {
@@ -760,26 +833,9 @@ function openTeamMenu(anchorEl, teamId) {
     </button>
   `;
 
-  const rect = anchorEl.getBoundingClientRect();
-  popover.style.position = "fixed";
-  popover.style.top = `${rect.bottom + 4}px`;
-  popover.style.left = `${rect.left + rect.width / 2}px`;
-  popover.style.transform = "translateX(-50%)";
-  popover.style.zIndex = "300";
-
-  document.body.appendChild(popover);
+  appendPopoverForMeasurement(popover);
   createIcons({ nameAttr: "data-lucide", attrs: { width: 15, height: 15 } });
-
-  // Reposition if off-screen
-  const popRect = popover.getBoundingClientRect();
-  if (popRect.right > window.innerWidth - 8) {
-    popover.style.left = `${window.innerWidth - popRect.width - 8}px`;
-    popover.style.transform = "none";
-  }
-  if (popRect.left < 8) {
-    popover.style.left = "8px";
-    popover.style.transform = "none";
-  }
+  positionPopover(anchorEl, popover);
 
   // Close on outside click
   setTimeout(() => {
@@ -812,60 +868,69 @@ function openTeamMenu(anchorEl, teamId) {
   });
 }
 
+function openBoardLegend(anchorEl) {
+  document.querySelector(".board-legend-popover")?.remove();
+
+  const popover = document.createElement("div");
+  popover.className = "board-legend-popover";
+  popover.innerHTML = `
+    <div class="legend-section">
+      <div class="legend-title">Board areas</div>
+      <div class="legend-item">
+        <span class="legend-swatch legend-swatch-manager"></span>
+        <span>Manager slot</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch legend-swatch-members"></span>
+        <span>Team members</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch legend-swatch-subteams"></span>
+        <span>Sub-teams</span>
+      </div>
+    </div>
+    <div class="legend-divider"></div>
+    <div class="legend-section">
+      <div class="legend-title">Visual cues</div>
+      <div class="legend-item">
+        <span class="legend-swatch legend-swatch-requested"></span>
+        <span>Dashed card = open position</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch legend-swatch-ribbon"></span>
+        <span>Left ribbon = timezone gap</span>
+      </div>
+    </div>
+    <div class="legend-divider"></div>
+    <div class="legend-section">
+      <div class="legend-title">Keyboard shortcuts</div>
+      <div class="legend-item"><kbd>C</kbd><span>Hold while dragging to copy</span></div>
+      <div class="legend-item"><kbd>Esc</kbd><span>Close modal / panel</span></div>
+      <div class="legend-item"><kbd>Ctrl</kbd> + <kbd>scroll</kbd><span>Zoom board</span></div>
+    </div>
+  `;
+
+  appendPopoverForMeasurement(popover);
+  createIcons({ nameAttr: "data-lucide", attrs: { width: 15, height: 15 } });
+  positionPopover(anchorEl, popover, { gap: 8 });
+
+  setTimeout(() => {
+    function closePopover(e) {
+      if (!popover.contains(e.target)) {
+        popover.remove();
+        document.removeEventListener("click", closePopover, true);
+      }
+    }
+    document.addEventListener("click", closePopover, true);
+  }, 0);
+}
+
 function openTreeOverridePopover(anchorEl, employeeId, teamId) {
   document.querySelector(".tree-override-popover")?.remove();
   const team = getTeam(teamId);
   if (!team) return;
   const isManager = team.manager === employeeId;
-
-  function getDisplayedRootTeamId(currentTeamId) {
-    const modalTeamId = document.getElementById("hierarchy-modal")?.dataset.teamId;
-    if (modalTeamId) return modalTeamId;
-    let rootId = currentTeamId;
-    while (true) {
-      const parent = findParentTeam(state.teams, rootId);
-      if (!parent) break;
-      rootId = parent.id;
-    }
-    return rootId;
-  }
-
-  function findEmployeeNode(node, targetId) {
-    if (!node) return null;
-    if (node.employee?.id === targetId) return node;
-    for (const child of node.children || []) {
-      const found = findEmployeeNode(child, targetId);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  function collectDescendantEmployeeIds(node, out = new Set()) {
-    for (const child of node?.children || []) {
-      if (child.employee?.id) out.add(child.employee.id);
-      collectDescendantEmployeeIds(child, out);
-    }
-    return out;
-  }
-
-  function collectCandidateEmployees(node, blockedIds, out = []) {
-    if (!node) return out;
-    if (node.employee?.id && !blockedIds.has(node.employee.id)) {
-      out.push(node.employee);
-    }
-    for (const child of node.children || []) {
-      collectCandidateEmployees(child, blockedIds, out);
-    }
-    return out;
-  }
-
-  const rootTeamId = getDisplayedRootTeamId(teamId);
-  const tree = buildHierarchyTree(state, rootTeamId);
-  if (!tree) return;
-  const currentNode = findEmployeeNode(tree, employeeId);
-  const blockedIds = new Set([employeeId, ...collectDescendantEmployeeIds(currentNode)]);
-  const managers = collectCandidateEmployees(tree, blockedIds)
-    .filter((m) => isManager || m.id !== team.manager);
+  const managers = getValidManagerOverrideCandidates(state, employeeId);
   if (managers.length === 0) return;
 
   const currentOverride = isManager ? (team.managerOverride ?? null) : (findMemberEntry(employeeId, teamId)?.managerOverride ?? null);
@@ -895,26 +960,8 @@ function openTreeOverridePopover(anchorEl, employeeId, teamId) {
     <div class="tree-popover-list">${items}${resetBtn}</div>
   `;
 
-  // Position relative to anchor
-  const rect = anchorEl.getBoundingClientRect();
-  popover.style.position = "fixed";
-  popover.style.top = `${rect.bottom + 4}px`;
-  popover.style.left = `${rect.left + rect.width / 2}px`;
-  popover.style.transform = "translateX(-50%)";
-  popover.style.zIndex = "300";
-
-  document.body.appendChild(popover);
-
-  // Reposition if off-screen
-  const popRect = popover.getBoundingClientRect();
-  if (popRect.right > window.innerWidth - 8) {
-    popover.style.left = `${window.innerWidth - popRect.width - 8}px`;
-    popover.style.transform = "none";
-  }
-  if (popRect.left < 8) {
-    popover.style.left = "8px";
-    popover.style.transform = "none";
-  }
+  appendPopoverForMeasurement(popover);
+  positionPopover(anchorEl, popover);
 
   // Close on outside click (delayed to avoid immediate close)
   setTimeout(() => {
@@ -948,14 +995,16 @@ function openTreeOverridePopover(anchorEl, employeeId, teamId) {
         }
       }
     }
+    const modal = document.getElementById("hierarchy-modal");
+    if (modal && modal.dataset.editMode !== "true") {
+      modal.dataset.editMode = "true";
+    }
     cleanupManagerOverrides(state);
     popover.remove();
     // Re-render the tree in place
-    const modal = document.getElementById("hierarchy-modal");
     if (modal) {
       rerenderHierarchyInPlace(modal);
     }
-    render();
   });
 }
 
@@ -971,8 +1020,13 @@ export function setupEventListeners() {
       return;
     }
 
-    /* ── Import CSV (existing scenario) ── */
-    if (event.target.closest("#import-csv-btn") || event.target.closest("#action-bar-import-csv")) {
+    /* ── Import database / CSV ── */
+    if (event.target.closest("#import-db-btn")) {
+      openImportDBPicker();
+      return;
+    }
+
+    if (event.target.closest("#action-bar-import-csv")) {
       openCsvImportModal();
       return;
     }
@@ -1081,17 +1135,7 @@ export function setupEventListeners() {
 
     /* ── Hierarchy modal ── */
     if (event.target.closest("#hierarchy-modal-close") || event.target.id === "hierarchy-modal") {
-      document.getElementById("hierarchy-modal")?.remove();
-      return;
-    }
-
-    if (event.target.closest("[data-action='toggle-tree-edit']")) {
-      const modal = document.getElementById("hierarchy-modal");
-      if (modal) {
-        modal.dataset.editMode = "true";
-        modal.dataset.editSnapshot = JSON.stringify(snapshotOverrides());
-        rerenderHierarchyInPlace(modal);
-      }
+      closeHierarchyModal();
       return;
     }
 
@@ -1099,6 +1143,7 @@ export function setupEventListeners() {
       const modal = document.getElementById("hierarchy-modal");
       if (modal) {
         modal.dataset.editMode = "false";
+        modal.dataset.editSnapshot = JSON.stringify(snapshotOverrides());
         rerenderHierarchyInPlace(modal);
         render();
       }
@@ -1121,7 +1166,7 @@ export function setupEventListeners() {
     if (event.target.closest("[data-tree-toggle]")) {
       const toggle = event.target.closest("[data-tree-toggle]");
       const modal = document.getElementById("hierarchy-modal");
-      if (!modal || modal.dataset.editMode === "true") return;
+      if (!modal) return;
       const key = toggle.dataset.treeToggle;
       const collapsed = new Set(JSON.parse(modal.dataset.collapsedKeys || "[]"));
       if (collapsed.has(key)) collapsed.delete(key);
@@ -1134,7 +1179,7 @@ export function setupEventListeners() {
     if (event.target.closest("[data-tree-click]")) {
       const el = event.target.closest("[data-tree-click]");
       const modal = document.getElementById("hierarchy-modal");
-      if (!modal || modal.dataset.editMode !== "true") return;
+      if (!modal) return;
       const empId = el.dataset.employeeId;
       const treeTeamId = el.dataset.treeTeamId;
       openTreeOverridePopover(el, empId, treeTeamId);
@@ -1279,7 +1324,23 @@ export function setupEventListeners() {
         "toggle-root-layout": () => {
           state.rootLayout = oppositeLayout[state.rootLayout];
         },
+        "zoom-in": () => {
+          setBoardZoom(boardZoom + BOARD_ZOOM_STEP);
+          syncBoardZoomUI();
+          return false;
+        },
+        "zoom-out": () => {
+          setBoardZoom(boardZoom - BOARD_ZOOM_STEP);
+          syncBoardZoomUI();
+          return false;
+        },
+        "zoom-reset": () => {
+          setBoardZoom(1);
+          syncBoardZoomUI();
+          return false;
+        },
         "view-hierarchy": () => { openHierarchyModal(teamId); return false; },
+        "open-board-legend": () => { openBoardLegend(button); return false; },
         "set-manager-override": () => { openManagerOverrideModal(id, teamId); return false; },
         "reset-manager-override": () => {
           const team = getTeam(teamId);
@@ -1410,7 +1471,7 @@ export function setupEventListeners() {
       const teamStatsModal = document.getElementById("team-stats-modal");
       if (teamStatsModal) { teamStatsModal.remove(); return; }
       const hierarchyModal = document.getElementById("hierarchy-modal");
-      if (hierarchyModal) { hierarchyModal.remove(); return; }
+      if (hierarchyModal) { closeHierarchyModal(); return; }
     }
 
     if (event.key === "c" || event.key === "C") {
@@ -1433,4 +1494,16 @@ export function setupEventListeners() {
   window.addEventListener("blur", () => {
     setIsCopyMode(false);
   });
+
+  document.addEventListener("wheel", (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    const shell = event.target instanceof Element
+      ? event.target.closest(".page-shell")
+      : null;
+    if (!shell) return;
+    event.preventDefault();
+    const delta = event.deltaY < 0 ? BOARD_ZOOM_STEP : -BOARD_ZOOM_STEP;
+    setBoardZoom(boardZoom + delta);
+    syncBoardZoomUI();
+  }, { passive: false });
 }

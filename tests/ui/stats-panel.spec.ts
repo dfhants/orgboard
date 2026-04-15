@@ -115,20 +115,19 @@ test.describe("Stats Panel", () => {
     await expect(page.locator("#stats-toggle-btn")).toHaveCount(0);
   });
 
-  test("people by role section is collapsible and starts expanded", async ({ page }) => {
+  test("people by role section is collapsible and starts collapsed", async ({ page }) => {
     await page.click(".stats-panel-strip:not(.checks-strip):not(.notes-strip)");
     const roleSection = page.locator("details.stats-collapsible", { has: page.locator("summary.stats-section-title", { hasText: "People by role" }) });
+    await expect(roleSection).not.toHaveAttribute("open", "");
+
+    await roleSection.locator("summary").click();
     await expect(roleSection).toHaveAttribute("open", "");
-    // Collapse it
+
+    const rowCount = await roleSection.locator(".stats-row").count();
+    expect(rowCount).toBeGreaterThan(0);
+
     await roleSection.locator("summary").click();
     await expect(roleSection).not.toHaveAttribute("open", "");
-    // Role rows should be hidden
-    await expect(roleSection.locator(".stats-row")).toHaveCount(0, { timeout: 500 }).catch(() => {
-      // In some browsers hidden content still exists in DOM but is not visible
-    });
-    // Re-expand
-    await roleSection.locator("summary").click();
-    await expect(roleSection).toHaveAttribute("open", "");
   });
 
   test("team blocks are collapsible and start collapsed", async ({ page }) => {

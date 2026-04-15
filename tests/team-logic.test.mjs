@@ -10,6 +10,7 @@ import {
   collectAllEmployeesInTeam,
   findParentTeam,
   buildHierarchyTree,
+  getValidManagerOverrideCandidates,
   computeTeamStats,
   computeGlobalStats,
   computeManagerChanges,
@@ -462,6 +463,36 @@ describe("buildHierarchyTree", () => {
     assert.equal(p3Node.isOverride, true);
   });
 
+  it("handles circular override chains without dropping people", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1", { name: "Root" }),
+        p2: makeEmployee("p2", { name: "A" }),
+        p3: makeEmployee("p3", { name: "B" }),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [
+            { id: "p2", managerOverride: "p3" },
+            { id: "p3", managerOverride: "p2" },
+          ],
+        }),
+      },
+    };
+
+    const tree = buildHierarchyTree(state, "t1");
+    const seen = new Set();
+    (function walk(node) {
+      if (!node) return;
+      if (node.employee?.id) seen.add(node.employee.id);
+      for (const child of node.children || []) walk(child);
+    })(tree);
+
+    assert.equal(seen.has("p2"), true, "p2 should still be present in hierarchy output");
+    assert.equal(seen.has("p3"), true, "p3 should still be present in hierarchy output");
+  });
+
   it("includes nested team subtrees", () => {
     const state = {
       employees: {
@@ -585,6 +616,83 @@ describe("buildHierarchyTree", () => {
     const tree = buildHierarchyTree(state, "t1");
     const t2Node = tree.children.find((c) => c.type === "team" && c.teamId === "t2");
     assert.ok(t2Node, "orphaned t2 should still appear in the tree");
+  });
+});
+
+// ─── getValidManagerOverrideCandidates ───────────────────────────────
+
+describe("getValidManagerOverrideCandidates", () => {
+  it("allows anyone except self when there is no cycle", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1"),
+        p2: makeEmployee("p2"),
+        p3: makeEmployee("p3"),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [{ id: "p2" }, { id: "p3" }],
+        }),
+      },
+    };
+
+    const ids = getValidManagerOverrideCandidates(state, "p2").map((e) => e.id).sort();
+    assert.deepEqual(ids, ["p1", "p3"]);
+  });
+
+  it("rejects direct cycle candidate", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1"),
+        p2: makeEmployee("p2"),
+        p3: makeEmployee("p3"),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [
+            { id: "p2", managerOverride: "p3" },
+            { id: "p3" },
+          ],
+        }),
+      },
+    };
+
+    const ids = getValidManagerOverrideCandidates(state, "p3").map((e) => e.id).sort();
+    assert.equal(ids.includes("p2"), false, "p2 would create p3 -> p2 -> p3 cycle");
+  });
+
+  it("rejects indirect cycle candidates", () => {
+    const state = {
+      employees: {
+        p1: makeEmployee("p1"),
+        p2: makeEmployee("p2"),
+        p3: makeEmployee("p3"),
+        p4: makeEmployee("p4"),
+      },
+      teams: {
+        t1: makeTeam("t1", {
+          manager: "p1",
+          members: [
+            { id: "p2", managerOverride: "p3" }, // p2 -> p3
+            { id: "p3", managerOverride: "p4" }, // p3 -> p4
+            { id: "p4" },
+          ],
+        }),
+      },
+    };
+
+    const ids = getValidManagerOverrideCandidates(state, "p4").map((e) => e.id).sort();
+    assert.equal(ids.includes("p2"), false, "p4 -> p2 would create p2 -> p3 -> p4 -> p2 cycle");
+  });
+
+  it("returns empty for unknown employee", () => {
+    const state = {
+      employees: { p1: makeEmployee("p1") },
+      teams: { t1: makeTeam("t1", { manager: "p1" }) },
+    };
+    assert.deepEqual(getValidManagerOverrideCandidates(state, "missing"), []);
   });
 });
 

@@ -4,7 +4,7 @@
   min-height: 140px; /* base drop-zone height — tall enough to be an obvious drag target */
   border: 1.5px dashed var(--line-soft);
   border-radius: var(--radius-lg);
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space);
@@ -106,7 +106,8 @@
 }
 
 .dragging-source {
-  opacity: 0.3;
+  opacity: 0.35;
+  visibility: visible;
   pointer-events: none !important;
 }
 

@@ -79,6 +79,42 @@ test.describe("Persistence (SQLite)", () => {
     expect(download.suggestedFilename()).toBe("orgboard.db");
   });
 
+  test("toolbar import restores a previously exported OrgBoard database", async ({ page }) => {
+    const teamName = page.locator('.team[data-team-id="t1"] > .team-titlebar .team-name-text');
+    await teamName.click();
+    const input = page.locator('.team[data-team-id="t1"] > .team-titlebar .team-name-input');
+    await input.fill("Imported DB Team");
+    await input.press("Enter");
+    await page.waitForTimeout(350);
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.locator("#export-db-btn").click();
+    const download = await downloadPromise;
+    const filePath = await download.path();
+    expect(filePath).toBeTruthy();
+
+    await page.evaluate(() =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.deleteDatabase("orgboard");
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => resolve();
+      })
+    );
+
+    await page.reload();
+    await page.locator('[data-landing-action="demo"]').click();
+    await page.waitForSelector(".team");
+    await expect(page.locator('.team[data-team-id="t1"] > .team-titlebar .team-name-text')).toHaveText("Product");
+
+    const chooserPromise = page.waitForEvent("filechooser");
+    await page.locator("#import-db-btn").click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles(filePath!);
+
+    await expect(page.locator('.team[data-team-id="t1"] > .team-titlebar .team-name-text')).toHaveText("Imported DB Team");
+  });
+
   test("recovers from corrupt IndexedDB by resetting to fresh DB", async ({ page }) => {
     // Write garbage bytes into the IndexedDB slot where the SQLite binary lives
     await page.evaluate(async () => {

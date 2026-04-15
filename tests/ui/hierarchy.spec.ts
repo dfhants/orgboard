@@ -8,6 +8,23 @@ test.describe("Hierarchy Tree Modal", () => {
     return modal;
   };
 
+  const assignFirstAvailableOverride = async (page: import("@playwright/test").Page, modal: import("@playwright/test").Locator, selector = ".tree-leaf-row.tree-node--editable") => {
+    await modal.locator(selector).first().click();
+    const popover = page.locator(".tree-override-popover");
+    await expect(popover).toBeVisible();
+    const items = popover.locator(".tree-popover-item");
+    const count = await items.count();
+    for (let i = 0; i < count; i++) {
+      const hasTag = await items.nth(i).locator(".manager-pick-tag").count();
+      if (hasTag === 0) {
+        await items.nth(i).click();
+        await expect(popover).not.toBeVisible();
+        return true;
+      }
+    }
+    return false;
+  };
+
   test("network icon button appears in action bar", async ({ page }) => {
     const btn = page.locator('.action-bar [data-action="view-hierarchy"]');
     await expect(btn).toBeVisible();
@@ -39,9 +56,23 @@ test.describe("Hierarchy Tree Modal", () => {
     await expect(modal.locator(".tree-container")).toContainText("Zuri Okafor");
   });
 
+  test("global hierarchy renders unassigned people as separate top-level trees", async ({ page }) => {
+    const modal = await openHierarchy(page);
+    const tree = modal.locator(".tree-container");
+    await expect(tree).toContainText("Eli Vasquez");
+    await expect(tree).toContainText("Nia Ramaswamy");
+  });
+
   test("tree shows nested team subtree", async ({ page }) => {
     const modal = await openHierarchy(page);
     await expect(modal.locator(".tree-container")).toContainText("Research");
+  });
+
+  test("branch toggle chevrons are rendered on first modal open", async ({ page }) => {
+    const modal = await openHierarchy(page);
+    const toggles = modal.locator(".tree-node-toggle");
+    await expect(toggles.first()).toBeVisible();
+    await expect(modal.locator(".tree-node-toggle svg").first()).toBeVisible();
   });
 
   test("close button dismisses modal", async ({ page }) => {
@@ -62,84 +93,66 @@ test.describe("Hierarchy Tree Modal", () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test("edit mode toggle shows edit banner", async ({ page }) => {
+  test("direct reassignment enters dirty mode and shows edit banner", async ({ page }) => {
     const modal = await openHierarchy(page);
     await expect(modal.locator(".hierarchy-edit-banner")).not.toBeVisible();
-    await modal.locator(".hierarchy-edit-toggle").click();
+    const assigned = await assignFirstAvailableOverride(page, modal);
+    if (!assigned) return;
     await expect(modal.locator(".hierarchy-edit-banner")).toBeVisible();
     await expect(modal.locator(".hierarchy-edit-banner")).toContainText("Click a person");
     await expect(modal.locator(".tree-node--editable").first()).toBeVisible();
   });
 
-  test("edit mode shows Save and Cancel buttons instead of toggle", async ({ page }) => {
+  test("in-place hierarchy updates do not reapply modal open animation", async ({ page }) => {
     const modal = await openHierarchy(page);
-    // Before edit mode: toggle button visible, Save/Cancel not
-    await expect(modal.locator(".hierarchy-edit-toggle")).toBeVisible();
-    await expect(modal.locator("[data-action='save-tree-edit']")).not.toBeVisible();
-    await expect(modal.locator("[data-action='cancel-tree-edit']")).not.toBeVisible();
-    // Enter edit mode
-    await modal.locator(".hierarchy-edit-toggle").click();
-    await expect(modal.locator("[data-action='save-tree-edit']")).toBeVisible();
-    await expect(modal.locator("[data-action='cancel-tree-edit']")).toBeVisible();
-    await expect(modal.locator(".hierarchy-edit-toggle")).not.toBeVisible();
+    const panel = modal.locator(".hierarchy-modal-panel");
+
+    await expect(panel).not.toHaveClass(/hierarchy-modal-panel--rerender/);
+
+    const assigned = await assignFirstAvailableOverride(page, modal);
+    if (!assigned) return;
+    await expect(modal.locator(".hierarchy-modal-panel")).toHaveClass(/hierarchy-modal-panel--rerender/);
   });
 
-  test("Save exits edit mode and keeps changes", async ({ page }) => {
+  test("Save and Cancel buttons appear only after a reassignment", async ({ page }) => {
     const modal = await openHierarchy(page);
-    await modal.locator(".hierarchy-edit-toggle").click();
-    // In edit mode, assign an override
-    const memberNode = modal.locator(".tree-leaf-row.tree-node--editable").first();
-    await memberNode.click();
-    const popover = page.locator(".tree-override-popover");
-    await expect(popover).toBeVisible();
-    const items = popover.locator(".tree-popover-item");
-    const count = await items.count();
-    for (let i = 0; i < count; i++) {
-      const hasTag = await items.nth(i).locator(".manager-pick-tag").count();
-      if (hasTag === 0) { await items.nth(i).click(); break; }
-    }
-    await expect(popover).not.toBeVisible();
-    // Save
-    await modal.locator("[data-action='save-tree-edit']").click();
-    // Should be back in view mode
-    await expect(modal.locator(".hierarchy-edit-toggle")).toBeVisible();
     await expect(modal.locator("[data-action='save-tree-edit']")).not.toBeVisible();
-    // Override should persist (dashed line or override marker visible)
+    await expect(modal.locator("[data-action='cancel-tree-edit']")).not.toBeVisible();
+
+    const assigned = await assignFirstAvailableOverride(page, modal);
+    if (!assigned) return;
+
+    await expect(modal.locator("[data-action='save-tree-edit']")).toBeVisible();
+    await expect(modal.locator("[data-action='cancel-tree-edit']")).toBeVisible();
+  });
+
+  test("Save exits dirty mode and keeps changes", async ({ page }) => {
+    const modal = await openHierarchy(page);
+    const assigned = await assignFirstAvailableOverride(page, modal);
+    if (!assigned) return;
+
+    await modal.locator("[data-action='save-tree-edit']").click();
+    await expect(modal.locator("[data-action='save-tree-edit']")).not.toBeVisible();
+    await expect(modal.locator("[data-action='cancel-tree-edit']")).not.toBeVisible();
     const overrides = await modal.locator(".tree-leaf-override, .tree-node-override, .tree-line-override").count();
     expect(overrides).toBeGreaterThan(0);
   });
 
-  test("Cancel exits edit mode and reverts changes", async ({ page }) => {
+  test("Cancel exits dirty mode and reverts changes", async ({ page }) => {
     const modal = await openHierarchy(page);
     const initialOverrides = await modal.locator(".tree-leaf-override, .tree-node-override").count();
-    await modal.locator(".hierarchy-edit-toggle").click();
-    // Assign an override
-    const memberNode = modal.locator(".tree-leaf-row.tree-node--editable").first();
-    await memberNode.click();
-    const popover = page.locator(".tree-override-popover");
-    await expect(popover).toBeVisible();
-    const items = popover.locator(".tree-popover-item");
-    const count = await items.count();
-    let assigned = false;
-    for (let i = 0; i < count; i++) {
-      const hasTag = await items.nth(i).locator(".manager-pick-tag").count();
-      if (hasTag === 0) { await items.nth(i).click(); assigned = true; break; }
-    }
+    const assigned = await assignFirstAvailableOverride(page, modal);
     if (!assigned) return;
-    await expect(popover).not.toBeVisible();
-    // Cancel
+
     await modal.locator("[data-action='cancel-tree-edit']").click();
-    // Should be back in view mode
-    await expect(modal.locator(".hierarchy-edit-toggle")).toBeVisible();
-    // Override should be reverted
+    await expect(modal.locator("[data-action='save-tree-edit']")).not.toBeVisible();
+    await expect(modal.locator("[data-action='cancel-tree-edit']")).not.toBeVisible();
     const afterOverrides = await modal.locator(".tree-leaf-override, .tree-node-override").count();
     expect(afterOverrides).toBe(initialOverrides);
   });
 
-  test("edit mode: clicking node opens popover", async ({ page }) => {
+  test("clicking node opens popover without an edit toggle", async ({ page }) => {
     const modal = await openHierarchy(page);
-    await modal.locator(".hierarchy-edit-toggle").click();
-    // Leaf members are rendered as .tree-leaf-row in the compact layout
     const memberNode = modal.locator(".tree-leaf-row.tree-node--editable").first();
     await memberNode.click();
     const popover = page.locator(".tree-override-popover");
@@ -148,34 +161,233 @@ test.describe("Hierarchy Tree Modal", () => {
 
   test("edit mode: assigning override updates tree and shows moved indicator", async ({ page }) => {
     const modal = await openHierarchy(page);
-    // In compact layout, overrides show as .tree-leaf-override or .tree-line-override SVG paths
     const initialOverrides = await modal.locator(".tree-leaf-override, .tree-node-override").count();
 
-    await modal.locator(".hierarchy-edit-toggle").click();
-    const memberNode = modal.locator(".tree-leaf-row.tree-node--editable").first();
-    await memberNode.click();
+    const picked = await assignFirstAvailableOverride(page, modal);
+    if (!picked) return;
+
+    const newOverrides = await modal.locator(".tree-leaf-override, .tree-node-override").count();
+    expect(newOverrides).toBeGreaterThan(initialOverrides);
+    const movedIndicators = await modal.locator(".tree-node--moved, .tree-leaf-row--moved").count();
+    expect(movedIndicators).toBeGreaterThan(0);
+  });
+
+  test("edit mode: assigning override does not rerender board until Save", async ({ page }) => {
+    const modal = await openHierarchy(page);
+
+    await page.evaluate(() => {
+      const firstCard = document.querySelector(".person-card");
+      if (firstCard) firstCard.setAttribute("data-edit-marker", "persist-during-edit");
+    });
+
+    const picked = await assignFirstAvailableOverride(page, modal);
+    if (!picked) return;
+
+    const markerDuringEdit = await page.evaluate(() => !!document.querySelector('.person-card[data-edit-marker="persist-during-edit"]'));
+    expect(markerDuringEdit).toBe(true);
+
+    await modal.locator("[data-action='save-tree-edit']").click();
+    const markerAfterSave = await page.evaluate(() => !!document.querySelector('.person-card[data-edit-marker="persist-during-edit"]'));
+    expect(markerAfterSave).toBe(false);
+  });
+
+  test("edit mode: overriding a person reparents them under the new manager in the tree", async ({ page }) => {
+    await page.evaluate(() => {
+      const t = window.__test;
+      const state = t.getState();
+      let seq = t.getEmployeeSequence();
+      const mgrId = `p${++seq}`;
+      const repId = `p${++seq}`;
+      state.employees[mgrId] = {
+        id: mgrId,
+        name: "Jamie Test Manager",
+        role: "Senior Engineer",
+        location: "Remote",
+        timezone: "EST (UTC−5)",
+        notes: "",
+        requested: false,
+        level: 6,
+        currentManager: "Ava Richardson",
+      };
+      state.employees[repId] = {
+        id: repId,
+        name: "Sam Test Report",
+        role: "Engineer",
+        location: "Remote",
+        timezone: "EST (UTC−5)",
+        notes: "",
+        requested: false,
+        level: 5,
+        currentManager: "Ava Richardson",
+      };
+      state.teams.t1.members.push({ id: mgrId });
+      state.teams.t1.members.push({ id: repId });
+      t.setEmployeeSequence(seq);
+      t.render();
+    });
+
+    const modal = await openHierarchy(page);
+    await modal.locator('.tree-leaf-row.tree-node--editable:has-text("Sam Test Report")').click();
 
     const popover = page.locator(".tree-override-popover");
     await expect(popover).toBeVisible();
-    const items = popover.locator(".tree-popover-item");
-    const count = await items.count();
-    let picked = false;
-    for (let i = 0; i < count; i++) {
-      const hasTag = await items.nth(i).locator(".manager-pick-tag").count();
-      if (hasTag === 0) {
-        await items.nth(i).click();
-        picked = true;
-        break;
-      }
-    }
-    if (!picked) return;
-
+    await popover.locator('.tree-popover-item:has-text("Jamie Test Manager")').click();
     await expect(popover).not.toBeVisible();
-    const newOverrides = await modal.locator(".tree-leaf-override, .tree-node-override").count();
-    expect(newOverrides).toBeGreaterThan(initialOverrides);
-    // Moved indicator should appear on the reassigned node
-    const movedIndicators = await modal.locator(".tree-node--moved, .tree-leaf-row--moved").count();
-    expect(movedIndicators).toBeGreaterThan(0);
+
+    const after = await page.evaluate(() => {
+      const modalEl = document.querySelector("#hierarchy-modal");
+      const jamieNode = [...modalEl.querySelectorAll(".tree-node")].find((el) =>
+        el.querySelector(".tree-node-name")?.textContent?.includes("Jamie Test Manager")
+      );
+      const samLeaf = [...modalEl.querySelectorAll(".tree-leaf-row")].find((el) =>
+        el.querySelector(".tree-leaf-name")?.textContent?.includes("Sam Test Report")
+      );
+      if (!jamieNode || !samLeaf) return null;
+      const jamieRect = jamieNode.getBoundingClientRect();
+      const samRect = samLeaf.getBoundingClientRect();
+      return {
+        jamieIsNode: true,
+        samBelowJamie: samRect.top > jamieRect.bottom - 1,
+        roughlyAligned: Math.abs((samRect.left + samRect.right) / 2 - (jamieRect.left + jamieRect.right) / 2) < 90,
+      };
+    });
+
+    expect(after).not.toBeNull();
+    expect(after!.jamieIsNode).toBe(true);
+    expect(after!.samBelowJamie).toBe(true);
+    expect(after!.roughlyAligned).toBe(true);
+  });
+
+  test("edit mode: Theo override to Zuri reparents across teams", async ({ page }) => {
+    await page.evaluate(() => {
+      const t = window.__test;
+      const state = t.getState();
+      const research = state.teams.t3;
+      const theo = research.members.find((m) => m.id === "p7");
+      if (theo) theo.managerOverride = "p3"; // Zuri Okafor
+      t.render();
+    });
+
+    const modal = await openHierarchy(page);
+
+    const layout = await page.evaluate(() => {
+      const modalEl = document.querySelector("#hierarchy-modal");
+      const zuriNode = [...modalEl.querySelectorAll(".tree-node")].find((el) =>
+        el.querySelector(".tree-node-name")?.textContent?.includes("Zuri Okafor")
+      );
+      const theoLeaf = [...modalEl.querySelectorAll(".tree-leaf-row")].find((el) =>
+        el.querySelector(".tree-leaf-name")?.textContent?.includes("Theo Carmichael")
+      );
+      const irisNode = [...modalEl.querySelectorAll(".tree-node")].find((el) =>
+        el.querySelector(".tree-node-name")?.textContent?.includes("Iris Tanaka")
+      );
+      if (!zuriNode || !theoLeaf || !irisNode) return null;
+      const z = zuriNode.getBoundingClientRect();
+      const t = theoLeaf.getBoundingClientRect();
+      const i = irisNode.getBoundingClientRect();
+      return {
+        theoBelowZuri: t.top > z.bottom - 1,
+        theoCloserToZuriThanIris: Math.abs((t.left + t.right) / 2 - (z.left + z.right) / 2)
+          < Math.abs((t.left + t.right) / 2 - (i.left + i.right) / 2),
+      };
+    });
+
+    expect(layout).not.toBeNull();
+    expect(layout!.theoBelowZuri).toBe(true);
+    expect(layout!.theoCloserToZuriThanIris).toBe(true);
+  });
+
+  test("edit mode: cross-team reassignment works inside a single root tree", async ({ page }) => {
+    await page.evaluate(() => {
+      const t = window.__test;
+      const state = t.getState();
+
+      state.initialized = true;
+      state.rootLayout = "horizontal";
+      state.unassignedEmployees = [];
+      state.employees = {
+        p1: { id: "p1", name: "Root Manager", location: "Remote", timezone: "EST (UTC−5)", role: "Director", notes: "", requested: false, level: 8, currentManager: "" },
+        p2: { id: "p2", name: "Leaf Target", location: "Remote", timezone: "EST (UTC−5)", role: "Engineer", notes: "", requested: false, level: 5, currentManager: "Team Alpha Manager" },
+        p3: { id: "p3", name: "Moved Person", location: "Remote", timezone: "PST (UTC−8)", role: "Designer", notes: "", requested: false, level: 4, currentManager: "Team Beta Manager" },
+        p4: { id: "p4", name: "Team Alpha Manager", location: "Remote", timezone: "CST (UTC−6)", role: "Manager", notes: "", requested: false, level: 7, currentManager: "Root Manager" },
+        p5: { id: "p5", name: "Team Beta Manager", location: "Remote", timezone: "GMT (UTC+0)", role: "Manager", notes: "", requested: false, level: 7, currentManager: "Root Manager" },
+      };
+      state.teams = {
+        t1: {
+          id: "t1",
+          name: "Root Team",
+          ownLayout: "expanded",
+          manager: "p1",
+          members: [],
+          subTeams: [{ id: "t2" }, { id: "t3" }],
+          color: "#818cf8",
+        },
+        t2: {
+          id: "t2",
+          name: "Alpha",
+          ownLayout: "expanded",
+          manager: "p4",
+          members: [{ id: "p2" }],
+          subTeams: [],
+          color: "#60a5fa",
+        },
+        t3: {
+          id: "t3",
+          name: "Beta",
+          ownLayout: "expanded",
+          manager: "p5",
+          members: [{ id: "p3" }],
+          subTeams: [],
+          color: "#38bdf8",
+        },
+      };
+      state.rootTeams = ["t1"];
+      t.setEmployeeSequence(5);
+      t.render();
+    });
+
+    const modal = await openHierarchy(page);
+    await modal.locator('.tree-node--editable:has-text("Moved Person")').first().click();
+
+    const popover = page.locator(".tree-override-popover");
+    await expect(popover).toBeVisible();
+    await popover.locator('.tree-popover-item:has-text("Leaf Target")').click();
+    await expect(popover).not.toBeVisible();
+
+    const after = await page.evaluate(() => {
+      const modalEl = document.querySelector("#hierarchy-modal");
+      const targetNode = [...modalEl.querySelectorAll(".tree-node")].find((el) =>
+        el.querySelector(".tree-node-name")?.textContent?.includes("Leaf Target")
+      );
+      const targetLeaf = [...modalEl.querySelectorAll(".tree-leaf-row")].find((el) =>
+        el.querySelector(".tree-leaf-name")?.textContent?.includes("Leaf Target")
+      );
+      const movedLeaf = [...modalEl.querySelectorAll(".tree-leaf-row")].find((el) =>
+        el.querySelector(".tree-leaf-name")?.textContent?.includes("Moved Person")
+      );
+      if (!targetNode || !movedLeaf) {
+        return {
+          targetAsNode: !!targetNode,
+          targetAsLeaf: !!targetLeaf,
+          movedFound: !!movedLeaf,
+        };
+      }
+      const targetRect = targetNode.getBoundingClientRect();
+      const movedRect = movedLeaf.getBoundingClientRect();
+      return {
+        targetAsNode: true,
+        targetAsLeaf: !!targetLeaf,
+        movedFound: true,
+        movedBelowTarget: movedRect.top > targetRect.bottom - 1,
+        roughlyAligned: Math.abs((movedRect.left + movedRect.right) / 2 - (targetRect.left + targetRect.right) / 2) < 90,
+      };
+    });
+
+    expect(after.targetAsNode).toBe(true);
+    expect(after.targetAsLeaf).toBe(false);
+    expect(after.movedFound).toBe(true);
+    expect(after.movedBelowTarget).toBe(true);
+    expect(after.roughlyAligned).toBe(true);
   });
 
   test("edit mode: reassigning a manager moves their subtree in the hierarchy tree", async ({ page }) => {
@@ -214,7 +426,6 @@ test.describe("Hierarchy Tree Modal", () => {
     });
 
     const modal = await openHierarchy(page);
-    await modal.locator(".hierarchy-edit-toggle").click();
     await modal.locator('.tree-node-member:has-text("Casey Example Manager")').click();
 
     const popover = page.locator(".tree-override-popover");
@@ -371,6 +582,93 @@ test.describe("Hierarchy Tree Modal", () => {
       }
       return count;
     });
+    expect(overlaps).toBe(0);
+  });
+
+  test("compact layout: leaf rows do not overlap across depths", async ({ page }) => {
+    await page.evaluate(async () => {
+      const stateMod = await import("/src/state.mjs");
+      const nextState = stateMod.createBlankState();
+      nextState.initialized = true;
+      nextState.rootLayout = "horizontal";
+
+      const makeEmp = (id, name, role, manager = "") => ({
+        id,
+        name,
+        location: "Remote",
+        timezone: "EST (UTC−5)",
+        role,
+        notes: "",
+        requested: false,
+        level: 5,
+        currentManager: manager,
+      });
+
+      nextState.employees = {
+        p1: makeEmp("p1", "Root", "Director"),
+        p2: makeEmp("p2", "Manager A", "Manager", "Root"),
+        p3: makeEmp("p3", "Manager B", "Manager", "Manager A"),
+        p10: makeEmp("p10", "A Leaf 1", "Engineer", "Root"),
+        p11: makeEmp("p11", "A Leaf 2", "Engineer", "Root"),
+        p12: makeEmp("p12", "A Leaf 3", "Engineer", "Root"),
+        p13: makeEmp("p13", "A Leaf 4", "Engineer", "Root"),
+        p20: makeEmp("p20", "B Leaf 1", "Designer", "Manager A"),
+        p21: makeEmp("p21", "B Leaf 2", "Designer", "Manager A"),
+        p22: makeEmp("p22", "B Leaf 3", "Designer", "Manager A"),
+        p23: makeEmp("p23", "B Leaf 4", "Designer", "Manager A"),
+      };
+
+      nextState.teams = {
+        t1: {
+          id: "t1",
+          name: "Root Team",
+          ownLayout: "expanded",
+          manager: "p1",
+          members: [
+            { id: "p2" },
+            { id: "p10" },
+            { id: "p11" },
+            { id: "p12" },
+            { id: "p13" },
+            { id: "p3", managerOverride: "p2" },
+            { id: "p20", managerOverride: "p2" },
+            { id: "p21", managerOverride: "p2" },
+            { id: "p22", managerOverride: "p2" },
+            { id: "p23", managerOverride: "p2" },
+          ],
+          subTeams: [],
+          color: "#818cf8",
+        },
+      };
+      nextState.rootTeams = ["t1"];
+
+      stateMod.setState(nextState);
+      stateMod.setShowLanding(false);
+      stateMod.setEmployeeSequence(23);
+      window.__test.render();
+    });
+
+    const modal = await openHierarchy(page);
+
+    const overlaps = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#hierarchy-modal .tree-leaf-row")].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      });
+
+      let count = 0;
+      for (let i = 0; i < rows.length; i++) {
+        for (let j = i + 1; j < rows.length; j++) {
+          const a = rows[i];
+          const b = rows[j];
+          const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+          if (overlaps) count++;
+        }
+      }
+      return count;
+    });
+
+    expect(modal).toBeVisible();
     expect(overlaps).toBe(0);
   });
 

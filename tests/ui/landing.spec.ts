@@ -572,18 +572,18 @@ test.describe("CSV Import into Existing Scenario", () => {
     },
   });
 
-  stdTest("import button is visible in toolbar", async ({ page }) => {
+  stdTest("database import button is visible in toolbar", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".team");
-    await expect(page.locator("#import-csv-btn")).toBeVisible();
+    await expect(page.locator("#import-db-btn")).toBeVisible();
   });
 
-  stdTest("import into existing shows mode step", async ({ page }) => {
+  stdTest("action bar CSV import into existing shows mode step", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".team");
 
     // Click import button
-    await page.locator("#import-csv-btn").click();
+    await page.locator("#action-bar-import-csv").click();
     await expect(page.locator("#csv-import-modal")).toBeVisible();
 
     const csvContent = "Name,Role,Reports To\nNewPerson,Tester,SomeManager\nSomeManager,Lead,";
@@ -616,7 +616,7 @@ test.describe("CSV Import into Existing Scenario", () => {
     await expect(page.locator(".roster-cards").getByText("NewPerson")).toBeVisible();
   });
 
-  stdTest("import into existing does not overwrite teams", async ({ page }) => {
+  stdTest("action bar CSV import into existing does not overwrite teams", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".team");
 
@@ -624,7 +624,7 @@ test.describe("CSV Import into Existing Scenario", () => {
     const teamsBefore = await page.locator(".team").count();
 
     // Import people
-    await page.locator("#import-csv-btn").click();
+    await page.locator("#action-bar-import-csv").click();
     const csvContent = "Name,Role\nAlpha Person,Dev";
     await page.locator("#csv-file-input").setInputFiles({
       name: "extra.csv",

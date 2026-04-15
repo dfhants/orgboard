@@ -130,6 +130,17 @@ export function setTeamSequence(v) { teamSequence = v; }
 export let isCopyMode = false;
 export function setIsCopyMode(v) { isCopyMode = v; }
 
+export const MIN_BOARD_ZOOM = 0.6;
+export const MAX_BOARD_ZOOM = 1;
+export const BOARD_ZOOM_STEP = 0.1;
+
+export let boardZoom = 1;
+export function setBoardZoom(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return;
+  boardZoom = Math.min(MAX_BOARD_ZOOM, Math.max(MIN_BOARD_ZOOM, Math.round(n * 100) / 100));
+}
+
 // ─── Scenario / tab state ───
 export let scenarios = [];
 export function setScenarios(v) { scenarios = v; }

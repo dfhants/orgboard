@@ -3,6 +3,7 @@ import { escapeHtml, hashString, colorForManager, colorForTimezone, timezoneColo
 import {
   state, dragState,
   scenarios, activeScenarioId, showLanding, globalCriteria,
+  boardZoom,
   getTeam, getAllManagers, findMemberEntry,
   oppositeLayout, layoutIcons,
 } from './state.mjs';
@@ -252,7 +253,7 @@ export function renderTeam(teamId, options = {}) {
 
 const NODE_W = 140;   // node width
 const NODE_H = 62;    // baseline node height used for layout and connector anchoring
-const LEAF_H = 28;    // compact leaf-row height
+const LEAF_H = 38;    // compact leaf-row height
 const H_GAP = 6;      // minimum horizontal gap between nodes
 const V_GAP = 40;     // vertical gap between levels
 
@@ -335,7 +336,29 @@ function layoutNode(data) {
   // Shift all children so parent is at 0
   for (const k of kids) k.x -= mid;
 
+  // Keep bundled leaves outside the branch subtree so parent leaf stacks do not
+  // sit inside child-org lanes where connector lines become confusing.
+  const leafKids = kids.filter((k) => k.data?.type === "leaf-group");
+  const branchKids = kids.filter((k) => k.data?.type !== "leaf-group");
+  if (leafKids.length > 0 && branchKids.length > 0) {
+    const maxBranchRight = Math.max(...branchKids.map((k) => k.x + getSubtreeMaxX(k)));
+    let nextLeafX = maxBranchRight + NODE_W + H_GAP;
+    for (const leaf of leafKids) {
+      if (leaf.x < nextLeafX) leaf.x = nextLeafX;
+      nextLeafX = leaf.x + NODE_W + H_GAP;
+    }
+  }
+
   return n;
+}
+
+function getSubtreeMaxX(node) {
+  let maxX = 0;
+  (function walk(n, x) {
+    if (x > maxX) maxX = x;
+    for (const ch of n.children || []) walk(ch, x + ch.x);
+  })(node, 0);
+  return maxX;
 }
 
 /** Get the left contour (min x at each depth) of a single subtree */
@@ -430,13 +453,13 @@ function renderNodeHtml(node, editMode, x, y) {
     const color = node.teamColor || "var(--accent)";
     if (emp) {
       const tz = colorForTimezone(emp.timezone);
-      const clickAttr = editMode ? `data-tree-click="manager" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"` : "";
-      const toggleHtml = !editMode && node.__collapsible
+      const clickAttr = `data-tree-click="manager" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"`;
+      const toggleHtml = node.__collapsible
         ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
         : "";
       const movedClass = editMode && node.isOverride ? " tree-node--moved" : "";
       return `
-        <div class="tree-node tree-node-manager${editMode ? ' tree-node--editable' : ''}${movedClass}" ${clickAttr} style="left:${x}px;top:${y}px;--node-accent:${color}">
+        <div class="tree-node tree-node-manager tree-node--editable${movedClass}" ${clickAttr} style="left:${x}px;top:${y}px;--node-accent:${color}">
           ${toggleHtml}
           <div class="tree-node-color" style="background:${tz}"></div>
           <div class="tree-node-name">${escapeHtml(emp.name)}</div>
@@ -456,13 +479,13 @@ function renderNodeHtml(node, editMode, x, y) {
     const emp = node.employee;
     const tz = colorForTimezone(emp.timezone);
     const overrideClass = node.isOverride ? " tree-node-override" : "";
-    const clickAttr = editMode ? `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"` : "";
-    const toggleHtml = !editMode && node.__collapsible
+    const clickAttr = `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"`;
+    const toggleHtml = node.__collapsible
       ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
       : "";
     const movedClass = editMode && node.isOverride ? " tree-node--moved" : "";
     return `
-      <div class="tree-node tree-node-member${overrideClass}${editMode ? ' tree-node--editable' : ''}${movedClass}" ${clickAttr} style="left:${x}px;top:${y}px">
+      <div class="tree-node tree-node-member${overrideClass} tree-node--editable${movedClass}" ${clickAttr} style="left:${x}px;top:${y}px">
         ${toggleHtml}
         <div class="tree-node-color" style="background:${tz}"></div>
         <div class="tree-node-name">${escapeHtml(emp.name)}</div>
@@ -470,6 +493,54 @@ function renderNodeHtml(node, editMode, x, y) {
       </div>
     `;
   }
+}
+
+function reparentCrossTreeOverrides(trees) {
+  if (!Array.isArray(trees) || trees.length === 0) return trees;
+
+  const refs = [];
+  function walk(node, parent, parentChildren) {
+    if (!node) return;
+    refs.push({ node, parent, parentChildren });
+    for (const child of node.children || []) {
+      walk(child, node, node.children);
+    }
+  }
+  for (const tree of trees) walk(tree, null, null);
+
+  const byEmployeeId = new Map();
+  for (const ref of refs) {
+    const id = ref.node?.employee?.id;
+    if (id) byEmployeeId.set(id, ref);
+  }
+
+  function isAncestor(candidateAncestor, nodeRef) {
+    let cur = nodeRef;
+    while (cur?.parent) {
+      if (cur.parent === candidateAncestor.node) return true;
+      cur = refs.find((r) => r.node === cur.parent) || null;
+    }
+    return false;
+  }
+
+  const movers = refs.filter((r) => r.node?.type === "employee" && r.node?.isOverride);
+  for (const src of movers) {
+    const srcTeam = state.teams[src.node.teamId];
+    const srcMember = srcTeam?.members?.find((m) => m.id === src.node.employee?.id);
+    const targetManagerId = srcMember?.managerOverride;
+    if (!targetManagerId) continue;
+
+    const target = byEmployeeId.get(targetManagerId);
+    if (!target || !src.parentChildren || target.node === src.node) continue;
+    if (isAncestor(src, target)) continue; // avoid cycles
+
+    const idx = src.parentChildren.indexOf(src.node);
+    if (idx >= 0) src.parentChildren.splice(idx, 1);
+    if (!Array.isArray(target.node.children)) target.node.children = [];
+    target.node.children.push(src.node);
+  }
+
+  return trees;
 }
 
 export function renderHierarchyNode(node, editMode) {
@@ -485,9 +556,9 @@ export function renderHierarchyNode(node, editMode) {
     const color = node.teamColor || "var(--accent)";
     if (emp) {
       const tz = colorForTimezone(emp.timezone);
-      const clickAttr = editMode ? `data-tree-click="manager" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"` : "";
+      const clickAttr = `data-tree-click="manager" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"`;
       nodeHtml = `
-        <div class="tree-node tree-node-manager${editMode ? ' tree-node--editable' : ''}" ${clickAttr} style="--node-accent:${color}">
+        <div class="tree-node tree-node-manager tree-node--editable" ${clickAttr} style="--node-accent:${color}">
           <div class="tree-node-color" style="background:${tz}"></div>
           <div class="tree-node-name">${escapeHtml(emp.name)}</div>
           <div class="tree-node-role">${escapeHtml(emp.role)}</div>
@@ -506,9 +577,9 @@ export function renderHierarchyNode(node, editMode) {
     const emp = node.employee;
     const tz = colorForTimezone(emp.timezone);
     const overrideClass = node.isOverride ? " tree-node-override" : "";
-    const clickAttr = editMode ? `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"` : "";
+    const clickAttr = `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"`;
     nodeHtml = `
-      <div class="tree-node tree-node-member${overrideClass}${editMode ? ' tree-node--editable' : ''}" ${clickAttr}>
+      <div class="tree-node tree-node-member${overrideClass} tree-node--editable" ${clickAttr}>
         <div class="tree-node-color" style="background:${tz}"></div>
         <div class="tree-node-name">${escapeHtml(emp.name)}</div>
         <div class="tree-node-role">${escapeHtml(emp.role)}</div>
@@ -528,7 +599,8 @@ export function renderHierarchyNode(node, editMode) {
 }
 
 export function renderCompactTree(trees, editMode, collapsedKeys = new Set()) {
-  const layout = computeTreeLayout(trees, collapsedKeys);
+  const adjustedTrees = reparentCrossTreeOverrides(trees);
+  const layout = computeTreeLayout(adjustedTrees, collapsedKeys);
   const halfW = NODE_W / 2;
 
   // Compute canvas bounds accounting for leaf group stacks
@@ -561,8 +633,8 @@ export function renderCompactTree(trees, editMode, collapsedKeys = new Set()) {
       const tz = colorForTimezone(emp.timezone);
       const overrideClass = member.isOverride ? " tree-leaf-override" : "";
       const movedClass = editMode && member.isOverride ? " tree-leaf-row--moved" : "";
-      const clickAttr = editMode ? `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${member.teamId}"` : "";
-      return `<div class="tree-leaf-row${overrideClass}${movedClass}${editMode ? ' tree-node--editable' : ''}" ${clickAttr}>
+      const clickAttr = `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${member.teamId}"`;
+      return `<div class="tree-leaf-row${overrideClass}${movedClass} tree-node--editable" ${clickAttr}>
         <span class="tree-leaf-tz" style="background:${tz}"></span>
         <span class="tree-leaf-text">
           <span class="tree-leaf-name">${escapeHtml(emp.name)}</span>
@@ -581,24 +653,16 @@ export function rerenderHierarchyInPlace(modal) {
   const editMode = modal.dataset.editMode === "true";
   const collapsedKeys = new Set(JSON.parse(modal.dataset.collapsedKeys || "[]"));
 
-  let trees;
-  if (teamId) {
-    const tree = buildHierarchyTree(state, teamId);
-    if (!tree) return;
-    trees = [tree];
-  } else {
-    trees = state.rootTeams.map((id) => buildHierarchyTree(state, id)).filter(Boolean);
-    if (trees.length === 0) return;
-  }
+  const trees = getHierarchyTreesForModal(teamId);
+  if (trees.length === 0) return;
 
   const title = teamId ? `${escapeHtml(trees[0].teamName)} — Reporting Hierarchy` : "Reporting Hierarchy";
   const actionButtons = editMode
     ? `<button class="toolbar-button modal-submit" type="button" data-action="save-tree-edit">Save</button>
-          <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
-    : `<button class="toolbar-button hierarchy-edit-toggle" type="button" data-action="toggle-tree-edit"><i data-lucide="pencil"></i> Edit overrides</button>
-          <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
+        <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
+      : `<button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
   modal.innerHTML = `
-    <div class="modal-panel hierarchy-modal-panel">
+    <div class="modal-panel modal-panel-fullscreen hierarchy-modal-panel hierarchy-modal-panel--rerender">
       <div class="hierarchy-modal-header">
         <h3 class="modal-title">${title}</h3>
         <div class="hierarchy-modal-actions">
@@ -612,6 +676,29 @@ export function rerenderHierarchyInPlace(modal) {
     </div>
   `;
   createIcons();
+}
+
+export function getHierarchyTreesForModal(teamId = null) {
+  if (teamId) {
+    const tree = buildHierarchyTree(state, teamId);
+    return tree ? [tree] : [];
+  }
+
+  const teamTrees = state.rootTeams.map((id) => buildHierarchyTree(state, id)).filter(Boolean);
+  const unassignedTrees = (state.unassignedEmployees || [])
+    .map((id) => state.employees[id])
+    .filter(Boolean)
+    .map((employee) => ({
+      employee,
+      children: [],
+      isOverride: false,
+      teamId: "__unassigned__",
+      teamName: "Unassigned",
+      teamColor: "var(--line-soft)",
+      type: "employee",
+    }));
+
+  return [...teamTrees, ...unassignedTrees];
 }
 
 function renderTzBadges(timezones) {
@@ -780,7 +867,7 @@ function renderStatsPanelContent(panel) {
         <div class="stats-row"><span class="stats-row-label">Unassigned</span><span class="stats-row-value">${global.totalUnassigned}</span></div>
         <div class="stats-row"><span class="stats-row-label">Teams</span><span class="stats-row-value">${global.teamCount}</span></div>
       </div>
-      <details class="stats-section stats-collapsible" open>
+      <details class="stats-section stats-collapsible">
         <summary class="stats-section-title">People by role</summary>
         ${globalRoleRows}
       </details>
@@ -1152,12 +1239,33 @@ export const applyHorizontalPacking = tightenLayout;
 
 // Re-run tightenLayout when the page-shell resizes (window resize, drawer toggle, etc.)
 let packingObserver = null;
+
+function applyBoardZoomToShell(zoom) {
+  const shell = document.querySelector(".page-shell");
+  if (!shell) return;
+  shell.style.setProperty("--board-zoom", String(zoom));
+  const zoomLayer = document.querySelector(".board-zoom-layer");
+  if (zoomLayer) zoomLayer.style.zoom = String(zoom);
+}
+
+function withUnzoomedLayout(fn) {
+  const zoomLayer = document.querySelector(".board-zoom-layer");
+  if (!zoomLayer) {
+    fn();
+    return;
+  }
+  const prevZoom = zoomLayer.style.zoom || String(boardZoom);
+  zoomLayer.style.zoom = "1";
+  fn();
+  zoomLayer.style.zoom = prevZoom;
+}
+
 export function observeShellResize() {
   packingObserver?.disconnect();
   const shell = document.querySelector(".page-shell");
   if (!shell) return;
   packingObserver = new ResizeObserver(() => {
-    tightenLayout();
+    withUnzoomedLayout(() => tightenLayout());
   });
   packingObserver.observe(shell);
 }
@@ -1187,6 +1295,7 @@ export function renderTabs() {
 export function render() {
   if (showLanding) {
     app.innerHTML = renderLandingPage();
+    applyBoardZoomToShell(1);
 
     // Hide unassigned drawer
     const drawer = document.getElementById("unassigned-drawer");
@@ -1227,6 +1336,9 @@ export function render() {
     shell.style.marginRight = "";
     shell.style.marginLeft = "";
     shell.dataset.layout = state.rootLayout;
+    shell.style.setProperty("--board-zoom", "1");
+    const zoomLayer = shell.querySelector(".board-zoom-layer");
+    if (zoomLayer) zoomLayer.style.zoom = "1";
   }
 
   // Re-apply active sort so teams stay sorted after drag-drop / mutations
@@ -1240,14 +1352,16 @@ export function render() {
   const unassignedCount = state.unassignedEmployees.length;
 
   app.innerHTML = `
-    <div class="root-dropzone dropzone" data-drop-kind="root" data-layout="${state.rootLayout}">
-      ${state.rootTeams.length > 0 ? state.rootTeams.map((teamId) => renderTeam(teamId)).join("") : `
-        <div class="empty-board">
-          <i data-lucide="users"></i>
-          <p class="empty-board-title">No teams yet</p>
-          <p class="empty-board-hint">Create a team or import a CSV to get started</p>
-        </div>
-      `}
+    <div class="board-zoom-layer">
+      <div class="root-dropzone dropzone" data-drop-kind="root" data-layout="${state.rootLayout}">
+        ${state.rootTeams.length > 0 ? state.rootTeams.map((teamId) => renderTeam(teamId)).join("") : `
+          <div class="empty-board">
+            <i data-lucide="users"></i>
+            <p class="empty-board-title">No teams yet</p>
+            <p class="empty-board-hint">Create a team or import a CSV to get started</p>
+          </div>
+        `}
+      </div>
     </div>
   `;
 
@@ -1268,12 +1382,18 @@ export function render() {
   actionBarEl.innerHTML = `
     ${renderRootLayoutButton()}
     <span class="action-bar-divider"></span>
+    <button class="team-control-button" type="button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out"><i data-lucide="minus"></i></button>
+    <button class="team-control-button zoom-level-button" type="button" data-action="zoom-reset" title="Reset zoom" aria-label="Reset zoom"><span id="zoom-level-label">${Math.round(boardZoom * 100)}%</span></button>
+    <button class="team-control-button" type="button" data-action="zoom-in" title="Zoom in" aria-label="Zoom in"><i data-lucide="plus"></i></button>
+    <span class="action-bar-divider"></span>
     <button id="add-person-btn" class="team-control-button" type="button" data-action="add-root-person" title="Add person" aria-label="Add person"><i data-lucide="user-plus"></i></button>
     <button class="team-control-button" type="button" data-action="add-root-team" title="Add team" aria-label="Add team"><i data-lucide="users"></i></button>
     <button class="team-control-button" type="button" id="action-bar-import-csv" title="Import CSV" aria-label="Import CSV"><i data-lucide="upload"></i></button>
     <span class="action-bar-divider"></span>
     <button class="team-control-button${state.activeSortLayers?.length ? ' is-active' : ''}" type="button" data-action="open-sort-modal" title="Sort all teams" aria-label="Sort all teams"><i data-lucide="arrow-up-down"></i></button>
     <button class="team-control-button" type="button" data-action="view-hierarchy" title="View hierarchy" aria-label="View hierarchy"><i data-lucide="network"></i></button>
+    <span class="action-bar-divider"></span>
+    <button class="team-control-button" type="button" data-action="open-board-legend" title="Board legend" aria-label="Board legend"><i data-lucide="info"></i></button>
   `;
 
   drawer.className = `unassigned-bar${barCollapsed ? ' is-collapsed' : ''}`;
@@ -1308,6 +1428,7 @@ export function render() {
   renderStatsPanel();
   renderTabs();
   createIcons();
+  applyBoardZoomToShell(boardZoom);
   applyHorizontalPacking();
 
   // Update scroll indicators after all layout is settled

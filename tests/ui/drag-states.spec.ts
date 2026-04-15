@@ -6,7 +6,7 @@ import { dragAndDrop, dragHover, dragCancel } from "./helpers";
  * Mid-drag state assertions for every drag-drop combination.
  *
  * For each scenario we verify:
- *  - Source element: semi-transparent (move) or fully visible (copy)
+ *  - Source element: faded but layout-preserving (move) or fully visible (copy)
  *  - Target dropzone: has `.is-over` highlight
  *  - Cleanup: everything reverts after drag cancel
  *
@@ -20,11 +20,11 @@ import { dragAndDrop, dragHover, dragCancel } from "./helpers";
 
 /* ─── Helpers ─── */
 
-/** Check that the source element is semi-transparent (move) or fully visible (copy) */
+/** Check that the source element is faded (move) or fully visible (copy) */
 async function assertSourceState(
   page: Page,
   sourceSelector: string,
-  expectDimmed: boolean
+  expectHidden: boolean
 ) {
   const state = await page.evaluate(
     ({ sel }) => {
@@ -35,14 +35,16 @@ async function assertSourceState(
         found: true,
         hasDraggingSource: entry.classList.contains("dragging-source"),
         opacity: getComputedStyle(entry).opacity,
+        visibility: getComputedStyle(entry).visibility,
       };
     },
     { sel: sourceSelector }
   );
 
-  if (expectDimmed) {
+  if (expectHidden) {
     expect(state.hasDraggingSource, "source should have dragging-source class").toBe(true);
-    expect(Number(state.opacity), "source should be semi-transparent").toBeLessThan(1);
+    expect(state.visibility, "source should remain visible").toBe("visible");
+    expect(Number(state.opacity), "source should be faded").toBeLessThan(1);
   } else {
     expect(
       state.hasDraggingSource,

@@ -92,6 +92,67 @@ export function collectAllEmployeesInTeam(teams, teamId) {
   return ids;
 }
 
+function buildManagerGraph(state) {
+  const graph = new Map(); // employeeId -> Set(managerIds)
+
+  function addEdge(reportId, managerId) {
+    if (!reportId || !managerId || reportId === managerId) return;
+    if (!graph.has(reportId)) graph.set(reportId, new Set());
+    graph.get(reportId).add(managerId);
+  }
+
+  for (const team of Object.values(state.teams || {})) {
+    if (team.manager && team.managerOverride) {
+      addEdge(team.manager, team.managerOverride);
+    }
+
+    for (const member of team.members || []) {
+      const effectiveManagerId = member.managerOverride ?? team.manager;
+      addEdge(member.id, effectiveManagerId);
+    }
+  }
+
+  return graph;
+}
+
+function canReachEmployee(graph, startId, targetId) {
+  if (!startId || !targetId) return false;
+  const queue = [startId];
+  const seen = new Set();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === targetId) return true;
+    if (seen.has(current)) continue;
+    seen.add(current);
+
+    const nextManagers = graph.get(current);
+    if (!nextManagers) continue;
+    for (const nextId of nextManagers) {
+      if (!seen.has(nextId)) queue.push(nextId);
+    }
+  }
+
+  return false;
+}
+
+export function getValidManagerOverrideCandidates(state, employeeId) {
+  if (!state?.employees?.[employeeId]) return [];
+
+  const graph = buildManagerGraph(state);
+  const candidates = [];
+
+  for (const emp of Object.values(state.employees)) {
+    if (!emp?.id || emp.id === employeeId) continue;
+    // employee -> candidate is valid iff candidate cannot already reach employee.
+    if (!canReachEmployee(graph, emp.id, employeeId)) {
+      candidates.push(emp);
+    }
+  }
+
+  return candidates;
+}
+
 export function buildHierarchyTree(state, teamId) {
   const team = state.teams[teamId];
   if (!team) return null;
@@ -125,14 +186,21 @@ export function buildHierarchyTree(state, teamId) {
 
   const placedTeams = new Set();
 
-  function buildChildNodes(managerId) {
-    const empNodes = (childrenByManager.get(managerId) || []).map(({ employee, isOverride: io, teamId: tid }) => ({
-      employee,
-      children: buildChildNodes(employee.id),
-      isOverride: io,
-      teamId: tid,
-      type: "employee",
-    }));
+  function buildChildNodes(managerId, path = new Set()) {
+    const nextPath = new Set(path);
+    nextPath.add(managerId);
+
+    const empNodes = (childrenByManager.get(managerId) || []).map(({ employee, isOverride: io, teamId: tid }) => {
+      // Circular override chains (A -> B -> A) should render safely, not recurse forever.
+      const isCycle = nextPath.has(employee.id);
+      return {
+        employee,
+        children: isCycle ? [] : buildChildNodes(employee.id, nextPath),
+        isOverride: io,
+        teamId: tid,
+        type: "employee",
+      };
+    });
     const teamNodes = (nestedByManager.get(managerId) || []).map(({ subtree, isOverride: io }) => {
       placedTeams.add(subtree.teamId);
       return { ...subtree, type: "team", isOverride: io };

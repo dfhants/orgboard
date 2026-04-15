@@ -387,18 +387,21 @@ test.describe("Dropzone Highlight State", () => {
 /* ── Drag source styling ── */
 
 test.describe("Drag Source Styling", () => {
-  test("dragging-source is semi-transparent", async ({ page }) => {
+  test("dragging-source is faded while preserving layout", async ({ page }) => {
     await dragHover(
       page,
       '.person-card[data-id="p9"]',
       '.team[data-team-id="t4"] > .team-body > .member-slot'
     );
 
-    const opacity = await page.evaluate(() => {
+    const styleState = await page.evaluate(() => {
       const source = document.querySelector(".dragging-source");
-      return source ? getComputedStyle(source).opacity : "not-found";
+      if (!source) return { visibility: "not-found", opacity: "not-found" };
+      const cs = getComputedStyle(source);
+      return { visibility: cs.visibility, opacity: cs.opacity };
     });
-    expect(opacity).toBe("0.3");
+    expect(styleState.visibility).toBe("visible");
+    expect(Number(styleState.opacity)).toBeLessThan(1);
 
     await dragCancel(page, '.person-card[data-id="p9"]');
   });

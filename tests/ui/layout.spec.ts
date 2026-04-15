@@ -4,10 +4,34 @@ test.describe("Floating Action Bar", () => {
   test("action bar is visible and contains all buttons", async ({ page }) => {
     const bar = page.locator(".action-bar");
     await expect(bar).toBeVisible();
+    await expect(bar.locator('[data-action="zoom-out"]')).toBeVisible();
+    await expect(bar.locator('[data-action="zoom-reset"]')).toBeVisible();
+    await expect(bar.locator('[data-action="zoom-in"]')).toBeVisible();
     await expect(bar.locator('[data-action="add-root-person"]')).toBeVisible();
     await expect(bar.locator('[data-action="add-root-team"]')).toBeVisible();
     await expect(bar.locator('#action-bar-import-csv')).toBeVisible();
     await expect(bar.locator('[data-action="view-hierarchy"]')).toBeVisible();
+  });
+
+  test("zoom controls adjust board scale and reset", async ({ page }) => {
+    const shell = page.locator(".page-shell");
+    const readZoom = async () => page.evaluate(() => {
+      const shell = document.querySelector(".page-shell");
+      const value = getComputedStyle(shell).getPropertyValue("--board-zoom").trim();
+      return Number(value);
+    });
+
+    await expect(shell).toBeVisible();
+    await expect(page.locator("#zoom-level-label")).toHaveText("100%");
+
+    await page.locator('[data-action="zoom-in"]').click();
+    const zoomedIn = await readZoom();
+    expect(zoomedIn).toBeGreaterThan(1);
+
+    await page.locator('[data-action="zoom-reset"]').click();
+    await expect(page.locator("#zoom-level-label")).toHaveText("100%");
+    const resetZoom = await readZoom();
+    expect(resetZoom).toBe(1);
   });
 
   test("action bar import CSV button opens import modal", async ({ page }) => {

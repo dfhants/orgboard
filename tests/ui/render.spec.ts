@@ -13,6 +13,26 @@ test.describe("Initial Render", () => {
     await expect(page.locator("#add-person-btn")).toBeVisible();
   });
 
+  test("toolbar logo fills the header height without a shadow", async ({ page }) => {
+    const styles = await page.evaluate(() => {
+      const toolbar = document.querySelector(".app-toolbar");
+      const logo = document.querySelector(".toolbar-logo");
+      if (!toolbar || !logo) return null;
+      const toolbarRect = toolbar.getBoundingClientRect();
+      const logoRect = logo.getBoundingClientRect();
+      const computed = getComputedStyle(logo);
+      return {
+        toolbarHeight: Math.round(toolbarRect.height),
+        logoHeight: Math.round(logoRect.height),
+        filter: computed.filter,
+      };
+    });
+
+    expect(styles).not.toBeNull();
+    expect(styles!.logoHeight).toBeGreaterThanOrEqual(styles!.toolbarHeight - 1);
+    expect(styles!.filter).toBe("none");
+  });
+
   test("head includes generated favicon assets", async ({ page }) => {
     const favicon32 = page.locator(
       'head link[rel="icon"][sizes="32x32"]'
@@ -232,5 +252,58 @@ test.describe("Initial Render", () => {
     expect(miloColor).toBeTruthy();
     // Different timezones should produce different colors
     expect(avaColor).not.toBe(miloColor);
+  });
+});
+
+test.describe("Board Legend", () => {
+  test("info button opens legend popover with all sections", async ({ page }) => {
+    const infoButton = page.locator('[data-action="open-board-legend"]');
+    await expect(infoButton).toBeVisible();
+    await infoButton.click();
+
+    const popover = page.locator(".board-legend-popover");
+    await expect(popover).toBeVisible();
+
+    // Board areas section
+    await expect(popover).toContainText("Board areas");
+    await expect(popover).toContainText("Manager slot");
+    await expect(popover).toContainText("Team members");
+    await expect(popover).toContainText("Sub-teams");
+
+    // Visual cues section
+    await expect(popover).toContainText("Visual cues");
+    await expect(popover).toContainText("Dashed card = open position");
+    await expect(popover).toContainText("Left ribbon = timezone gap");
+
+    // Keyboard shortcuts section
+    await expect(popover).toContainText("Keyboard shortcuts");
+    await expect(popover).toContainText("Hold while dragging to copy");
+  });
+
+  test("legend popover closes on outside click", async ({ page }) => {
+    await page.locator('[data-action="open-board-legend"]').click();
+    const popover = page.locator(".board-legend-popover");
+    await expect(popover).toBeVisible();
+
+    // Click outside the popover
+    await page.locator(".page-shell").click({ position: { x: 10, y: 10 } });
+    await expect(popover).not.toBeVisible();
+  });
+
+  test("slot areas have distinct background colors", async ({ page }) => {
+    const memberSlotBg = await page
+      .locator(".member-slot")
+      .first()
+      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+    const managerSlotBg = await page
+      .locator(".manager-slot")
+      .first()
+      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+
+    // Both should have non-transparent backgrounds
+    expect(memberSlotBg).not.toBe("rgba(0, 0, 0, 0)");
+    expect(managerSlotBg).not.toBe("rgba(0, 0, 0, 0)");
+    // They should be different colors
+    expect(memberSlotBg).not.toBe(managerSlotBg);
   });
 });

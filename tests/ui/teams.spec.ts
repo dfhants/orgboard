@@ -257,6 +257,60 @@ test.describe("Team Expand / Collapse", () => {
     ).toBeVisible();
   });
 
+  test("team menu uses clamped anchor positioning", async ({ page }) => {
+    const trigger = page.locator('[data-action="open-team-menu"][data-team-id="t1"]');
+    await trigger.click();
+
+    const placement = await page.evaluate(() => {
+      const button = document.querySelector('[data-action="open-team-menu"][data-team-id="t1"]');
+      const popover = document.querySelector('.team-menu-popover');
+      if (!button || !popover) return null;
+      const buttonRect = button.getBoundingClientRect();
+      const popRect = popover.getBoundingClientRect();
+      const centeredLeft = buttonRect.left + (buttonRect.width - popRect.width) / 2;
+      const expectedLeft = Math.min(Math.max(centeredLeft, 8), window.innerWidth - popRect.width - 8);
+      return {
+        leftDelta: Math.abs(popRect.left - expectedLeft),
+        belowTrigger: popRect.top >= buttonRect.bottom,
+      };
+    });
+
+    expect(placement).not.toBeNull();
+    expect(placement!.leftDelta).toBeLessThanOrEqual(4);
+    expect(placement!.belowTrigger).toBe(true);
+  });
+
+  test("team menu stays inside the viewport near the right edge", async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 900 });
+
+    const trigger = page.locator('[data-action="open-team-menu"][data-team-id="t2"]');
+    await trigger.click();
+
+    const placement = await page.evaluate(() => {
+      const button = document.querySelector('[data-action="open-team-menu"][data-team-id="t2"]');
+      const popover = document.querySelector('.team-menu-popover');
+      if (!button || !popover) return null;
+      const buttonRect = button.getBoundingClientRect();
+      const popRect = popover.getBoundingClientRect();
+      return {
+        left: popRect.left,
+        right: popRect.right,
+        top: popRect.top,
+        bottom: popRect.bottom,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        overlapsTriggerVertically: popRect.top < buttonRect.bottom,
+      };
+    });
+
+    expect(placement).not.toBeNull();
+    expect(placement!.left).toBeGreaterThanOrEqual(8);
+    expect(placement!.right).toBeLessThanOrEqual(placement!.viewportWidth - 8);
+    expect(placement!.top).toBeGreaterThanOrEqual(8);
+    expect(placement!.bottom).toBeLessThanOrEqual(placement!.viewportHeight - 8);
+    expect(placement!.overlapsTriggerVertically).toBe(false);
+  });
+
   test("team menu add-person option opens add-person modal", async ({ page }) => {
     await page
       .locator('[data-action="open-team-menu"][data-team-id="t1"]')
