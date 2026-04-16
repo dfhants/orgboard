@@ -13,7 +13,7 @@ import { debouncedSave } from '../scenarios.mjs';
 import { LandingPage } from './LandingPage.jsx';
 import { TabBar } from './TabBar.jsx';
 import { ActionBar } from './ActionBar.jsx';
-import logoUrl from '../../assets/icons/icon-192.png';
+const logoUrl = '/icons/icon-192.png';
 import { Board } from './Board.jsx';
 import { UnassignedBar } from './UnassignedBar.jsx';
 import { StatsPanel } from './StatsPanel.jsx';

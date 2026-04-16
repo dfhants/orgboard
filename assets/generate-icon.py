@@ -278,7 +278,7 @@ def main():
         "</svg>",
     ])
 
-    out = "assets/icons/icon.svg"
+    out = "public/icons/icon.svg"
     with open(out, "w") as f:
         f.write(svg)
     print(f"✓ {out}")

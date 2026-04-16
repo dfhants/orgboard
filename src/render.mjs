@@ -21,7 +21,7 @@ export function renderLandingPage() {
   return `
     <div class="landing-page">
       <div class="landing-content">
-        <img class="landing-logo" src="./assets/icons/icon.svg" width="168" height="168" alt="OrgBoard" />
+        <img class="landing-logo" src="/icons/icon.svg" width="168" height="168" alt="OrgBoard" />
         <h1 class="landing-title">Welcome to OrgBoard</h1>
         <p class="landing-subtitle">How would you like to get started?</p>
         <p class="landing-privacy"><i data-lucide="lock"></i> Your data stays on your device — nothing is sent to a server.</p>
