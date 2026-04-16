@@ -15,36 +15,7 @@ import {
   computeGlobalStats,
   computeManagerChanges,
 } from "../src/team-logic.mjs";
-
-// ─── Fixture helpers ─────────────────────────────────────────────────
-//
-// Minimal state objects modeled on createInitialState() in app.js.
-// Each test builds only the parts it needs.
-
-function makeEmployee(id, opts = {}) {
-  return {
-    id,
-    name: opts.name ?? `Employee ${id}`,
-    role: opts.role ?? "Engineer",
-    timezone: opts.timezone ?? "GMT (UTC+0)",
-    location: opts.location ?? "London",
-    notes: "",
-    requested: false,
-  };
-}
-
-function makeTeam(id, opts = {}) {
-  return {
-    id,
-    name: opts.name ?? `Team ${id}`,
-    ownLayout: opts.ownLayout ?? "expanded",
-    manager: opts.manager ?? null,
-    members: opts.members ?? [],
-    subTeams: opts.subTeams ?? [],
-    childLayout: opts.childLayout ?? "horizontal",
-    color: opts.color ?? "#818cf8",
-  };
-}
+import { makeEmployee, makeTeam } from "./test-helpers.mjs";
 
 // ─── isTeamInside ────────────────────────────────────────────────────
 //

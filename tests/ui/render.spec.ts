@@ -267,7 +267,7 @@ test.describe("Board Legend", () => {
     // Board areas section
     await expect(popover).toContainText("Board areas");
     await expect(popover).toContainText("Manager slot");
-    await expect(popover).toContainText("Team members");
+    await expect(popover).toContainText("Individual Contributors");
     await expect(popover).toContainText("Sub-teams");
 
     // Visual cues section

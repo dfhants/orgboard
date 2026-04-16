@@ -2,106 +2,46 @@
 
 ## Project Overview
 
-OrgBoard is a vanilla JS (no framework) drag-and-drop team organizer with SQLite-based persistence (sql.js WASM + IndexedDB). Built with **Vite** for dev serving, bundling, and CSS processing. CSS is authored as modular files in `src/css/` and processed by Vite's built-in lightningcss integration.
+OrgBoard is a vanilla JS (no framework) drag-and-drop team organizer with SQLite-based persistence (sql.js WASM + IndexedDB). Built with Vite.
 
 ## Architecture
 
-- **`index.html`** — Entry point. Links `src/css/main.css` (processed by Vite), Google Fonts, and `src/app.js` as a module.
-- **`src/app.js`** — Orchestrator: rendering (string-template HTML), event delegation, drag-and-drop handlers, modals, and CSV import. Imports all other modules below. Lucide icons and sql.js are installed as npm packages (not CDN).
-- **`src/state.mjs`** — Centralized module-scoped state with mutable exports and setters. Exports `state`, `dragState`, `scenarios`, `getTeam()`, `getAllManagers()`, `createInitialState()`, sequence counters, and UI flags (`isCopyMode`, `showLanding`, etc.).
-- **`src/checks.mjs`** — Pluggable validation engine with 11 check types (team-scoped and scenario-scoped). Exports `checkTypes`, `evaluateAllChecks(state, criteria)`, `describeCriterion()`.
-- **`src/db.mjs`** — SQLite persistence via sql.js (WASM) + IndexedDB. Manages scenarios, metadata, and criteria. Exports `initDB()`, `saveScenario()`, `loadScenario()`, `listScenarios()`, `listCriteria()`, `saveCriterion()`, `exportDB()`. Uses debounced 300ms flush to IndexedDB.
-- **`src/packing.mjs`** — Pure function `computeColumns()` for assigning people-group entries into columns in horizontal layout.
-- **`src/team-logic.mjs`** — Team hierarchy operations: `isTeamInside()` (circular nesting prevention via BFS), `cleanupManagerOverrides()`, `buildHierarchyTree()`, `computeTeamStats()`, `computeGlobalStats()`, `normalizeInsertIndex()`, `collectAllEmployeesInTeam()`.
-- **`src/utils.mjs`** — Shared utilities: `escapeHtml()` (XSS protection), timezone parsing (`parseUtcOffset()`, `computeMaxTimezoneGap()`), color palettes (`colorForTimezone()`, `colorForManager()`), `hashString()`, `initializeSequence()`.
-- **`src/css/main.css`** — CSS entry point; `@import`s 15 modular stylesheets from `src/css/` (tokens, layout, drag-drop, person-card, team-panel, modals, landing, csv-import, notes-panel, stats-panel, hierarchy, responsive, etc.). Processed by Vite with lightningcss.
-- **`vite.config.js`** — Vite configuration: dev server on port 4173, lightningcss for CSS transforms and minification, esnext build target.
-
-State is held in a module-scoped `state` object in `src/state.mjs` (not on `window`). The app re-renders by replacing `innerHTML` and calling `createIcons()`.
+State is module-scoped in `src/state.mjs` (not on `window`). The app re-renders by replacing `innerHTML` and then calling `createIcons()` to hydrate Lucide icons. `src/app.js` is the orchestrator that wires together rendering, event delegation, and modals.
 
 ## Serving the App
 
 ```sh
-# Development (Vite dev server with HMR)
-npm run dev
-
-# Production build
-npm run build
-
-# Preview production build
-npm run preview
+npm run dev      # Vite dev server with HMR
+npm run build    # Production build
+npm run preview  # Preview production build
 ```
 
-Or use the VS Code task **"Serve site"** which runs the Vite dev server.
+Or use the VS Code task **"Serve site"**.
 
 ## Testing
 
-**IMPORTANT: Always use the VS Code `runTests` tool to run tests. Never use terminal commands like `npm test`, `npx playwright test`, `node --test`, etc.** The `runTests` tool integrates with VS Code's test runner and provides structured, reliable output. Pass specific test file paths to `runTests` to avoid unnecessarily long test runs. This applies to both unit tests and Playwright UI tests — always use `runTests`, no exceptions.
+**Always use the VS Code `runTests` tool to run tests. Never use terminal commands like `npm test`, `npx playwright test`, `node --test`, etc.** Pass specific test file paths to avoid unnecessarily long test runs.
 
-### Unit Tests (Node.js built-in test runner)
-
-Runs `node --test 'tests/**/*.mjs'`. Tests use `node:test` and `node:assert/strict` — no external test framework.
-
-Unit test files:
-- `tests/packing.test.mjs` — `computeColumns()` horizontal column packing
-- `tests/checks.test.mjs` — validation engine and all check types
-- `tests/team-logic.test.mjs` — hierarchy operations, nesting, manager overrides, stats
-- `tests/utils.test.mjs` — escapeHtml, timezone parsing, color utilities
-- `tests/property.test.mjs` — property-based tests using `fast-check`
-
-### UI Tests (Playwright)
-
-- Config: `playwright.config.ts` — Chromium only, `baseURL: http://localhost:4173`
-- Playwright auto-starts the server via `webServer.command` if not already running
-- Tests live in `tests/ui/*.spec.ts`
-- Shared drag-and-drop helper: `tests/ui/helpers.ts` — exports `dragAndDrop()`, `dragHover()`, `dragCancel()`, and `dragAndDropCopy()` which dispatch the full HTML5 drag event sequence programmatically since Playwright's native `dragTo` is unreliable with custom drag handlers
-- Shared test fixture: `tests/ui/fixtures.ts` — resets IndexedDB, reloads the page, dismisses the landing page, and waits for teams to render before each test
-- Test data: `tests/data/*.csv` — 7 CSV fixtures for import testing (minimal, basic-team, manager-hierarchy, workday-hierarchy, large-team, edge-cases, alternative-headers)
-
-### Writing UI Tests
-
-- Use the `dragAndDrop(page, sourceSelector, targetSelector)` helper from `tests/ui/helpers.ts` for any drag-and-drop test
-- Use `dragAndDropCopy()` for copy-mode drags, `dragHover()` for testing drop previews without dropping, `dragCancel()` for cleaning up in-flight drags
-- Import `test` and `expect` from `tests/ui/fixtures.ts` (not from `@playwright/test` directly) — the fixture handles DB reset and landing page dismissal
-- State is module-scoped, so verify behavior via DOM assertions, not by reading JS variables
+- Unit tests use Node.js built-in `node:test` and `node:assert/strict` — not Jest or Mocha.
+- UI tests use Playwright. **Use the drag helpers** from `tests/ui/helpers.ts` (`dragAndDrop()`, `dragAndDropCopy()`, `dragHover()`, `dragCancel()`) for any drag-and-drop test — Playwright's native `dragTo` does not work with this app's custom drag handlers.
+- Import `test` and `expect` from `tests/ui/fixtures.ts`, not from `@playwright/test` directly — the fixture handles IndexedDB reset and landing page dismissal.
+- State is module-scoped, so verify behavior via DOM assertions, not by reading JS variables.
 
 ## Playwright Browser (MCP)
 
 Always close the Playwright browser (`mcp_playwright_browser_close`) before navigating to a URL, unless the user explicitly says not to. This avoids stale browser context errors.
 
-When diagnosing drag-and-drop behavior, use `page.evaluate()` to dispatch synthetic drag events (dragstart → dragover → drop → dragend) since Playwright's `dragTo` doesn't work reliably with this app's custom drag handlers.
+When diagnosing drag-and-drop behavior, use `page.evaluate()` to dispatch synthetic drag events since Playwright's `dragTo` doesn't work reliably with this app's custom drag handlers.
 
 ## Key Patterns
 
-- **Drag-and-drop** uses native HTML5 drag events with `closest(".dropzone")` resolution and a `resolveDropzone()` helper that redirects drags over any part of a team to its nearest valid slot.
-- **Collapsed teams** render facepile dots instead of full cards. Drop previews for collapsed teams use a `.drag-preview-dot` inserted into the `.member-facepile` span.
-- **Team nesting** — teams can contain other teams as members. The `isTeamInside()` check prevents circular nesting.
-- **Manager overrides** — per-member `managerOverride` property, auto-cleaned by `cleanupManagerOverrides()`.
+- **`resolveDropzone()`** redirects drags over any part of a team to its nearest valid drop slot. All drop logic flows through this.
+- **Collapsed teams** render facepile dots instead of full cards. Drop previews for collapsed teams insert a `.drag-preview-dot` into the `.member-facepile` span.
 - **Copy mode** — hold `C` key during drag to copy instead of move.
-- **Persistence** — sql.js (WASM) SQLite database stored in IndexedDB. Scenarios saved as JSON in a `scenarios` table. Debounced 300ms flush after state changes.
-- **Scenarios/tabs** — multiple independent org charts stored as scenarios with a tab bar UI. Each scenario has its own state, name, and timestamps.
-- **Checks/validation** — pluggable criteria system (`checks.mjs`) with 11 check types. Team-scoped checks (employee-count, timezone-gap, has-manager, etc.) and scenario-scoped checks (all-assigned, max-memberships).
-- **Hierarchy view** — org chart tree built via `buildHierarchyTree()` with manager override accounting, shown in a modal.
-- **Stats panel** — sidebar showing role & timezone distribution stats via `computeGlobalStats()` and `computeTeamStats()`.
-- **Notes panel** — app-wide notes stored in scenario state, editable in a sidebar panel.
-- **Landing page** — first-run experience with options to load demo data, start blank, or import CSV.
-
-## Test Policy
-
-**Every change must include tests.** Whenever a feature is added, behavior is changed, or a bug is fixed, add or update the relevant tests as part of the same change. Do not wait to be asked — test coverage is mandatory, not optional.
-
-- **New features** — add tests that verify the feature works as intended.
-- **Behavior changes** — update existing tests to match the new behavior AND add tests for any new edge cases.
-- **Bug fixes** — always add a regression test that reproduces the bug and verifies the fix.
-
-If a test cannot reasonably be written (e.g. purely cosmetic CSS tweak with no measurable DOM change), note why in the PR/commit — but default to writing a test.
+- **`escapeHtml()`** — all user-provided strings must be escaped via `escapeHtml()` before insertion into HTML template literals.
 
 ## Style Conventions
 
 - Vanilla JS, ES modules, no TypeScript in `src/`
-- Tests use TypeScript (Playwright) or plain `.mjs` (Node.js)
-- Runtime dependencies (Lucide icons, sql.js) installed via npm — not loaded from CDN
-- Google Fonts loaded from CDN in `index.html`
-- HTML is built via template literals in `app.js`, not JSX or a template engine
-- All user-provided strings are escaped via `escapeHtml()` before insertion
-- CSS changes in `src/css/` are picked up automatically by Vite dev server (HMR). No manual CSS build step needed.
+- Tests use TypeScript (Playwright) or `.mjs` (unit tests)
+- HTML is built via template literals in `src/render.mjs`, not JSX or a template engine

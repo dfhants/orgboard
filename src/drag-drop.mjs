@@ -7,7 +7,7 @@ import {
   copyEmployeeToTeam, copyEmployeeToRoster, copyTeamToTarget,
 } from './operations.mjs';
 import { isTeamInside } from './team-logic.mjs';
-import { render } from './render.mjs';
+import { notifyStateChange } from './state.mjs';
 
 function canDrop(dropKind, teamId) {
   if (!dragState) return false;
@@ -134,7 +134,7 @@ export function setupDragDropListeners() {
       const bar = event.target.closest(".unassigned-bar");
       if (bar) {
         state.unassignedBarCollapsed = false;
-        render();
+        notifyStateChange();
         return;
       }
     }
@@ -192,6 +192,6 @@ export function setupDragDropListeners() {
 
     setDragState(null);
     clearDropHighlights();
-    render();
+    notifyStateChange();
   });
 }

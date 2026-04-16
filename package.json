@@ -29,7 +29,10 @@
     "vite-plugin-purgecss": "^0.2.13"
   },
   "dependencies": {
+    "@preact/preset-vite": "^2.10.5",
+    "@preact/signals": "^2.9.0",
     "lucide": "^1.8.0",
+    "preact": "^10.29.1",
     "sql.js": "^1.14.1"
   }
 }

@@ -34,10 +34,11 @@ export function normalizeInsertIndex(members, insertIndex) {
 }
 
 export function cleanupManagerOverrides(state) {
+  const unassigned = new Set(state.unassignedEmployees ?? []);
   for (const team of Object.values(state.teams)) {
     // Clean up team manager's own override
     if (team.managerOverride) {
-      if (team.managerOverride === team.manager || !state.employees[team.managerOverride]) {
+      if (team.managerOverride === team.manager || !state.employees[team.managerOverride] || unassigned.has(team.managerOverride)) {
         delete team.managerOverride;
       }
     }
@@ -49,8 +50,8 @@ export function cleanupManagerOverrides(state) {
         delete member.managerOverride;
         continue;
       }
-      // Remove if overridden manager no longer exists
-      if (!state.employees[member.managerOverride]) {
+      // Remove if overridden manager no longer exists or is unassigned
+      if (!state.employees[member.managerOverride] || unassigned.has(member.managerOverride)) {
         delete member.managerOverride;
         continue;
       }

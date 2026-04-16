@@ -175,20 +175,20 @@ test.describe("Hierarchy Tree Modal", () => {
   test("edit mode: assigning override does not rerender board until Save", async ({ page }) => {
     const modal = await openHierarchy(page);
 
-    await page.evaluate(() => {
-      const firstCard = document.querySelector(".person-card");
-      if (firstCard) firstCard.setAttribute("data-edit-marker", "persist-during-edit");
-    });
+    // Count override pills on the board before editing
+    const pillsBefore = await page.locator('.person-card .manager-override-pill').count();
 
-    const picked = await assignFirstAvailableOverride(page, modal);
+    // Target a member in an expanded team so the override pill is visible on the board
+    const picked = await assignFirstAvailableOverride(page, modal, '.tree-leaf-row.tree-node--editable[data-tree-team-id="t1"]');
     if (!picked) return;
 
-    const markerDuringEdit = await page.evaluate(() => !!document.querySelector('.person-card[data-edit-marker="persist-during-edit"]'));
-    expect(markerDuringEdit).toBe(true);
+    // During edit: board should NOT reflect the new override yet
+    const pillsDuringEdit = await page.locator('.person-card .manager-override-pill').count();
+    expect(pillsDuringEdit).toBe(pillsBefore);
 
     await modal.locator("[data-action='save-tree-edit']").click();
-    const markerAfterSave = await page.evaluate(() => !!document.querySelector('.person-card[data-edit-marker="persist-during-edit"]'));
-    expect(markerAfterSave).toBe(false);
+    // After save: board should reflect the new override
+    await expect(page.locator('.person-card .manager-override-pill')).toHaveCount(pillsBefore + 1);
   });
 
   test("edit mode: overriding a person reparents them under the new manager in the tree", async ({ page }) => {

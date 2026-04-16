@@ -104,6 +104,7 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 1px 4px;
+  margin: -2px 0;
   outline: none;
   background: rgba(255, 255, 255, 0.9);
 }
@@ -429,7 +430,7 @@
   background: var(--panel);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-popover);
   padding: 4px;
   min-width: 160px;
   animation: modal-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -487,7 +488,7 @@
   background: var(--panel);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-popover);
   padding: 12px 16px;
   min-width: 220px;
   max-width: 280px;

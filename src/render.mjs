@@ -146,7 +146,7 @@ export function renderEmployeeCard(employeeId, contextTeamId) {
       <div class="person-name">${escapeHtml(employee.name)}${membershipBadge}</div>
       <div class="person-role">${escapeHtml(employee.role)}</div>
       <div class="person-location">${escapeHtml(employee.location)}</div>
-      <div class="person-timezone">${escapeHtml(employee.timezone)}${employee.level != null ? `<span class="person-level">L${employee.level}</span>` : ""}</div>
+      <div class="person-timezone">${escapeHtml(employee.timezone)}${employee.level != null ? `<span class="person-level">L${escapeHtml(String(employee.level))}</span>` : ""}</div>
       ${currentManagerHtml}
       ${notesHtml}
     </article>

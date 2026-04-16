@@ -70,13 +70,19 @@ async function serve(req, res) {
   try {
     const data = await readFile(filePath);
     const ext = extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type": MIME[ext] || "application/octet-stream",
+      "X-Content-Type-Options": "nosniff",
+    });
     res.end(data);
   } catch {
     // SPA fallback: serve index.html for any unmatched route
     try {
       const index = await readFile(join(DIST, "index.html"));
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
+      });
       res.end(index);
     } catch {
       res.writeHead(404);

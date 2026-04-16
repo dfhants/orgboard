@@ -5,7 +5,8 @@ import {
   randomTeamColors,
 } from './state.mjs';
 import { escapeHtml, pickRandomItem, inferTimezoneFromLocation, inferLevelFromTitle, cleanName } from './utils.mjs';
-import { createIcons, render } from './render.mjs';
+import { createIcons } from './icons.mjs';
+import { notifyStateChange } from './state.mjs';
 
 export function parseCSV(text) {
   const rows = [];
@@ -233,7 +234,7 @@ export function loadCsvData(rows, headers, mapping, loadMode) {
 
   state.initialized = true;
   setShowLanding(false);
-  render();
+  notifyStateChange();
 }
 
 function buildTeamsFromManagers(newPeople) {

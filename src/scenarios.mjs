@@ -10,6 +10,29 @@ import {
 import { saveScenario, loadScenario, deleteScenario, getMeta, setMeta, exportDB, importDB, listScenarios, listCriteria } from './db.mjs';
 import { initializeSequence } from './utils.mjs';
 
+/**
+ * Load scenario list from DB, infer the max sequence number, find the
+ * last-active scenario, load its state, and return the loaded state.
+ * Throws if the DB has no scenarios or the active scenario is missing.
+ */
+export function restoreScenariosFromDB() {
+  const existingScenarios = listScenarios();
+  if (existingScenarios.length === 0) return null;
+
+  setScenarios(existingScenarios.map(({ id, name }) => ({ id, name })));
+  setScenarioSequence(0);
+  for (const s of scenarios) {
+    const m = s.name.match(/^Scenario\s+(\d+)$/);
+    if (m) setScenarioSequence(Math.max(scenarioSequence, Number(m[1])));
+  }
+
+  const lastActiveId = getMeta("activeScenarioId");
+  const target = scenarios.find((s) => s.id === lastActiveId) ?? scenarios[scenarios.length - 1];
+  setActiveScenarioId(target.id);
+
+  return loadScenario(target.id);
+}
+
 export function generateScenarioId() {
   return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
@@ -130,25 +153,9 @@ export async function handleImportDB(file) {
   const arrayBuffer = await file.arrayBuffer();
   await importDB(arrayBuffer);
 
-  const existingScenarios = listScenarios();
-  if (existingScenarios.length === 0) {
-    throw new Error("Imported database has no scenarios.");
-  }
-
-  setScenarios(existingScenarios.map(({ id, name }) => ({ id, name })));
-  setScenarioSequence(0);
-  for (const scenario of scenarios) {
-    const match = scenario.name.match(/^Scenario\s+(\d+)$/);
-    if (match) setScenarioSequence(Math.max(scenarioSequence, Number(match[1])));
-  }
-
-  const lastActiveId = getMeta("activeScenarioId");
-  const target = scenarios.find((s) => s.id === lastActiveId) ?? scenarios[scenarios.length - 1];
-  setActiveScenarioId(target.id);
-
-  const loaded = loadScenario(target.id);
+  const loaded = restoreScenariosFromDB();
   if (!loaded) {
-    throw new Error("Imported database is missing its active scenario state.");
+    throw new Error("Imported database has no scenarios.");
   }
 
   setState(loaded);
@@ -158,6 +165,6 @@ export async function handleImportDB(file) {
   setEmployeeSequence(initializeSequence(loaded.employees, "p"));
   setTeamSequence(initializeSequence(loaded.teams, "t"));
   setGlobalCriteria(listCriteria());
-  setMeta("activeScenarioId", target.id);
+  setMeta("activeScenarioId", activeScenarioId);
   return true;
 }

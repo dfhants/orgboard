@@ -1,3 +1,5 @@
+import { signal } from "@preact/signals";
+
 // ─── Layout constants ───
 export const oppositeLayout = { horizontal: "vertical", vertical: "horizontal" };
 export const layoutIcons = {
@@ -131,7 +133,7 @@ export let isCopyMode = false;
 export function setIsCopyMode(v) { isCopyMode = v; }
 
 export const MIN_BOARD_ZOOM = 0.6;
-export const MAX_BOARD_ZOOM = 1;
+export const MAX_BOARD_ZOOM = 1.4;
 export const BOARD_ZOOM_STEP = 0.1;
 
 export let boardZoom = 1;
@@ -159,6 +161,15 @@ export let globalCriteria = [];
 export function setGlobalCriteria(v) { globalCriteria = v; }
 
 // ─── State helpers ───
+
+// ── Render tick signal ──
+// Components subscribe to this signal to re-render when state changes.
+// After any state mutation, call notifyStateChange() to trigger re-render.
+export const renderTick = signal(0);
+export function notifyStateChange() {
+  renderTick.value++;
+}
+
 export function getTeam(teamId) {
   return state.teams[teamId];
 }

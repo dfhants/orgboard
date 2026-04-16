@@ -25,10 +25,11 @@ import {
   loadDemoData, loadBlankBoard,
   closeScenario, renameScenario, handleExportDB, handleImportDB,
 } from './scenarios.mjs';
+import { createIcons } from './icons.mjs';
+import { notifyStateChange } from './state.mjs';
 import {
-  render, renderTabs, createIcons,
   renderHierarchyNode, rerenderHierarchyInPlace, renderCompactTree, getHierarchyTreesForModal,
-} from './render.mjs';
+} from './hierarchy.mjs';
 
 function syncBoardZoomUI() {
   const shell = document.querySelector(".page-shell");
@@ -52,8 +53,7 @@ function openImportDBPicker() {
 
     try {
       await handleImportDB(file);
-      render();
-      renderTabs();
+      notifyStateChange();
     } catch (err) {
       console.error("OrgBoard: failed to import database", err);
       alert("Could not import OrgBoard database. Please choose a valid orgboard.db export.");
@@ -85,33 +85,45 @@ function openDeleteAllUnassignedModal() {
   document.body.appendChild(modal);
 }
 
+function buildTimezoneOptions(selectedTz = null) {
+  return Object.keys(timezoneColors).map(
+    (tz) => `<option value="${escapeHtml(tz)}"${tz === selectedTz ? " selected" : ""}>${escapeHtml(tz)}</option>`
+  ).join("");
+}
+
+function personFormHTML(employee, teamId) {
+  const isEdit = !!employee;
+  const prefix = isEdit ? "ep" : "ap";
+  const modalId = isEdit ? "edit-person-modal" : "add-person-modal";
+  const title = isEdit ? "Edit person" : teamId ? `Add person to ${escapeHtml(getTeam(teamId)?.name ?? "team")}` : "Add person";
+  const submitLabel = isEdit ? "Save" : "Add person";
+  const tzOptions = buildTimezoneOptions(employee?.timezone);
+  return `
+    <div class="modal-panel">
+      <h3 class="modal-title">${title}</h3>
+      <label class="modal-label">Name<input id="${prefix}-name" class="modal-input" type="text" value="${escapeHtml(employee?.name ?? "")}" placeholder="Full name" autofocus /></label>
+      <label class="modal-label">Role<input id="${prefix}-role" class="modal-input" type="text" value="${escapeHtml(employee?.role ?? "")}" placeholder="Job title" /></label>
+      <label class="modal-label">Level<input id="${prefix}-level" class="modal-input" type="number" min="1" max="15" value="${employee?.level != null ? employee.level : ''}" placeholder="e.g. 5" /></label>
+      <label class="modal-label">Location<input id="${prefix}-location" class="modal-input" type="text" value="${escapeHtml(employee?.location ?? "")}" placeholder="City, Country" /></label>
+      <label class="modal-label">Time zone<select id="${prefix}-timezone" class="modal-input">${tzOptions}</select></label>
+      <label class="modal-label">Current manager<input id="${prefix}-current-manager" class="modal-input" type="text" value="${escapeHtml(employee?.currentManager ?? "")}" placeholder="Original / current manager name" /></label>
+      <label class="modal-label">Notes<textarea id="${prefix}-notes" class="modal-input modal-textarea" placeholder="Notes / nuance" rows="3">${escapeHtml(employee?.notes ?? "")}</textarea></label>
+      <label class="modal-switch-label"><input id="${prefix}-requested" type="checkbox" class="modal-switch"${employee?.requested ? " checked" : ""} /> Requested position</label>
+      <div class="modal-actions">
+        <button id="${modalId.replace("-modal", "")}-cancel" class="toolbar-button" type="button">Cancel</button>
+        <button id="${modalId.replace("-modal", "")}-submit" class="toolbar-button modal-submit" type="button">${submitLabel}</button>
+      </div>
+    </div>
+  `;
+}
+
 function openAddPersonModal(teamId) {
   document.getElementById("add-person-modal")?.remove();
-  const tzOptions = Object.keys(timezoneColors).map(
-    (tz) => `<option value="${escapeHtml(tz)}">${escapeHtml(tz)}</option>`
-  ).join("");
-
   const modal = document.createElement("div");
   modal.id = "add-person-modal";
   modal.className = "modal-overlay";
   modal.dataset.teamId = teamId || "";
-  modal.innerHTML = `
-    <div class="modal-panel">
-      <h3 class="modal-title">Add person${teamId ? ` to ${escapeHtml(getTeam(teamId)?.name ?? "team")}` : ""}</h3>
-      <label class="modal-label">Name<input id="ap-name" class="modal-input" type="text" placeholder="Full name" autofocus /></label>
-      <label class="modal-label">Role<input id="ap-role" class="modal-input" type="text" placeholder="Job title" /></label>
-      <label class="modal-label">Level<input id="ap-level" class="modal-input" type="number" min="1" max="15" placeholder="e.g. 5" /></label>
-      <label class="modal-label">Location<input id="ap-location" class="modal-input" type="text" placeholder="City, Country" /></label>
-      <label class="modal-label">Time zone<select id="ap-timezone" class="modal-input">${tzOptions}</select></label>
-      <label class="modal-label">Current manager<input id="ap-current-manager" class="modal-input" type="text" placeholder="Original / current manager name" /></label>
-      <label class="modal-label">Notes<textarea id="ap-notes" class="modal-input modal-textarea" placeholder="Notes / nuance" rows="3"></textarea></label>
-      <label class="modal-switch-label"><input id="ap-requested" type="checkbox" class="modal-switch" /> Requested position</label>
-      <div class="modal-actions">
-        <button id="add-person-cancel" class="toolbar-button" type="button">Cancel</button>
-        <button id="add-person-submit" class="toolbar-button modal-submit" type="button">Add person</button>
-      </div>
-    </div>
-  `;
+  modal.innerHTML = personFormHTML(null, teamId);
   document.body.appendChild(modal);
   modal.querySelector("#ap-name").focus();
 }
@@ -121,31 +133,11 @@ function openEditPersonModal(employeeId) {
   const employee = state.employees[employeeId];
   if (!employee) return;
 
-  const tzOptions = Object.keys(timezoneColors).map(
-    (tz) => `<option value="${escapeHtml(tz)}"${tz === employee.timezone ? " selected" : ""}>${escapeHtml(tz)}</option>`
-  ).join("");
-
   const modal = document.createElement("div");
   modal.id = "edit-person-modal";
   modal.className = "modal-overlay";
   modal.dataset.employeeId = employeeId;
-  modal.innerHTML = `
-    <div class="modal-panel">
-      <h3 class="modal-title">Edit person</h3>
-      <label class="modal-label">Name<input id="ep-name" class="modal-input" type="text" value="${escapeHtml(employee.name)}" autofocus /></label>
-      <label class="modal-label">Role<input id="ep-role" class="modal-input" type="text" value="${escapeHtml(employee.role)}" /></label>
-      <label class="modal-label">Level<input id="ep-level" class="modal-input" type="number" min="1" max="15" value="${employee.level != null ? employee.level : ''}" /></label>
-      <label class="modal-label">Location<input id="ep-location" class="modal-input" type="text" value="${escapeHtml(employee.location)}" /></label>
-      <label class="modal-label">Time zone<select id="ep-timezone" class="modal-input">${tzOptions}</select></label>
-      <label class="modal-label">Current manager<input id="ep-current-manager" class="modal-input" type="text" value="${escapeHtml(employee.currentManager || '')}" placeholder="Original / current manager name" /></label>
-      <label class="modal-label">Notes<textarea id="ep-notes" class="modal-input modal-textarea" rows="3">${escapeHtml(employee.notes || "")}</textarea></label>
-      <label class="modal-switch-label"><input id="ep-requested" type="checkbox" class="modal-switch"${employee.requested ? " checked" : ""} /> Requested position</label>
-      <div class="modal-actions">
-        <button id="edit-person-cancel" class="toolbar-button" type="button">Cancel</button>
-        <button id="edit-person-submit" class="toolbar-button modal-submit" type="button">Save</button>
-      </div>
-    </div>
-  `;
+  modal.innerHTML = personFormHTML(employee, null);
   document.body.appendChild(modal);
   modal.querySelector("#ep-name").focus();
 }
@@ -176,7 +168,7 @@ function buildConfigFields(type, config) {
             <option value="<="${config.operator === "<=" ? " selected" : ""}>at most</option>
             <option value="=="${config.operator === "==" ? " selected" : ""}>exactly</option>
           </select>
-          <input data-cr="value" class="modal-input" type="number" min="0" value="${config.value ?? 1}" />
+          <input data-cr="value" class="modal-input" type="number" min="0" value="${escapeHtml(String(config.value ?? 1))}" />
           <span class="config-word">people</span>
           <fieldset class="modal-fieldset"><legend>Only count people where… (optional)</legend>
             <div class="filter-row">
@@ -197,7 +189,7 @@ function buildConfigFields(type, config) {
             <option value="<="${config.operator === "<=" ? " selected" : ""}>at most</option>
             <option value=">="${config.operator === ">=" ? " selected" : ""}>at least</option>
           </select>
-          <input data-cr="value" class="modal-input" type="number" min="1" value="${config.value ?? 2}" />
+          <input data-cr="value" class="modal-input" type="number" min="1" value="${escapeHtml(String(config.value ?? 2))}" />
           <span class="config-word">different</span>
           <select data-cr="field" class="modal-input">${fieldOpts}</select>
         </div>`;
@@ -206,7 +198,7 @@ function buildConfigFields(type, config) {
       return `
         <div class="config-sentence">
           <span class="config-word">Max timezone gap in a team:</span>
-          <input data-cr="maxHours" class="modal-input" type="number" min="0" value="${config.maxHours ?? 5}" />
+          <input data-cr="maxHours" class="modal-input" type="number" min="0" value="${escapeHtml(String(config.maxHours ?? 5))}" />
           <span class="config-word">hours</span>
         </div>`;
     case "has-manager":
@@ -233,7 +225,7 @@ function buildConfigFields(type, config) {
       return `
         <div class="config-sentence">
           <span class="config-word">No manager should have more than</span>
-          <input data-cr="maxReports" class="modal-input" type="number" min="1" value="${config.maxReports ?? 8}" />
+          <input data-cr="maxReports" class="modal-input" type="number" min="1" value="${escapeHtml(String(config.maxReports ?? 8))}" />
           <span class="config-word">direct reports</span>
         </div>`;
     case "requested-limit":
@@ -244,7 +236,7 @@ function buildConfigFields(type, config) {
             <option value="<="${config.operator === "<=" ? " selected" : ""}>at most</option>
             <option value="=="${config.operator === "==" ? " selected" : ""}>exactly</option>
           </select>
-          <input data-cr="value" class="modal-input" type="number" min="0" value="${config.value ?? 2}" />
+          <input data-cr="value" class="modal-input" type="number" min="0" value="${escapeHtml(String(config.value ?? 2))}" />
           <span class="config-word">open positions</span>
         </div>`;
     case "role-coverage":
@@ -269,7 +261,7 @@ function buildConfigFields(type, config) {
             <option value="<="${config.operator === "<=" ? " selected" : ""}>at most</option>
             <option value="=="${config.operator === "==" ? " selected" : ""}>exactly</option>
           </select>
-          <input data-cr="value" class="modal-input" type="number" min="0" value="${config.value ?? 1}" />
+          <input data-cr="value" class="modal-input" type="number" min="0" value="${escapeHtml(String(config.value ?? 1))}" />
           <select data-cr="subject" class="modal-input">${subjectOpts}</select>
         </div>`;
     }
@@ -277,7 +269,7 @@ function buildConfigFields(type, config) {
       return `
         <div class="config-sentence">
           <span class="config-word">No person should belong to more than</span>
-          <input data-cr="maxTeams" class="modal-input" type="number" min="1" value="${config.maxTeams ?? 2}" />
+          <input data-cr="maxTeams" class="modal-input" type="number" min="1" value="${escapeHtml(String(config.maxTeams ?? 2))}" />
           <span class="config-word">teams</span>
         </div>`;
     case "all-assigned":
@@ -294,7 +286,7 @@ function buildConfigFields(type, config) {
             <option value=">="${config.operator === ">=" ? " selected" : ""}>at least</option>
             <option value="=="${config.operator === "==" ? " selected" : ""}>exactly</option>
           </select>
-          <input data-cr="value" class="modal-input" type="number" min="0" value="${config.value ?? 0}" />
+          <input data-cr="value" class="modal-input" type="number" min="0" value="${escapeHtml(String(config.value ?? 0))}" />
           <span class="config-word">people to change manager</span>
         </div>`;
     default:
@@ -302,44 +294,37 @@ function buildConfigFields(type, config) {
   }
 }
 
-function readConfigFromContainer(type, container) {
-  const val = (name) => container.querySelector(`[data-cr="${name}"]`)?.value ?? "";
-  const num = (name) => Number(val(name));
-
-  switch (type) {
-    case "employee-count": {
-      const config = { operator: val("operator"), value: num("value") };
+/** Schema for reading config values from the criterion modal DOM. */
+const criterionConfigSchemas = {
+  "employee-count": { fields: ["operator", "value"], nums: ["value"],
+    postProcess: (c, val) => {
       const filterField = val("filter-field");
-      if (filterField) {
-        config.filter = { field: filterField, op: val("filter-op"), value: val("filter-value") };
-      }
-      return config;
-    }
-    case "distinct-values":
-      return { field: val("field"), operator: val("operator"), value: num("value") };
-    case "timezone-gap":
-      return { maxHours: num("maxHours") };
-    case "has-manager":
-      return {};
-    case "manager-match":
-      return { field: val("field"), match: val("match") };
-    case "max-direct-reports":
-      return { maxReports: num("maxReports") };
-    case "requested-limit":
-      return { operator: val("operator"), value: num("value") };
-    case "role-coverage":
-      return { rolePattern: val("rolePattern") };
-    case "scenario-count":
-      return { subject: val("subject"), operator: val("operator"), value: num("value") };
-    case "max-memberships":
-      return { maxTeams: num("maxTeams") };
-    case "all-assigned":
-      return {};
-    case "manager-changed":
-      return { operator: val("operator"), value: num("value") };
-    default:
-      return {};
+      if (filterField) c.filter = { field: filterField, op: val("filter-op"), value: val("filter-value") };
+      return c;
+    }},
+  "distinct-values":  { fields: ["field", "operator", "value"], nums: ["value"] },
+  "timezone-gap":     { fields: ["maxHours"], nums: ["maxHours"] },
+  "has-manager":      { fields: [] },
+  "manager-match":    { fields: ["field", "match"] },
+  "max-direct-reports": { fields: ["maxReports"], nums: ["maxReports"] },
+  "requested-limit":  { fields: ["operator", "value"], nums: ["value"] },
+  "role-coverage":    { fields: ["rolePattern"] },
+  "scenario-count":   { fields: ["subject", "operator", "value"], nums: ["value"] },
+  "max-memberships":  { fields: ["maxTeams"], nums: ["maxTeams"] },
+  "all-assigned":     { fields: [] },
+  "manager-changed":  { fields: ["operator", "value"], nums: ["value"] },
+};
+
+function readConfigFromContainer(type, container) {
+  const rawVal = (name) => container.querySelector(`[data-cr="${name}"]`)?.value ?? "";
+  const schema = criterionConfigSchemas[type];
+  if (!schema) return {};
+  const config = {};
+  const nums = new Set(schema.nums || []);
+  for (const f of schema.fields) {
+    config[f] = nums.has(f) ? Number(rawVal(f)) : rawVal(f);
   }
+  return schema.postProcess ? schema.postProcess(config, rawVal) : config;
 }
 
 /** Icon map for check types */
@@ -645,13 +630,13 @@ function openSortModal() {
     if (e.target.closest("#sort-modal-apply")) {
       state.activeSortLayers = layers.map((l) => ({ ...l }));
       modal.remove();
-      render();
+      notifyStateChange();
       return;
     }
     if (e.target.closest("#sort-modal-clear")) {
       state.activeSortLayers = [];
       modal.remove();
-      render();
+      notifyStateChange();
       return;
     }
     if (e.target.closest("#sort-add-layer")) {
@@ -741,7 +726,8 @@ function openHierarchyModal(teamId) {
     const actionButtons = editMode
       ? `<button class="toolbar-button modal-submit" type="button" data-action="save-tree-edit">Save</button>
         <button class="toolbar-button" type="button" data-action="cancel-tree-edit">Cancel</button>`
-      : `<button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
+      : `<button class="toolbar-button" type="button" data-action="toggle-tree-edit">Edit</button>
+        <button id="hierarchy-modal-close" class="toolbar-button" type="button">Close</button>`;
     modal.innerHTML = `
       <div class="modal-panel modal-panel-fullscreen hierarchy-modal-panel">
         <div class="hierarchy-modal-header">
@@ -770,7 +756,7 @@ function closeHierarchyModal({ restoreUnsaved = true } = {}) {
     const snapshot = JSON.parse(modal.dataset.editSnapshot || "{}");
     restoreOverrides(snapshot);
     cleanupManagerOverrides(state);
-    render();
+    notifyStateChange();
   }
   modal.remove();
 }
@@ -858,12 +844,12 @@ function openTeamMenu(anchorEl, teamId) {
       openAddPersonModal(tid);
     } else if (action === "add-team") {
       addRandomTeamToTeam(tid);
-      render();
+      notifyStateChange();
     } else if (action === "view-hierarchy") {
       openHierarchyModal(tid);
     } else if (action === "delete") {
       deleteTeam(tid);
-      render();
+      notifyStateChange();
     }
   });
 }
@@ -882,7 +868,7 @@ function openBoardLegend(anchorEl) {
       </div>
       <div class="legend-item">
         <span class="legend-swatch legend-swatch-members"></span>
-        <span>Team members</span>
+        <span>Individual Contributors</span>
       </div>
       <div class="legend-item">
         <span class="legend-swatch legend-swatch-subteams"></span>
@@ -930,7 +916,8 @@ function openTreeOverridePopover(anchorEl, employeeId, teamId) {
   const team = getTeam(teamId);
   if (!team) return;
   const isManager = team.manager === employeeId;
-  const managers = getValidManagerOverrideCandidates(state, employeeId);
+  const managers = getValidManagerOverrideCandidates(state, employeeId)
+    .filter(m => isManager || m.id !== team.manager);
   if (managers.length === 0) return;
 
   const currentOverride = isManager ? (team.managerOverride ?? null) : (findMemberEntry(employeeId, teamId)?.managerOverride ?? null);
@@ -996,14 +983,22 @@ function openTreeOverridePopover(anchorEl, employeeId, teamId) {
       }
     }
     const modal = document.getElementById("hierarchy-modal");
-    if (modal && modal.dataset.editMode !== "true") {
-      modal.dataset.editMode = "true";
-    }
-    cleanupManagerOverrides(state);
-    popover.remove();
-    // Re-render the tree in place
-    if (modal) {
+    if (modal && modal.dataset.liveEdit === "true") {
+      // Live-edit mode: apply immediately and notify
+      cleanupManagerOverrides(state);
+      popover.remove();
       rerenderHierarchyInPlace(modal);
+      notifyStateChange();
+    } else {
+      if (modal && modal.dataset.editMode !== "true") {
+        modal.dataset.editMode = "true";
+      }
+      cleanupManagerOverrides(state);
+      popover.remove();
+      // Re-render the tree in place
+      if (modal) {
+        rerenderHierarchyInPlace(modal);
+      }
     }
   });
 }
@@ -1014,9 +1009,9 @@ export function setupEventListeners() {
     const landingBtn = event.target.closest("[data-landing-action]");
     if (landingBtn) {
       const action = landingBtn.dataset.landingAction;
-      if (action === "demo") { loadDemoData(); render(); }
+      if (action === "demo") { loadDemoData(); notifyStateChange(); }
       else if (action === "import") openCsvImportModal();
-      else if (action === "blank") { loadBlankBoard(); render(); }
+      else if (action === "blank") { loadBlankBoard(); notifyStateChange(); }
       return;
     }
 
@@ -1041,7 +1036,7 @@ export function setupEventListeners() {
     if (event.target.closest("[data-close-scenario]")) {
       const btn = event.target.closest("[data-close-scenario]");
       if (closeScenario(btn.dataset.closeScenario)) {
-        render();
+        notifyStateChange();
       }
       return;
     }
@@ -1049,49 +1044,11 @@ export function setupEventListeners() {
     /* ── Scenario tab add ── */
     if (event.target.closest(".scenario-tab-add")) {
       createNewScenario();
-      render();
+      notifyStateChange();
       return;
     }
 
-    /* ── Scenario tab name (click to rename — only on active tab) ── */
-    if (event.target.closest(".scenario-tab-name")) {
-      const nameEl = event.target.closest(".scenario-tab-name");
-      const scenarioId = nameEl.dataset.tabName;
-      const entry = scenarios.find((s) => s.id === scenarioId);
-      if (!entry) return;
-
-      // If clicking a non-active tab name, switch to it instead of renaming
-      if (scenarioId !== activeScenarioId) {
-        switchToScenario(scenarioId);
-        render();
-        return;
-      }
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "scenario-tab-input";
-      input.value = entry.name;
-      input.size = Math.max(1, entry.name.length);
-      nameEl.replaceWith(input);
-      input.focus();
-      input.select();
-      input.addEventListener("input", () => {
-        input.size = Math.max(1, input.value.length);
-      });
-      const commit = () => {
-        const newName = input.value.trim();
-        if (newName && newName !== entry.name) {
-          renameScenario(scenarioId, newName);
-        }
-        renderTabs();
-      };
-      input.addEventListener("blur", commit, { once: true });
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); input.blur(); }
-        if (e.key === "Escape") { input.value = entry.name; input.blur(); }
-      });
-      return;
-    }
+    /* ── Scenario tab name editing is handled by TabBar component ── */
 
     /* ── Scenario tab switch ── */
     if (event.target.closest(".scenario-tab")) {
@@ -1099,7 +1056,7 @@ export function setupEventListeners() {
       const scenarioId = tab.dataset.scenarioId;
       if (scenarioId && scenarioId !== activeScenarioId) {
         switchToScenario(scenarioId);
-        render();
+        notifyStateChange();
       }
       return;
     }
@@ -1123,13 +1080,8 @@ export function setupEventListeners() {
         }
         cleanupManagerOverrides(state);
         modal.remove();
-        render();
+        notifyStateChange();
       }
-      return;
-    }
-
-    if (event.target.closest("#manager-override-cancel") || event.target.id === "manager-override-modal") {
-      document.getElementById("manager-override-modal")?.remove();
       return;
     }
 
@@ -1139,13 +1091,21 @@ export function setupEventListeners() {
       return;
     }
 
+    if (event.target.closest("[data-action='toggle-tree-edit']")) {
+      const modal = document.getElementById("hierarchy-modal");
+      if (modal) {
+        modal.dataset.liveEdit = modal.dataset.liveEdit === "true" ? "false" : "true";
+      }
+      return;
+    }
+
     if (event.target.closest("[data-action='save-tree-edit']")) {
       const modal = document.getElementById("hierarchy-modal");
       if (modal) {
         modal.dataset.editMode = "false";
         modal.dataset.editSnapshot = JSON.stringify(snapshotOverrides());
         rerenderHierarchyInPlace(modal);
-        render();
+        notifyStateChange();
       }
       return;
     }
@@ -1158,7 +1118,7 @@ export function setupEventListeners() {
         cleanupManagerOverrides(state);
         modal.dataset.editMode = "false";
         rerenderHierarchyInPlace(modal);
-        render();
+        notifyStateChange();
       }
       return;
     }
@@ -1218,7 +1178,7 @@ export function setupEventListeners() {
         });
       }
       modal.remove();
-      render();
+      notifyStateChange();
       return;
     }
 
@@ -1249,30 +1209,30 @@ export function setupEventListeners() {
         state.unassignedEmployees.push(employeeId);
       }
       modal.remove();
-      render();
-      return;
-    }
-
-    if (event.target.closest("#delete-all-unassigned-cancel") || event.target.id === "delete-all-unassigned-modal") {
-      document.getElementById("delete-all-unassigned-modal")?.remove();
-      return;
-    }
-
-    if (event.target.closest("#team-stats-close") || event.target.id === "team-stats-modal") {
-      document.getElementById("team-stats-modal")?.remove();
+      notifyStateChange();
       return;
     }
 
     if (event.target.closest("#delete-all-unassigned-confirm")) {
       document.getElementById("delete-all-unassigned-modal")?.remove();
       deleteAllUnassigned();
-      render();
+      notifyStateChange();
       return;
     }
 
-    if (event.target.closest("#add-person-cancel") || event.target.id === "add-person-modal") {
-      document.getElementById("add-person-modal")?.remove();
-      return;
+    /* ── Simple modal dismiss (cancel button or backdrop click) ── */
+    const modalDismissRules = [
+      { cancel: "#add-person-cancel", overlay: "add-person-modal" },
+      { cancel: "#edit-person-cancel", overlay: "edit-person-modal" },
+      { cancel: "#manager-override-cancel", overlay: "manager-override-modal" },
+      { cancel: "#delete-all-unassigned-cancel", overlay: "delete-all-unassigned-modal" },
+      { cancel: "#team-stats-close", overlay: "team-stats-modal" },
+    ];
+    for (const { cancel, overlay } of modalDismissRules) {
+      if (event.target.closest(cancel) || event.target.id === overlay) {
+        document.getElementById(overlay)?.remove();
+        return;
+      }
     }
 
     /* ── Edit person modal ── */
@@ -1281,7 +1241,7 @@ export function setupEventListeners() {
       const modal = document.getElementById("edit-person-modal");
       const employeeId = modal.dataset.employeeId;
       const employee = state.employees[employeeId];
-      if (!employee) { modal.remove(); render(); return; }
+      if (!employee) { modal.remove(); notifyStateChange(); return; }
 
       const name = modal.querySelector("#ep-name").value.trim();
       if (!name) { modal.querySelector("#ep-name").focus(); return; }
@@ -1295,12 +1255,7 @@ export function setupEventListeners() {
       employee.level = modal.querySelector("#ep-level").value ? Number(modal.querySelector("#ep-level").value) : null;
       employee.currentManager = modal.querySelector("#ep-current-manager").value.trim();
       modal.remove();
-      render();
-      return;
-    }
-
-    if (event.target.closest("#edit-person-cancel") || event.target.id === "edit-person-modal") {
-      document.getElementById("edit-person-modal")?.remove();
+      notifyStateChange();
       return;
     }
 
@@ -1415,41 +1370,12 @@ export function setupEventListeners() {
       const handler = actions[action];
       if (handler) {
         const result = handler();
-        if (result !== false) render();
+        if (result !== false) notifyStateChange();
       }
       return;
     }
 
-    if (event.target.closest(".team-name-text")) {
-      const textEl = event.target.closest(".team-name-text");
-      const teamId = textEl.closest(".team").dataset.teamId;
-      const team = state.teams[teamId];
-      if (!team) return;
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "team-name-input";
-      input.value = team.name;
-      input.size = Math.max(1, team.name.length);
-      textEl.replaceWith(input);
-      input.focus();
-      input.select();
-      input.addEventListener("input", () => {
-        input.size = Math.max(1, input.value.length);
-      });
-      const commit = () => {
-        const newName = input.value.trim();
-        if (newName && newName !== team.name) {
-          team.name = newName;
-        }
-        render();
-      };
-      input.addEventListener("blur", commit, { once: true });
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); input.blur(); }
-        if (e.key === "Escape") { input.value = team.name; input.blur(); }
-      });
-      return;
-    }
+    // Team name editing is handled by the TeamName component in TeamSection.jsx
 
     if (event.target.closest(".delete-all-unassigned")) {
       openDeleteAllUnassignedModal();
@@ -1459,7 +1385,7 @@ export function setupEventListeners() {
     const barHeader = event.target.closest(".unassigned-bar-header");
     if (barHeader) {
       state.unassignedBarCollapsed = !state.unassignedBarCollapsed;
-      render();
+      notifyStateChange();
       return;
     }
   });

@@ -4,11 +4,11 @@
   grid-column: 1;
   grid-row: 3;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: var(--z-drawer);
   border-top: 1px solid var(--line-soft);
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(16px) saturate(1.6);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
   padding: 14px 28px;
   height: 200px;

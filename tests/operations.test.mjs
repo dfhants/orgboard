@@ -16,31 +16,9 @@ import {
   setEmployeeSequence, setTeamSequence,
   getAllManagers, findMemberEntry,
 } from "../src/state.mjs";
+import { makeEmployee, resetState } from "./test-helpers.mjs";
 
 // ─── Fixture helpers ─────────────────────────────────────────────────
-
-function makeEmployee(id, opts = {}) {
-  return {
-    id,
-    name: opts.name ?? `Employee ${id}`,
-    role: opts.role ?? "Engineer",
-    timezone: opts.timezone ?? "GMT (UTC+0)",
-    location: opts.location ?? "London",
-    notes: "",
-    requested: false,
-    level: opts.level ?? null,
-    currentManager: opts.currentManager ?? "",
-  };
-}
-
-function resetState() {
-  for (const k of Object.keys(state.employees)) delete state.employees[k];
-  for (const k of Object.keys(state.teams)) delete state.teams[k];
-  state.rootTeams.length = 0;
-  state.unassignedEmployees = [];
-  setEmployeeSequence(10);
-  setTeamSequence(10);
-}
 
 function setupState(employees, team) {
   resetState();
