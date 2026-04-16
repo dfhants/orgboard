@@ -13,6 +13,7 @@ import { debouncedSave } from '../scenarios.mjs';
 import { LandingPage } from './LandingPage.jsx';
 import { TabBar } from './TabBar.jsx';
 import { ActionBar } from './ActionBar.jsx';
+import logoUrl from '../../assets/icons/icon-192.png';
 import { Board } from './Board.jsx';
 import { UnassignedBar } from './UnassignedBar.jsx';
 import { StatsPanel } from './StatsPanel.jsx';
@@ -101,7 +102,7 @@ export function App() {
     <>
       <header class="app-toolbar">
         <div class="toolbar-brand">
-          <img class="toolbar-logo" src="./assets/icons/icon-192.png" width="28" height="28" alt="OrgBoard logo" />
+          <img class="toolbar-logo" src={logoUrl} width="28" height="28" alt="OrgBoard logo" />
           <span class="toolbar-title">OrgBoard</span>
         </div>
         <div id="scenario-tabs" class="scenario-tabs">
