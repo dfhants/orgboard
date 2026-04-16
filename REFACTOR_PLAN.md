@@ -1,18 +1,15 @@
-# Refactor Plan: Desktop App via Tauri v2
+# Refactor Plan
 
 ## Decision Summary
 
 | Decision | Rationale |
-|----------|-----------|
-| **No Express middleware** | Tauri's Rust backend handles everything a Node.js server would |
-| **Tauri v2 over Electron** | ~10MB vs ~150MB bundle; capability-based security; native SQLite |
-| **Vite** | Required by Tauri; replaces python3 http.server and lightningcss CLI |
-| **sql.js WASM → native SQLite** | Real file-based DB, better performance, no IndexedDB hack |
+|----------|----------|
+| **Vite** | Replaces python3 http.server and lightningcss CLI; HMR, bundling |
 | **Preact + Signals (optional)** | Replaces innerHTML-rebuild pattern with reactive components |
 
 ## Scope
 
-**Included:** Desktop packaging (macOS, Windows, Linux), native SQLite persistence, file dialogs for import/export, auto-updater capability.
+**Included:** Modularization, build tooling, optional UI framework.
 
 **Excluded:** Multi-user/collaboration, cloud sync, mobile support, user authentication.
 
@@ -22,8 +19,7 @@
 
 - [x] **Phase 1** — Add Vite (done)
 - [x] **Phase 2** — Modularize app.js (done)
-- [ ] **Phase 3** — Add Tauri v2 (desktop packaging)
-- [ ] Phase 4 — UI Framework (optional)
+- [ ] Phase 3 — UI Framework (optional)
 
 ### Previously Extracted Modules
 
@@ -128,55 +124,7 @@ After all extractions, `app.js` becomes the entry point:
 
 ---
 
-## Phase 3: Add Tauri v2 (Desktop Packaging)
-
-Package as a native desktop app with real SQLite persistence.
-
-### Why Tauri v2 Over Electron?
-
-- **Bundle size**: ~5-15MB vs Electron's ~100-200MB (uses system WebView instead of bundling Chromium)
-- **Security**: Capability-based permission system — perfect for sensitive HR data
-- **Native SQLite**: via `tauri-plugin-sql` — replaces the WASM SQLite + IndexedDB hack
-- **Auto-updater**: Built-in for distributing updates
-- **Cross-platform**: macOS (.dmg), Windows (.msi/.exe), Linux (.deb/.AppImage)
-
-### Steps
-
-1. `npm install -D @tauri-apps/cli@latest` + `npx tauri init`
-2. Configure `tauri.conf.json`: app name "OrgBoard", window title, icon, permissions
-3. Add `tauri-plugin-sql` for native SQLite — replaces sql.js WASM + IndexedDB entirely
-4. Rewrite `src/db.mjs` internals to use Tauri SQL plugin API (same exported interface):
-   - `initDB()` → opens SQLite file at `$APPDATA/orgboard.db`
-   - `saveScenario()` → native SQL INSERT/UPDATE
-   - `exportDB()` → Tauri file dialog + fs write
-   - Remove all IndexedDB code, remove sql.js dependency
-5. Add `tauri-plugin-dialog` for native file picker (CSV import, DB export)
-6. Add `tauri-plugin-fs` if needed for file operations
-7. Configure app icons (already have `assets/icons/`)
-8. Build and test: `npx tauri dev` (dev), `npx tauri build` (production .dmg/.msi)
-9. Feature-detect Tauri (`window.__TAURI__`) to maintain web fallback for Playwright tests
-
-**Files to create:**
-- `src-tauri/` directory (Rust backend, config, icons)
-- `src-tauri/tauri.conf.json`
-- `src-tauri/Cargo.toml`
-- `src-tauri/src/main.rs` (minimal — just plugin registration)
-
-**Files to modify:**
-- `package.json` — add Tauri CLI and plugins
-- `src/db.mjs` — rewrite internals for Tauri SQL plugin (same exported API)
-- `src/app.js` — CSV import to use Tauri file dialog when available
-
-### Phase 3 Verification
-- `npx tauri dev` launches desktop window
-- All CRUD operations work
-- DB persists across app restarts (file at `$APPDATA/orgboard.db`)
-- CSV import/export works via native file dialogs
-- Playwright UI tests still pass in web mode (feature-detect fallback)
-
----
-
-## Phase 4: UI Framework (Optional)
+## Phase 3: UI Framework (Optional)
 
 Replace the innerHTML-rebuild-everything pattern with reactive components. Not required for desktop packaging — this is a DX improvement.
 
