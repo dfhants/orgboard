@@ -58,14 +58,59 @@ writeFileSync(
   `OrgBoard
 ========
 
-Requirements: Node.js 20+ (https://nodejs.org)
+A drag-and-drop team organizer that runs locally in your browser.
+All data stays on your machine — nothing is sent to the internet.
 
-How to run:
-  macOS/Linux:  Double-click "OrgBoard" (or run ./OrgBoard in Terminal)
-  Windows:      Double-click "OrgBoard.bat"
 
-Your default browser will open automatically.
-Press Ctrl+C in the terminal window to stop the server.
+REQUIREMENTS
+------------
+Node.js 20 or later — download free from https://nodejs.org
+(Choose the LTS version. No other software is needed.)
+
+
+HOW TO RUN
+----------
+1. Unzip this folder anywhere on your computer.
+
+2. Launch OrgBoard:
+     macOS / Linux:  Double-click "OrgBoard", or open a terminal and run:
+                       ./OrgBoard
+     Windows:        Double-click "OrgBoard.bat"
+
+3. Your default browser will open automatically.
+   If it doesn't, open http://localhost:<port> shown in the terminal.
+
+4. To stop the server, close the terminal window or press Ctrl+C.
+
+
+GETTING STARTED
+---------------
+On first launch you'll see the landing page with three options:
+  - Load demo data  — pre-built example org chart to explore
+  - Start blank     — empty board, add people and teams manually
+  - Import CSV      — load employees from a spreadsheet export
+
+You can create multiple scenarios (tabs) to compare different org structures.
+
+
+DATA STORAGE
+------------
+Your data is saved automatically in the browser's local storage (IndexedDB).
+It persists between sessions as long as you use the same browser.
+Use File > Export to save a backup you can re-import later.
+
+
+TROUBLESHOOTING
+---------------
+"node: command not found"
+  → Node.js is not installed, or not on your PATH.
+    Download it from https://nodejs.org and restart your terminal.
+
+"Not found — did you run npm run build first?"
+  → The dist/ folder is missing or corrupted. Re-download OrgBoard.
+
+The browser didn't open automatically
+  → Open your browser manually and go to the URL shown in the terminal.
 `
 );
 

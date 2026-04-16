@@ -1,8 +1,8 @@
 # OrgBoard
 
-A drag-and-drop team organizer built with vanilla JavaScript — no frameworks. Bundled and served by [Vite](https://vite.dev/) with [lightningcss](https://lightningcss.dev/) for CSS processing.
+A drag-and-drop team organizer built with [Preact](https://preactjs.com/) + [Signals](https://preactjs.com/guide/v10/signals/), bundled by [Vite](https://vite.dev/) with [lightningcss](https://lightningcss.dev/) for CSS processing. Data is persisted locally in the browser via SQLite ([sql.js](https://sql.js.org/) WASM) stored in IndexedDB.
 
-![OrgBoard](https://img.shields.io/badge/vanilla-JS-f7df1e) ![Playwright](https://img.shields.io/badge/tests-Playwright-45ba63)
+![Preact](https://img.shields.io/badge/UI-Preact-673ab8) ![Playwright](https://img.shields.io/badge/tests-Playwright-45ba63)
 
 ## Features
 
@@ -25,11 +25,13 @@ A drag-and-drop team organizer built with vanilla JavaScript — no frameworks. 
 - **CSV import** — import employees from CSV with auto-mapped columns
 - **Landing page** — first-run experience with demo data, blank board, or CSV import
 
-## Getting Started
+---
+
+## Development
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 
 ### Install Dependencies
 
@@ -37,26 +39,29 @@ A drag-and-drop team organizer built with vanilla JavaScript — no frameworks. 
 npm install
 ```
 
-### Run the App
+### Run the Dev Server
 
 ```sh
-# Development (Vite dev server with HMR)
 npm run dev
-
-# Production build
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
-Then open [http://localhost:4173](http://localhost:4173).
+Opens [http://localhost:4173](http://localhost:4173) with Vite HMR.
+
+### Build & Preview
+
+```sh
+npm run build     # Production build → dist/
+npm run preview   # Serve the production build locally
+```
 
 ### Run Tests
 
 ```sh
 # Unit tests (Node.js built-in test runner)
 npm test
+
+# Unit tests with coverage
+npm run test:cov
 
 # UI tests (Playwright — headless)
 npm run test:ui
@@ -67,37 +72,118 @@ npx playwright test --headed
 
 Playwright auto-starts the Vite dev server if it isn't already running.
 
+### Lint CSS
+
+```sh
+npm run lint:css       # Check
+npm run lint:css:fix   # Auto-fix
+```
+
+### Package for Distribution
+
+```sh
+npm run package
+```
+
+This builds the app and creates a self-contained `release/OrgBoard/` folder that can be zipped and shared with non-developers. See [Distributable Server](#distributable-server) below.
+
+---
+
 ## Project Structure
 
 ```
-index.html              Entry point (loads src/app.js as ES module)
+index.html                Entry point
+vite.config.js            Vite config (Preact, PurgeCSS, lightningcss)
+server.mjs                Standalone static file server (used for packaging)
+scripts/
+  package.mjs             Build + package into release/OrgBoard/
+
 src/
-  app.js                Orchestrator — bootstraps app, wires modules together
-  state.mjs             Centralized state with mutable exports and setters
-  render.mjs            Templates & rendering (teams, cards, modals, panels)
-  events.mjs            Event delegation and UI event handlers
-  drag-drop.mjs         HTML5 drag event handlers, drop preview, copy-mode
-  operations.mjs        Move/copy/delete operations on employees and teams
-  scenarios.mjs         Scenario lifecycle (create, switch, rename, close, export)
-  csv-import.mjs        CSV parsing and import logic
-  checks.mjs            Pluggable validation engine (11 check types)
-  db.mjs                SQLite persistence via sql.js (WASM) + IndexedDB
-  packing.mjs           Pure function for horizontal column packing
-  team-logic.mjs        Team hierarchy operations, nesting, stats
-  utils.mjs             Colors, timezone math, HTML escaping, hashing
+  app.jsx                 Orchestrator — bootstraps app, wires modules together
+  state.mjs               Centralized state with mutable exports and setters
+  render.mjs              Legacy template rendering (teams, cards, modals)
+  events.mjs              Event delegation and UI event handlers
+  drag-drop.mjs           HTML5 drag event handlers, drop preview, copy-mode
+  operations.mjs          Move/copy/delete operations on employees and teams
+  scenarios.mjs           Scenario lifecycle (create, switch, rename, close, export)
+  csv-import.mjs          CSV parsing and import logic
+  checks.mjs              Pluggable validation engine (11 check types)
+  db.mjs                  SQLite persistence via sql.js (WASM) + IndexedDB
+  packing.mjs             Pure function for horizontal column packing
+  team-logic.mjs          Team hierarchy operations, nesting, stats
+  hierarchy.mjs           Org-chart tree builder
+  layout.mjs              Layout mode toggling
+  icons.mjs               Lucide icon hydration
+  utils.mjs               Colors, timezone math, HTML escaping, hashing
+
+  components/             Preact components (JSX)
+    App.jsx               Root component
+    Board.jsx             Main board layout
+    TeamSection.jsx       Team container with drag zones
+    PersonCard.jsx        Individual person card
+    Facepile.jsx          Collapsed team dot view
+    TabBar.jsx            Scenario tab bar
+    ActionBar.jsx         Toolbar actions
+    StatsPanel.jsx        Role & timezone distribution sidebar
+    UnassignedBar.jsx     Collapsible unassigned employees drawer
+    LandingPage.jsx       First-run experience
+    useInlineEdit.js      Hook for inline text editing
+
   css/
-    main.css            CSS entry point — @imports modular stylesheets
-    tokens.css          Design tokens & resets
-    layout.css          Grid, toolbar, tabs, action bar
-    drag-drop.css       Drop zones & drag previews
-    person-card.css     Person cards
-    team-panel.css      Team containers, titlebar, slots
-    modals.css          Overlays, panels, inputs
-    ...                 + landing, csv-import, notes-panel, stats-panel, etc.
+    main.css              Entry point — @imports modular stylesheets
+    tokens.css            Design tokens & resets
+    layout.css            Grid, toolbar, tabs, action bar
+    drag-drop.css         Drop zones & drag previews
+    person-card.css       Person cards
+    team-panel.css        Team containers, titlebar, slots
+    modals.css            Overlays, panels, inputs
+    ...                   + landing, csv-import, notes-panel, stats-panel, etc.
+
 tests/
-  packing.test.mjs      Unit tests for column packing
-  checks.test.mjs       Unit tests for validation engine
-  team-logic.test.mjs   Unit tests for hierarchy operations
+  *.test.mjs              Unit tests (node:test + node:assert/strict)
+  test-helpers.mjs        Shared test utilities
+  data/                   CSV fixtures
+  ui/
+    fixtures.ts           Playwright fixture (IndexedDB reset, landing dismiss)
+    helpers.ts            Drag-and-drop test helpers
+    *.spec.ts             UI tests (Playwright)
+```
+
+---
+
+## Distributable Server
+
+OrgBoard can be packaged as a standalone folder that non-developers can run with just Node.js installed — no `npm install` or build tools required.
+
+### Download
+
+Grab the latest zip from [**Releases**](../../releases/latest). Unzip it, install [Node.js 20+](https://nodejs.org), and double-click the launcher — see the included README.txt for details.
+
+### Building the Package Locally
+
+```sh
+npm run package
+```
+
+This produces `release/OrgBoard/` containing:
+
+| File | Purpose |
+|------|---------|
+| `dist/` | Pre-built app (HTML, JS, CSS, WASM) |
+| `server.mjs` | Zero-dependency Node.js static file server |
+| `OrgBoard` | macOS/Linux launch script (double-click or `./OrgBoard`) |
+| `OrgBoard.bat` | Windows launch script (double-click) |
+| `README.txt` | End-user instructions |
+
+### Distributing
+
+Zip the `release/OrgBoard/` folder and share it. Recipients just need:
+
+1. **Node.js 20+** installed ([nodejs.org](https://nodejs.org))
+2. Unzip the folder
+3. Double-click `OrgBoard` (macOS/Linux) or `OrgBoard.bat` (Windows)
+
+The server starts on a random available port and opens the default browser automatically. All data is stored locally in the browser (IndexedDB) — nothing is sent to any server.
   utils.test.mjs        Unit tests for utilities
   property.test.mjs     Property-based tests (fast-check)
   data/
