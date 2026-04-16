@@ -257,3 +257,79 @@
   background: var(--accent-soft);
 }
 
+/* ─── Help modal ─── */
+
+.help-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 32px;
+  padding-bottom: 32px;
+}
+
+.help-section {
+  break-inside: avoid;
+}
+
+.help-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+
+.help-section h4 svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.help-section p {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.help-section ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.help-section li {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.help-section li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.help-section kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--base);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  vertical-align: middle;
+}
+
+.help-section kbd svg {
+  width: 12px;
+  height: 12px;
+}
+

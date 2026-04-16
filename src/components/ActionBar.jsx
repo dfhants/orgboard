@@ -27,6 +27,7 @@ export function ActionBar() {
       <button class="team-control-button" type="button" data-action="view-hierarchy" title="View hierarchy" aria-label="View hierarchy"><i data-lucide="network"></i></button>
       <span class="action-bar-divider"></span>
       <button class="team-control-button" type="button" data-action="open-board-legend" title="Board legend" aria-label="Board legend"><i data-lucide="info"></i></button>
+      <button class="team-control-button" type="button" data-action="open-help" title="Help" aria-label="Help"><i data-lucide="circle-help"></i></button>
     </div>
   );
 }

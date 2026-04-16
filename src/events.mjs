@@ -854,6 +854,146 @@ function openTeamMenu(anchorEl, teamId) {
   });
 }
 
+function openHelpModal() {
+  document.getElementById("help-modal")?.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "help-modal";
+  modal.className = "modal-overlay modal-overlay-fullscreen";
+
+  modal.innerHTML = `
+    <div class="modal-panel modal-panel-fullscreen">
+      <div class="modal-fullscreen-header">
+        <h3 class="modal-title">How to use OrgBoard</h3>
+        <button id="help-modal-close" class="team-control-button" type="button" title="Close" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="help-content">
+
+        <section class="help-section">
+          <h4><i data-lucide="rocket"></i> Getting Started</h4>
+          <p>On first launch, choose from three options:</p>
+          <ul>
+            <li><strong>Launch demo</strong> — explore a pre-built example org chart</li>
+            <li><strong>Import from CSV</strong> — load your own employee data with column mapping</li>
+            <li><strong>Start blank</strong> — empty board, add people and teams manually</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="user"></i> People</h4>
+          <ul>
+            <li>Click <strong>Add person</strong> <kbd><i data-lucide="user-plus"></i></kbd> in the toolbar to add someone to the unassigned bar</li>
+            <li><strong>Double-click</strong> a person card to edit their details (name, role, level, location, timezone, notes)</li>
+            <li>Right-click or use the card menu to <strong>delete</strong> a person</li>
+            <li>Dashed cards represent <strong>open / requested positions</strong> — unfilled headcount</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="users"></i> Teams</h4>
+          <ul>
+            <li>Click <strong>Add team</strong> <kbd><i data-lucide="users"></i></kbd> to create a new root team</li>
+            <li><strong>Click a team name</strong> to rename it inline</li>
+            <li>Use the team menu <kbd><i data-lucide="ellipsis"></i></kbd> to delete a team, add a sub-team, or change layout</li>
+            <li>Teams can be <strong>nested</strong> — drag a team into another team to create a sub-team</li>
+            <li><strong>Collapse</strong> a team to shrink it into a compact facepile view (colored dots)</li>
+            <li>The top slot of each team is the <strong>manager slot</strong> — drop a person there to make them the team manager</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="hand"></i> Drag &amp; Drop</h4>
+          <ul>
+            <li><strong>Drag people</strong> between teams, into manager slots, or to the unassigned bar</li>
+            <li><strong>Drag teams</strong> into other teams to nest them, or out to make them root-level</li>
+            <li>Hold <kbd>C</kbd> while dragging to <strong>copy</strong> instead of move</li>
+            <li>Drop previews show exactly where items will land</li>
+            <li>Press <kbd>Esc</kbd> during a drag to cancel it</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="layout-grid"></i> Layout &amp; Zoom</h4>
+          <ul>
+            <li>Use the <strong>layout toggle</strong> <kbd><i data-lucide="square-arrow-right"></i></kbd> to switch between horizontal and vertical arrangement</li>
+            <li>Each team also has its own layout toggle in its menu</li>
+            <li><strong>Zoom</strong> with the <kbd>+</kbd> / <kbd>−</kbd> buttons, or <kbd>Ctrl</kbd> + scroll wheel</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="panel-top"></i> Scenarios &amp; Tabs</h4>
+          <ul>
+            <li>Create <strong>multiple scenarios</strong> (tabs) to compare different org structures side by side</li>
+            <li>Click a tab to switch between scenarios — each has its own teams, people, and notes</li>
+            <li><strong>Double-click</strong> a tab name to rename it</li>
+            <li>Close a scenario with the <kbd>×</kbd> button on its tab</li>
+            <li>Changes are <strong>auto-saved</strong> as you work</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="upload"></i> CSV Import</h4>
+          <ul>
+            <li>Import employees from any CSV file — columns are <strong>auto-mapped</strong></li>
+            <li>Choose how to organize imported data:
+              <strong>Unassigned</strong> (flat list),
+              <strong>Team hierarchy</strong> (group by team column), or
+              <strong>People hierarchy</strong> (build from manager/reports-to column)</li>
+            <li>Workday exports are automatically cleaned up (contingent worker markers, leave status, etc.)</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="shield-check"></i> Validation Checks</h4>
+          <ul>
+            <li>Define <strong>criteria</strong> to audit your org structure — team size limits, timezone spread, manager rules, and more</li>
+            <li>Checks run automatically and show pass/fail status per team or across the whole scenario</li>
+            <li>Toggle checks on and off without deleting them</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="network"></i> Hierarchy View</h4>
+          <ul>
+            <li>Open the <strong>org chart tree</strong> to see the full reporting structure</li>
+            <li>Manager overrides are highlighted so you can see where reporting lines differ from the team structure</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="bar-chart-3"></i> Stats &amp; Notes</h4>
+          <ul>
+            <li>The <strong>Stats panel</strong> shows role and timezone distribution across your org</li>
+            <li>The <strong>Notes panel</strong> gives you a per-scenario scratchpad for decisions and rationale</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h4><i data-lucide="lock"></i> Data &amp; Privacy</h4>
+          <ul>
+            <li>All data is stored <strong>locally in your browser</strong> (IndexedDB) — nothing is sent to a server</li>
+            <li>Use <strong>Export database</strong> to save a backup file you can re-import later</li>
+            <li>Works offline once loaded — no internet connection required</li>
+          </ul>
+        </section>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  createIcons({ nameAttr: "data-lucide", attrs: { width: 16, height: 16 } });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal || e.target.closest("#help-modal-close")) {
+      modal.remove();
+    }
+  });
+}
+
 function openBoardLegend(anchorEl) {
   document.querySelector(".board-legend-popover")?.remove();
 
@@ -1296,6 +1436,7 @@ export function setupEventListeners() {
         },
         "view-hierarchy": () => { openHierarchyModal(teamId); return false; },
         "open-board-legend": () => { openBoardLegend(button); return false; },
+        "open-help": () => { openHelpModal(); return false; },
         "set-manager-override": () => { openManagerOverrideModal(id, teamId); return false; },
         "reset-manager-override": () => {
           const team = getTeam(teamId);

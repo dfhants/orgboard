@@ -72,7 +72,12 @@ HOW TO RUN
 ----------
 1. Unzip this folder anywhere on your computer.
 
-2. Launch OrgBoard:
+2. macOS only — remove the download quarantine (one-time):
+     Open Terminal, drag the OrgBoard folder into the window, then run:
+       xattr -dr com.apple.quarantine /path/to/OrgBoard
+     (Replace the path with wherever you unzipped it.)
+
+3. Launch OrgBoard:
      macOS / Linux:  Double-click "OrgBoard", or open a terminal and run:
                        ./OrgBoard
      Windows:        Double-click "OrgBoard.bat"
