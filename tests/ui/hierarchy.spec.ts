@@ -711,4 +711,40 @@ test.describe("Hierarchy Tree Modal", () => {
     expect(alignment).not.toBeNull();
     expect(alignment!.delta).toBeLessThanOrEqual(1.5);
   });
+
+  test("root team manager override reparents entire team subtree under target", async ({ page }) => {
+    const modal = await openHierarchy(page);
+
+    // Click Noah (Operations team manager, p4) to open override popover
+    await modal.locator('[data-tree-click="manager"][data-employee-id="p4"]').click();
+    const popover = page.locator(".tree-override-popover");
+    await expect(popover).toBeVisible();
+
+    // Assign Noah to report to Ava (p1, Product team manager)
+    await popover.locator('[data-tree-assign="p1"]').click();
+    await expect(popover).not.toBeVisible();
+
+    // Noah should now be positioned below Ava in the tree
+    const layout = await page.evaluate(() => {
+      const modalEl = document.querySelector("#hierarchy-modal");
+      const ava = modalEl?.querySelector('[data-employee-id="p1"]');
+      const noah = modalEl?.querySelector('[data-employee-id="p4"]');
+      const lena = modalEl?.querySelector('[data-employee-id="p5"]'); // Noah's report
+      if (!ava || !noah) return null;
+      const avaRect = ava.getBoundingClientRect();
+      const noahRect = noah.getBoundingClientRect();
+      const lenaRect = lena?.getBoundingClientRect();
+      return {
+        noahBelowAva: noahRect.top > avaRect.top,
+        noahMoved: noah.classList.contains("tree-node--moved"),
+        lenaBelowNoah: lenaRect ? lenaRect.top > noahRect.top : null,
+      };
+    });
+
+    expect(layout).not.toBeNull();
+    expect(layout!.noahBelowAva).toBe(true);
+    expect(layout!.noahMoved).toBe(true);
+    // Noah's subtree (Lena) should follow him
+    expect(layout!.lenaBelowNoah).toBe(true);
+  });
 });

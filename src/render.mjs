@@ -523,8 +523,9 @@ function reparentCrossTreeOverrides(trees) {
     return false;
   }
 
-  const movers = refs.filter((r) => r.node?.type === "employee" && r.node?.isOverride);
-  for (const src of movers) {
+  // Reparent employee nodes with cross-tree overrides
+  const employeeMovers = refs.filter((r) => r.node?.type === "employee" && r.node?.isOverride);
+  for (const src of employeeMovers) {
     const srcTeam = state.teams[src.node.teamId];
     const srcMember = srcTeam?.members?.find((m) => m.id === src.node.employee?.id);
     const targetManagerId = srcMember?.managerOverride;
@@ -536,6 +537,26 @@ function reparentCrossTreeOverrides(trees) {
 
     const idx = src.parentChildren.indexOf(src.node);
     if (idx >= 0) src.parentChildren.splice(idx, 1);
+    if (!Array.isArray(target.node.children)) target.node.children = [];
+    target.node.children.push(src.node);
+  }
+
+  // Reparent root/team manager nodes with managerOverride (cross-team reporting)
+  const teamMovers = refs.filter((r) => (r.node?.type === "root" || r.node?.type === "team") && r.node?.managerOverride);
+  for (const src of teamMovers) {
+    const targetManagerId = src.node.managerOverride;
+    const target = byEmployeeId.get(targetManagerId);
+    if (!target || target.node === src.node) continue;
+    if (isAncestor(src, target)) continue; // avoid cycles
+
+    // Remove from top-level trees array if it's a root
+    const treeIdx = trees.indexOf(src.node);
+    if (treeIdx >= 0) {
+      trees.splice(treeIdx, 1);
+    } else if (src.parentChildren) {
+      const idx = src.parentChildren.indexOf(src.node);
+      if (idx >= 0) src.parentChildren.splice(idx, 1);
+    }
     if (!Array.isArray(target.node.children)) target.node.children = [];
     target.node.children.push(src.node);
   }
