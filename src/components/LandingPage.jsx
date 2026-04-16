@@ -2,9 +2,10 @@ export function LandingPage() {
   return (
     <div class="landing-page">
       <div class="landing-content">
-        <svg class="landing-logo" viewBox="0 0 64 64" width="56" height="56"><rect width="64" height="64" rx="14" fill="var(--accent)"/><rect x="14" y="14" width="14" height="14" fill="#fff"/><rect x="36" y="14" width="14" height="14" fill="#fff"/><rect x="25" y="36" width="14" height="14" fill="#fff"/></svg>
+        <img class="landing-logo" src="./assets/icons/icon.svg" width="168" height="168" alt="OrgBoard" />
         <h1 class="landing-title">Welcome to OrgBoard</h1>
         <p class="landing-subtitle">How would you like to get started?</p>
+        <p class="landing-privacy"><i data-lucide="lock"></i> Your data stays on your device — nothing is sent to a server.</p>
         <div class="landing-options">
           <button class="landing-card" type="button" data-landing-action="demo">
             <span class="landing-card-icon"><i data-lucide="layout-grid"></i></span>

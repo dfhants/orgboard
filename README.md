@@ -4,6 +4,8 @@ A drag-and-drop team organizer built with [Preact](https://preactjs.com/) + [Sig
 
 ![Preact](https://img.shields.io/badge/UI-Preact-673ab8) ![Playwright](https://img.shields.io/badge/tests-Playwright-45ba63)
 
+> **🔒 Your data stays on your device.** OrgBoard runs entirely in the browser — no server, no accounts, no data leaves your machine. Everything is stored locally in IndexedDB.
+
 ## Features
 
 - **Drag-and-drop** people and teams between slots using native HTML5 drag events

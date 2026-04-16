@@ -101,3 +101,18 @@
   line-height: 1.45;
 }
 
+.landing-privacy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  margin: 0 0 28px;
+}
+
+.landing-privacy svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
