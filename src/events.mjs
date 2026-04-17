@@ -1566,14 +1566,22 @@ export function setupEventListeners() {
   });
 
   document.addEventListener("wheel", (event) => {
-    if (!event.ctrlKey && !event.metaKey) return;
     const shell = event.target instanceof Element
       ? event.target.closest(".page-shell")
       : null;
     if (!shell) return;
-    event.preventDefault();
-    const delta = event.deltaY < 0 ? BOARD_ZOOM_STEP : -BOARD_ZOOM_STEP;
-    setBoardZoom(boardZoom + delta);
-    syncBoardZoomUI();
+
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      const delta = event.deltaY < 0 ? BOARD_ZOOM_STEP : -BOARD_ZOOM_STEP;
+      setBoardZoom(boardZoom + delta);
+      syncBoardZoomUI();
+      return;
+    }
+
+    if (shell.dataset.layout === "horizontal" && event.deltaY !== 0 && event.deltaX === 0) {
+      event.preventDefault();
+      shell.scrollLeft += event.deltaY;
+    }
   }, { passive: false });
 }

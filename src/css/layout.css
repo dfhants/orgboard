@@ -20,11 +20,11 @@
 
 .page-shell[data-layout="horizontal"] {
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 .page-shell[data-layout="vertical"] {
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
 }
 

@@ -608,3 +608,90 @@ test.describe("Tighten Layout — Vertical", () => {
     }
   });
 });
+
+test.describe("Mouse Wheel Scrolling", () => {
+  test("vertical wheel scrolls horizontally in horizontal layout", async ({
+    page,
+  }) => {
+    // Add several teams so content overflows horizontally
+    for (let i = 0; i < 10; i++) {
+      await page.locator('[data-action="add-root-team"]').click();
+    }
+    await page.waitForTimeout(300);
+
+    // Ensure horizontal layout
+    const layout = await page
+      .locator(".root-dropzone")
+      .getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    const shell = page.locator(".page-shell");
+    const scrollBefore = await shell.evaluate((el) => el.scrollLeft);
+
+    // Dispatch a vertical wheel event over the page shell
+    await shell.dispatchEvent("wheel", {
+      deltaY: 200,
+      deltaX: 0,
+      bubbles: true,
+    });
+    await page.waitForTimeout(100);
+
+    const scrollAfter = await shell.evaluate((el) => el.scrollLeft);
+    expect(scrollAfter).toBeGreaterThan(scrollBefore);
+  });
+
+  test("vertical wheel does NOT scroll horizontally in vertical layout", async ({
+    page,
+  }) => {
+    // Switch to vertical layout
+    await page.locator('[data-action="toggle-root-layout"]').click();
+    await page.waitForTimeout(200);
+
+    const shell = page.locator(".page-shell");
+    const scrollBefore = await shell.evaluate((el) => el.scrollLeft);
+
+    // Dispatch a vertical wheel event
+    await shell.dispatchEvent("wheel", {
+      deltaY: 200,
+      deltaX: 0,
+      bubbles: true,
+    });
+    await page.waitForTimeout(100);
+
+    const scrollAfter = await shell.evaluate((el) => el.scrollLeft);
+    expect(scrollAfter).toBe(scrollBefore);
+  });
+
+  test("page-shell allows overflow scroll when zoomed in", async ({
+    page,
+  }) => {
+    // Zoom in several times
+    for (let i = 0; i < 8; i++) {
+      await page.locator('[data-action="zoom-in"]').click();
+    }
+    await page.waitForTimeout(300);
+
+    const shell = page.locator(".page-shell");
+
+    // Both overflow directions should be scrollable (overflow: auto)
+    const overflowX = await shell.evaluate((el) =>
+      getComputedStyle(el).overflowX
+    );
+    const overflowY = await shell.evaluate((el) =>
+      getComputedStyle(el).overflowY
+    );
+    expect(overflowX).toBe("auto");
+    expect(overflowY).toBe("auto");
+
+    // Content should actually overflow — scrollHeight or scrollWidth > clientHeight/Width
+    const { scrollsX, scrollsY } = await shell.evaluate((el) => ({
+      scrollsX: el.scrollWidth > el.clientWidth,
+      scrollsY: el.scrollHeight > el.clientHeight,
+    }));
+    // At 180% zoom with demo data, at least one axis should overflow
+    expect(scrollsX || scrollsY).toBe(true);
+  });
+});
