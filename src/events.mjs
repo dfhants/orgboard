@@ -920,6 +920,7 @@ function openHelpModal() {
             <li>Use the <strong>layout toggle</strong> <kbd><i data-lucide="square-arrow-right"></i></kbd> to switch between horizontal and vertical arrangement</li>
             <li>Each team also has its own layout toggle in its menu</li>
             <li><strong>Zoom</strong> with the <kbd>+</kbd> / <kbd>−</kbd> buttons, or <kbd>Ctrl</kbd> + scroll wheel</li>
+            <li>In horizontal layout, hold <kbd>Shift</kbd> + scroll wheel to <strong>pan horizontally</strong></li>
           </ul>
         </section>
 
@@ -1565,6 +1566,21 @@ export function setupEventListeners() {
     document.body.classList.remove("copy-mode");
   });
 
+  let scrollHintTimer = 0;
+  function showScrollHint() {
+    let hint = document.querySelector(".scroll-hint");
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.className = "scroll-hint";
+      hint.innerHTML = `Hold <kbd>Shift</kbd> + scroll to pan horizontally`;
+      document.body.appendChild(hint);
+    }
+    clearTimeout(scrollHintTimer);
+    void hint.offsetWidth;
+    hint.classList.add("is-visible");
+    scrollHintTimer = setTimeout(() => hint.classList.remove("is-visible"), 1800);
+  }
+
   document.addEventListener("wheel", (event) => {
     const shell = event.target instanceof Element
       ? event.target.closest(".page-shell")
@@ -1580,8 +1596,12 @@ export function setupEventListeners() {
     }
 
     if (shell.dataset.layout === "horizontal" && event.deltaY !== 0 && event.deltaX === 0) {
-      event.preventDefault();
-      shell.scrollLeft += event.deltaY;
+      if (event.shiftKey) {
+        event.preventDefault();
+        shell.scrollLeft += event.deltaY;
+      } else {
+        showScrollHint();
+      }
     }
   }, { passive: false });
 }

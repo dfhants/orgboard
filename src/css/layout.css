@@ -314,3 +314,40 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ─── Scroll hint toast ─── */
+
+.scroll-hint {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  z-index: var(--z-action-bar, 100);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.scroll-hint.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.scroll-hint kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+

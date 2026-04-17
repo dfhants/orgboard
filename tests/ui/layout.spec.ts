@@ -610,7 +610,7 @@ test.describe("Tighten Layout — Vertical", () => {
 });
 
 test.describe("Mouse Wheel Scrolling", () => {
-  test("vertical wheel scrolls horizontally in horizontal layout", async ({
+  test("Shift+wheel scrolls horizontally in horizontal layout", async ({
     page,
   }) => {
     // Add several teams so content overflows horizontally
@@ -629,13 +629,20 @@ test.describe("Mouse Wheel Scrolling", () => {
     }
 
     const shell = page.locator(".page-shell");
+    await shell.evaluate((el) => (el.scrollLeft = 0));
     const scrollBefore = await shell.evaluate((el) => el.scrollLeft);
 
-    // Dispatch a vertical wheel event over the page shell
-    await shell.dispatchEvent("wheel", {
-      deltaY: 200,
-      deltaX: 0,
-      bubbles: true,
+    // Dispatch a Shift+vertical wheel event over the page shell
+    await shell.evaluate((el) => {
+      el.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: 200,
+          deltaX: 0,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
     });
     await page.waitForTimeout(100);
 
@@ -643,7 +650,72 @@ test.describe("Mouse Wheel Scrolling", () => {
     expect(scrollAfter).toBeGreaterThan(scrollBefore);
   });
 
-  test("vertical wheel does NOT scroll horizontally in vertical layout", async ({
+  test("plain wheel in horizontal layout shows scroll hint", async ({
+    page,
+  }) => {
+    // Ensure horizontal layout
+    const layout = await page
+      .locator(".root-dropzone")
+      .getAttribute("data-layout");
+    if (layout !== "horizontal") {
+      await page.locator('[data-action="toggle-root-layout"]').click();
+      await page.waitForTimeout(300);
+    }
+
+    // No hint should exist yet
+    await expect(page.locator(".scroll-hint")).toHaveCount(0);
+
+    // Dispatch a plain vertical wheel event (no Shift)
+    const shell = page.locator(".page-shell");
+    await shell.evaluate((el) => {
+      el.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: 100,
+          deltaX: 0,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+    await page.waitForTimeout(100);
+
+    // Hint toast should appear
+    const hint = page.locator(".scroll-hint");
+    await expect(hint).toHaveCount(1);
+    await expect(hint).toHaveClass(/is-visible/);
+    await expect(hint).toContainText("Shift");
+  });
+
+  test("plain wheel does NOT scroll horizontally without Shift", async ({
+    page,
+  }) => {
+    // Add teams for overflow
+    for (let i = 0; i < 10; i++) {
+      await page.locator('[data-action="add-root-team"]').click();
+    }
+    await page.waitForTimeout(300);
+
+    const shell = page.locator(".page-shell");
+    await shell.evaluate((el) => (el.scrollLeft = 0));
+
+    // Dispatch plain wheel event (no Shift)
+    await shell.evaluate((el) => {
+      el.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: 200,
+          deltaX: 0,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+    await page.waitForTimeout(100);
+
+    const scrollAfter = await shell.evaluate((el) => el.scrollLeft);
+    expect(scrollAfter).toBe(0);
+  });
+
+  test("vertical wheel does NOT show hint in vertical layout", async ({
     page,
   }) => {
     // Switch to vertical layout
@@ -651,18 +723,20 @@ test.describe("Mouse Wheel Scrolling", () => {
     await page.waitForTimeout(200);
 
     const shell = page.locator(".page-shell");
-    const scrollBefore = await shell.evaluate((el) => el.scrollLeft);
-
-    // Dispatch a vertical wheel event
-    await shell.dispatchEvent("wheel", {
-      deltaY: 200,
-      deltaX: 0,
-      bubbles: true,
+    await shell.evaluate((el) => {
+      el.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: 200,
+          deltaX: 0,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
     });
     await page.waitForTimeout(100);
 
-    const scrollAfter = await shell.evaluate((el) => el.scrollLeft);
-    expect(scrollAfter).toBe(scrollBefore);
+    // No hint in vertical layout
+    await expect(page.locator(".scroll-hint.is-visible")).toHaveCount(0);
   });
 
   test("page-shell allows overflow scroll when zoomed in", async ({
