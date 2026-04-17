@@ -7,7 +7,7 @@ import {
   getTeam, getAllManagers, findMemberEntry,
   oppositeLayout, layoutIcons,
 } from './state.mjs';
-import { countDirectEmployees, countNestedTeams, countTeamMemberships, collectAllEmployeesInTeam, buildHierarchyTree, computeTeamStats, computeGlobalStats, computeManagerChanges } from './team-logic.mjs';
+import { countDirectEmployees, countNestedTeams, countTeamMemberships, countCopies, collectAllEmployeesInTeam, buildHierarchyTree, computeTeamStats, computeGlobalStats, computeManagerChanges } from './team-logic.mjs';
 import { evaluateAllChecks, describeCriterion, checkTypes } from './checks.mjs';
 import { sortAllTeams } from './operations.mjs';
 import { debouncedSave } from './scenarios.mjs';
@@ -125,6 +125,16 @@ export function renderEmployeeCard(employeeId, contextTeamId) {
   const editButton = `<button class="card-action-button card-edit-button" type="button" data-action="edit-employee" data-id="${employee.id}" title="Edit person"><i data-lucide="pencil"></i></button>`;
   const membershipCount = countTeamMemberships(state.teams, employeeId);
   const membershipBadge = membershipCount > 1 ? `<span class="card-membership-count" title="In ${membershipCount} teams">${membershipCount}</span>` : "";
+  const copyCount = countCopies(state.employees, employeeId);
+  let copyBadge = "";
+  if (copyCount > 0) {
+    const originalId = employee.copyOf || employeeId;
+    const originalName = escapeHtml(state.employees[originalId]?.name || 'removed person');
+    const tip = employee.copyOf
+      ? `Copy of ${originalName} (${copyCount + 1} total)`
+      : `${copyCount} ${copyCount === 1 ? 'copy' : 'copies'}`;
+    copyBadge = `<span class="card-copy-badge" title="${tip}"><i data-lucide="copy"></i>${copyCount + 1}</span>`;
+  }
   const notesHtml = employee.notes ? `<div class="card-notes" title="${escapeHtml(employee.notes)}">${escapeHtml(employee.notes)}</div>` : "";
   const requestedClass = employee.requested ? " card-requested" : "";
 
@@ -144,6 +154,7 @@ export function renderEmployeeCard(employeeId, contextTeamId) {
         <button class="card-action-button card-delete-button" type="button" data-action="delete-employee" data-id="${employee.id}"><i data-lucide="x"></i></button>
       </div>
       ${overridePill}
+      ${copyBadge}
       <div class="person-name">${escapeHtml(employee.name)}${membershipBadge}</div>
       <div class="person-role">${escapeHtml(employee.role)}</div>
       <div class="person-location">${escapeHtml(employee.location)}</div>

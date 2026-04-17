@@ -145,7 +145,7 @@ export function deepCopyEmployee(employeeId) {
   if (!original) return null;
   setEmployeeSequence(employeeSequence + 1);
   const newId = `p${employeeSequence}`;
-  state.employees[newId] = { ...original, id: newId };
+  state.employees[newId] = { ...original, id: newId, copyOf: original.copyOf || employeeId };
   return newId;
 }
 
@@ -204,8 +204,9 @@ export function copyTeamToTarget(teamId, targetTeamId, insertIndex) {
 
 export function deleteEmployee(employeeId) {
   const isUnassigned = state.unassignedEmployees.includes(employeeId);
+  const isCopy = !!state.employees[employeeId]?.copyOf;
   removeEmployeeFromCurrentLocation(employeeId);
-  if (isUnassigned) {
+  if (isUnassigned || isCopy) {
     delete state.employees[employeeId];
   } else {
     state.unassignedEmployees.push(employeeId);

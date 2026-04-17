@@ -1543,6 +1543,7 @@ export function setupEventListeners() {
 
     if (event.key === "c" || event.key === "C") {
       setIsCopyMode(true);
+      document.body.classList.add("copy-mode");
       if (dragState?.sourceElement) {
         dragState.sourceElement.classList.remove("dragging-source");
       }
@@ -1552,6 +1553,7 @@ export function setupEventListeners() {
   document.addEventListener("keyup", (event) => {
     if (event.key === "c" || event.key === "C") {
       setIsCopyMode(false);
+      document.body.classList.remove("copy-mode");
       if (dragState?.sourceElement) {
         dragState.sourceElement.classList.add("dragging-source");
       }
@@ -1560,6 +1562,7 @@ export function setupEventListeners() {
 
   window.addEventListener("blur", () => {
     setIsCopyMode(false);
+    document.body.classList.remove("copy-mode");
   });
 
   document.addEventListener("wheel", (event) => {

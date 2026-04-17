@@ -16,25 +16,25 @@ export function tightenLayout() {
 
   const isHorizontal = state.rootLayout === "horizontal";
 
-  // --- Reset previously set inline sizes ---
-  const resetProp = isHorizontal ? "height" : "width";
+  // --- Reset previously set inline sizes (clear both axes to handle layout switches) ---
   rootDropzone.style.height = "";
   rootDropzone.style.width = "";
   for (const team of document.querySelectorAll(".team")) {
-    team.style[resetProp] = "";
+    team.style.height = "";
+    team.style.width = "";
   }
   for (const slot of document.querySelectorAll(".member-slot")) {
     if (slot.dataset.dragFrozen) continue;
-    slot.style[resetProp] = "";
-    slot.style[isHorizontal ? "width" : "height"] = "";
+    slot.style.height = "";
+    slot.style.width = "";
   }
   for (const subSlot of document.querySelectorAll(".subteam-slot")) {
-    subSlot.style[resetProp] = "";
-    subSlot.style[isHorizontal ? "width" : "height"] = "";
+    subSlot.style.height = "";
+    subSlot.style.width = "";
   }
   for (const entry of document.querySelectorAll(".subteam-slot > .member-entry")) {
-    entry.style[resetProp] = "";
-    entry.style[isHorizontal ? "width" : "height"] = "";
+    entry.style.height = "";
+    entry.style.width = "";
   }
 
   void document.body.offsetHeight;

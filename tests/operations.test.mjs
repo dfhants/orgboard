@@ -538,6 +538,19 @@ describe("deepCopyEmployee", () => {
     assert.equal(state.employees[newId].name, "Alice");
   });
 
+  it("sets copyOf to the original employee id", () => {
+    state.employees.p1 = makeEmployee("p1", { name: "Alice" });
+    const newId = deepCopyEmployee("p1");
+    assert.equal(state.employees[newId].copyOf, "p1");
+  });
+
+  it("preserves copyOf when copying a copy", () => {
+    state.employees.p1 = makeEmployee("p1", { name: "Alice" });
+    const firstCopy = deepCopyEmployee("p1");
+    const secondCopy = deepCopyEmployee(firstCopy);
+    assert.equal(state.employees[secondCopy].copyOf, "p1");
+  });
+
   it("returns null for non-existent employee", () => {
     const result = deepCopyEmployee("bogus");
     assert.equal(result, null);
@@ -688,6 +701,16 @@ describe("deleteEmployee", () => {
     deleteEmployee("p1");
     assert.ok(!state.employees.p1);
     assert.ok(!state.unassignedEmployees.includes("p1"));
+  });
+
+  it("permanently deletes a copy instead of moving to unassigned", () => {
+    state.employees.p1 = makeEmployee("p1");
+    const teamId = addRandomRootTeam();
+    const copyId = deepCopyEmployee("p1");
+    state.teams[teamId].members.push({ id: copyId });
+    deleteEmployee(copyId);
+    assert.ok(!state.employees[copyId], "copy should be fully deleted");
+    assert.ok(!state.unassignedEmployees.includes(copyId), "copy should not appear in unassigned");
   });
 });
 

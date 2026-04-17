@@ -111,3 +111,10 @@
   pointer-events: none !important;
 }
 
+/* ─── Copy-mode cursor ─── */
+
+body.copy-mode,
+body.copy-mode * {
+  cursor: copy !important;
+}
+

@@ -67,6 +67,7 @@ export function switchToScenario(id) {
   setShowLanding(!state.initialized);
   setDragState(null);
   setIsCopyMode(false);
+  document.body.classList.remove("copy-mode");
   setEmployeeSequence(initializeSequence(state.employees, "p"));
   setTeamSequence(initializeSequence(state.teams, "t"));
   setMeta("activeScenarioId", id);
@@ -90,6 +91,7 @@ export function createNewScenario() {
   setActiveScenarioId(id);
   setDragState(null);
   setIsCopyMode(false);
+  document.body.classList.remove("copy-mode");
   setEmployeeSequence(initializeSequence(state.employees, "p"));
   setTeamSequence(initializeSequence(state.teams, "t"));
   setMeta("activeScenarioId", id);
@@ -162,6 +164,7 @@ export async function handleImportDB(file) {
   setShowLanding(!loaded.initialized);
   setDragState(null);
   setIsCopyMode(false);
+  document.body.classList.remove("copy-mode");
   setEmployeeSequence(initializeSequence(loaded.employees, "p"));
   setTeamSequence(initializeSequence(loaded.teams, "t"));
   setGlobalCriteria(listCriteria());

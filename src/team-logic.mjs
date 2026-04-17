@@ -79,6 +79,17 @@ export function countTeamMemberships(teams, employeeId) {
   return count;
 }
 
+export function countCopies(employees, employeeId) {
+  const employee = employees[employeeId];
+  if (!employee) return 0;
+  const originalId = employee.copyOf || employeeId;
+  let count = 0;
+  for (const e of Object.values(employees)) {
+    if (e.id !== originalId && e.copyOf === originalId) count++;
+  }
+  return count;
+}
+
 export function collectAllEmployeesInTeam(teams, teamId) {
   const team = teams[teamId];
   if (!team) return [];
