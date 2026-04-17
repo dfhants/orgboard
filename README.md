@@ -151,4 +151,4 @@ tests/
 
 ## License
 
-ISC
+MIT
