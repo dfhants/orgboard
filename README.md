@@ -81,14 +81,6 @@ npm run lint:css       # Check
 npm run lint:css:fix   # Auto-fix
 ```
 
-### Package for Distribution
-
-```sh
-npm run package
-```
-
-This builds the app and creates a self-contained `release/OrgBoard/` folder that can be zipped and shared with non-developers. See [Distributable Server](#distributable-server) below.
-
 ---
 
 ## Project Structure
@@ -96,9 +88,6 @@ This builds the app and creates a self-contained `release/OrgBoard/` folder that
 ```
 index.html                Entry point
 vite.config.js            Vite config (Preact, PurgeCSS, lightningcss)
-server.mjs                Standalone static file server (used for packaging)
-scripts/
-  package.mjs             Build + package into release/OrgBoard/
 
 src/
   app.jsx                 Orchestrator — bootstraps app, wires modules together
@@ -149,53 +138,6 @@ tests/
     fixtures.ts           Playwright fixture (IndexedDB reset, landing dismiss)
     helpers.ts            Drag-and-drop test helpers
     *.spec.ts             UI tests (Playwright)
-```
-
----
-
-## Distributable Server
-
-OrgBoard can be packaged as a standalone folder that non-developers can run with just Node.js installed — no `npm install` or build tools required.
-
-### Download
-
-Grab the latest zip from [**Releases**](../../releases/latest). Unzip it, install [Node.js 20+](https://nodejs.org), and double-click the launcher — see the included README.txt for details.
-
-### Building the Package Locally
-
-```sh
-npm run package
-```
-
-This produces `release/OrgBoard/` containing:
-
-| File | Purpose |
-|------|---------|
-| `dist/` | Pre-built app (HTML, JS, CSS, WASM) |
-| `server.mjs` | Zero-dependency Node.js static file server |
-| `OrgBoard` | macOS/Linux launch script (double-click or `./OrgBoard`) |
-| `OrgBoard.bat` | Windows launch script (double-click) |
-| `README.txt` | End-user instructions |
-
-### Distributing
-
-Zip the `release/OrgBoard/` folder and share it. Recipients just need:
-
-1. **Node.js 20+** installed ([nodejs.org](https://nodejs.org))
-2. Unzip the folder
-3. Double-click `OrgBoard` (macOS/Linux) or `OrgBoard.bat` (Windows)
-
-The server starts on a random available port and opens the default browser automatically. All data is stored locally in the browser (IndexedDB) — nothing is sent to any server.
-  utils.test.mjs        Unit tests for utilities
-  property.test.mjs     Property-based tests (fast-check)
-  data/
-    *.csv               CSV fixtures for import testing
-  ui/
-    fixtures.ts         Shared test fixture (DB reset, landing dismissal)
-    helpers.ts          Drag-and-drop test helpers
-    *.spec.ts           Playwright UI tests
-playwright.config.ts    Playwright config — Chromium only, baseURL localhost:4173
-vite.config.js          Vite config — dev server, lightningcss, esnext build target
 ```
 
 ## Architecture

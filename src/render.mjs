@@ -23,7 +23,7 @@ export function renderLandingPage() {
       <div class="landing-content">
         <img class="landing-logo" src="/icons/icon.svg" width="168" height="168" alt="OrgBoard" />
         <h1 class="landing-title">Welcome to OrgBoard</h1>
-        <p class="landing-subtitle">How would you like to get started?</p>
+        <p class="landing-subtitle">A drag-and-drop team organizer for planning org structures, comparing scenarios, and validating team composition — all offline in your browser.</p>
         <p class="landing-privacy"><i data-lucide="lock"></i> Your data stays on your device — nothing is sent to a server.</p>
         <div class="landing-options">
           <button class="landing-card" type="button" data-landing-action="demo">

@@ -1,6 +1,5 @@
 node_modules/
 .playwright-mcp/
 dist/
-release/
 test-results/
 .DS_Store

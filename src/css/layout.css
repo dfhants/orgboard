@@ -112,6 +112,7 @@
   cursor: pointer;
   transition: all var(--transition);
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
 }
 
 .toolbar-button:hover {

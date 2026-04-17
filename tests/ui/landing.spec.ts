@@ -29,7 +29,7 @@ test.describe("Landing Page", () => {
     const landing = page.locator(".landing-page");
     await expect(landing).toBeVisible();
     await expect(page.locator(".landing-title")).toHaveText("Welcome to OrgBoard");
-    await expect(page.locator(".landing-subtitle")).toContainText("How would you like to get started?");
+    await expect(page.locator(".landing-subtitle")).toContainText("drag-and-drop team organizer");
   });
 
   test("has three option cards", async ({ page }) => {
