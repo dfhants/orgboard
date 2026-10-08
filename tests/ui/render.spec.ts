@@ -47,15 +47,15 @@ test.describe("Initial Render", () => {
 
     await expect(favicon32).toHaveAttribute(
       "href",
-      /assets\/icons\/favicon-32\.png$/
+      /^\/icons\/favicon-32\.png$/
     );
     await expect(favicon16).toHaveAttribute(
       "href",
-      /assets\/icons\/favicon-16\.png$/
+      /^\/icons\/favicon-16\.png$/
     );
     await expect(appleTouch).toHaveAttribute(
       "href",
-      /assets\/icons\/apple-touch-icon\.png$/
+      /^\/icons\/apple-touch-icon\.png$/
     );
   });
 
