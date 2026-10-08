@@ -13,7 +13,7 @@ import { debouncedSave } from '../scenarios.mjs';
 import { LandingPage } from './LandingPage.jsx';
 import { TabBar } from './TabBar.jsx';
 import { ActionBar } from './ActionBar.jsx';
-const logoUrl = '/icons/icon-192.png';
+const logoUrl = '/icons/logo-mark.svg';
 import { Board } from './Board.jsx';
 import { UnassignedBar } from './UnassignedBar.jsx';
 import { StatsPanel } from './StatsPanel.jsx';
@@ -50,7 +50,7 @@ export function App() {
       if (shell) {
         shell.style.marginRight = "0";
         shell.style.marginLeft = "0";
-        shell.style.height = "calc(100vh - 48px)";
+        shell.style.height = "calc(100vh - 44px)";
       }
     } else {
       // Clear any inline overrides from landing page
@@ -115,7 +115,7 @@ export function App() {
     <>
       <header class="app-toolbar">
         <div class="toolbar-brand">
-          <img class="toolbar-logo" src={logoUrl} width="28" height="28" alt="OrgBoard logo" />
+          <img class="toolbar-logo" src={logoUrl} width="49" height="36" alt="OrgBoard logo" />
           <span class="toolbar-title">OrgBoard</span>
         </div>
         <div id="scenario-tabs" class="scenario-tabs">

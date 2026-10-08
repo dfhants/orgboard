@@ -8,7 +8,7 @@ test.describe("Initial Render", () => {
     await expect(page.locator(".app-toolbar")).toContainText("OrgBoard");
     await expect(page.locator(".toolbar-logo")).toHaveAttribute(
       "src",
-      /assets\/icons\/icon-192\.png$/
+      /icons\/logo-mark\.svg$/
     );
     await expect(page.locator("#add-person-btn")).toBeVisible();
   });
@@ -29,8 +29,8 @@ test.describe("Initial Render", () => {
     });
 
     expect(styles).not.toBeNull();
-    expect(styles!.logoHeight).toBe(28);
-    expect(styles!.toolbarHeight).toBe(48);
+    expect(styles!.logoHeight).toBe(36);
+    expect(styles!.toolbarHeight).toBe(44);
     expect(styles!.filter).toBe("none");
   });
 

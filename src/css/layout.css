@@ -110,8 +110,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 var(--gutter);
-  height: 48px;
+  padding: 0 var(--gutter) 0 12px;
+  height: 44px;
   background: var(--chrome);
 }
 
@@ -120,15 +120,16 @@
   align-items: center;
   flex: 0 0 auto;
   gap: 8px;
+  /* the tab strip pads itself for the active tab's feet; pull it in so the
+     logo has the same 12px on both sides */
+  margin-right: -10px;
 }
 
 .toolbar-logo {
   display: block;
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius);
-  filter: none;
+  width: 49px;  /* the mark is cropped to its artwork, which is wider than tall */
+  height: 36px;
 }
 
 .toolbar-title {
