@@ -172,4 +172,62 @@ test.describe("Scenario Tabs", () => {
     await page.locator(".scenario-tab-add").click();
     await expect(page.locator(".scenario-tab-add")).toBeVisible();
   });
+
+  test("active tab takes the board colour and sits flush on it", async ({ page }) => {
+    await page.locator(".scenario-tab-add").click();
+    await page.getByRole("button", { name: /Start blank/ }).click();
+    // Move off the tabs and let hover/active transitions settle
+    await page.mouse.move(600, 400);
+    await page.waitForTimeout(300);
+
+    const data = await page.evaluate(() => {
+      const active = document.querySelector(".scenario-tab.is-active")!;
+      const inactive = document.querySelector(".scenario-tab:not(.is-active)")!;
+      const bar = document.querySelector(".app-toolbar")!;
+      return {
+        activeBg: getComputedStyle(active).backgroundColor,
+        inactiveBg: getComputedStyle(inactive).backgroundColor,
+        boardBg: getComputedStyle(document.body).backgroundColor,
+        barBg: getComputedStyle(bar).backgroundColor,
+        activeBottom: Math.round(active.getBoundingClientRect().bottom),
+        barBottom: Math.round(bar.getBoundingClientRect().bottom),
+        labelCentred: (() => {
+          const tab = active.getBoundingClientRect();
+          const label = active.querySelector(".scenario-tab-name")!.getBoundingClientRect();
+          return Math.abs((label.top + label.bottom) / 2 - (tab.top + tab.bottom) / 2);
+        })(),
+      };
+    });
+    expect(data.activeBg).toBe(data.boardBg);
+    expect(data.activeBg).not.toBe(data.barBg);
+    expect(data.inactiveBg).toBe("rgba(0, 0, 0, 0)");
+    expect(data.activeBottom).toBe(data.barBottom);
+    expect(data.labelCentred).toBeLessThanOrEqual(1);
+  });
+
+  test("active tab always shows its close button; inactive tabs only on hover", async ({ page }) => {
+    await page.locator(".scenario-tab-add").click();
+    await page.getByRole("button", { name: /Start blank/ }).click();
+    await page.mouse.move(600, 400);
+    await page.waitForTimeout(300);
+    const opacity = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el).opacity);
+    expect(await opacity(".scenario-tab.is-active .scenario-tab-close")).toBe("1");
+    expect(await opacity(".scenario-tab:not(.is-active) .scenario-tab-close")).toBe("0");
+  });
+
+  test("a divider closes off the last tab unless it is active", async ({ page }) => {
+    await page.locator(".scenario-tab-add").click();
+    await page.getByRole("button", { name: /Start blank/ }).click();
+    await page.mouse.move(600, 400);
+    const divider = () => page.locator(".scenario-tab-add").evaluate((el) => {
+      const cs = getComputedStyle(el, "::before");
+      return cs.content !== "none" && cs.width === "1px";
+    });
+    // The new (last) tab is active → no divider after it
+    expect(await divider()).toBe(false);
+    // Activate the first tab → the last tab is inactive → divider shows
+    await page.locator(".scenario-tab").first().click();
+    await page.mouse.move(600, 400);
+    expect(await divider()).toBe(true);
+  });
 });

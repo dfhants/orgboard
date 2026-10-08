@@ -5,11 +5,10 @@ import {
   employeeSequence, setEmployeeSequence,
   scenarios, activeScenarioId,
   getTeam, getAllManagers, findMemberEntry,
-  oppositeLayout,
   globalCriteria, setGlobalCriteria,
 } from './state.mjs';
 import { escapeHtml, timezoneColors, colorForManager, colorForTimezone } from './utils.mjs';
-import { cleanupManagerOverrides, buildHierarchyTree, computeTeamStats, getValidManagerOverrideCandidates } from './team-logic.mjs';
+import { cleanupManagerOverrides, buildHierarchyTree, computeTeamStats, getValidManagerOverrideCandidates, collectAllEmployeesInTeam } from './team-logic.mjs';
 import { checkTypes, describeCriterion } from './checks.mjs';
 import { saveCriterion, deleteCriterion } from './db.mjs';
 import {
@@ -26,19 +25,11 @@ import {
   closeScenario, renameScenario, handleExportDB, handleImportDB,
 } from './scenarios.mjs';
 import { createIcons } from './icons.mjs';
+import { syncBoardZoomUI, fitBoardToScreen, stepBoardZoom } from './layout.mjs';
 import { notifyStateChange } from './state.mjs';
 import {
   renderHierarchyNode, rerenderHierarchyInPlace, renderCompactTree, getHierarchyTreesForModal,
 } from './hierarchy.mjs';
-
-function syncBoardZoomUI() {
-  const shell = document.querySelector(".page-shell");
-  if (shell) shell.style.setProperty("--board-zoom", String(boardZoom));
-  const zoomLayer = document.querySelector(".board-zoom-layer");
-  if (zoomLayer) zoomLayer.style.zoom = String(boardZoom);
-  const label = document.getElementById("zoom-level-label");
-  if (label) label.textContent = `${Math.round(boardZoom * 100)}%`;
-}
 
 function openImportDBPicker() {
   const input = document.createElement("input");
@@ -524,7 +515,7 @@ function openTeamStatsModal(teamId) {
     .sort((a, b) => b[1] - a[1])
     .map(([tz, count]) => {
       const bg = colorForTimezone(tz);
-      return `<span class="stats-tz-badge" style="background:${bg}"><span>${escapeHtml(tz)}</span> <span class="stats-tz-badge-count">${count}</span></span>`;
+      return `<span class="stats-tz-badge" style="--tz-color:${bg}"><span>${escapeHtml(tz)}</span> <span class="stats-tz-badge-count">${count}</span></span>`;
     }).join("") || '<p class="empty-note">No timezones</p>';
 
   const nestedHtml = stats.nestedStats.length > 0
@@ -794,64 +785,47 @@ function positionPopover(anchorEl, popover, { gap = 4, edgePadding = 8 } = {}) {
   popover.style.visibility = "visible";
 }
 
-function openTeamMenu(anchorEl, teamId) {
-  document.querySelector(".team-menu-popover")?.remove();
-
+/** Delete an empty team straight away; ask first if it would displace anyone or take sub-teams with it. */
+function requestDeleteTeam(teamId) {
   const team = getTeam(teamId);
   if (!team) return;
 
-  const popover = document.createElement("div");
-  popover.className = "team-menu-popover";
-  popover.innerHTML = `
-    <button class="team-menu-item" type="button" data-menu-action="add-person" data-team-id="${teamId}">
-      <i data-lucide="user-plus"></i><span>Add person</span>
-    </button>
-    <button class="team-menu-item" type="button" data-menu-action="add-team" data-team-id="${teamId}">
-      <i data-lucide="users"></i><span>Add team</span>
-    </button>
-    <div class="team-menu-divider"></div>
-    <button class="team-menu-item" type="button" data-menu-action="view-hierarchy" data-team-id="${teamId}">
-      <i data-lucide="network"></i><span>View hierarchy</span>
-    </button>
-    <div class="team-menu-divider"></div>
-    <button class="team-menu-item is-danger" type="button" data-menu-action="delete" data-team-id="${teamId}">
-      <i data-lucide="trash-2"></i><span>Delete team</span>
-    </button>
+  const people = new Set(collectAllEmployeesInTeam(state.teams, teamId)).size;
+  const subTeams = countAllNestedTeams(teamId);
+  if (people === 0 && subTeams === 0) {
+    deleteTeam(teamId);
+    notifyStateChange();
+    return;
+  }
+
+  const parts = [];
+  if (subTeams > 0) parts.push(`its <strong>${subTeams}</strong> sub-team${subTeams === 1 ? "" : "s"} will be deleted too`);
+  if (people > 0) parts.push(`the <strong>${people}</strong> ${people === 1 ? "person" : "people"} in ${subTeams > 0 ? "them" : "it"} will move to Unassigned`);
+  const detail = parts.join(", and ");
+
+  document.getElementById("delete-team-modal")?.remove();
+  const modal = document.createElement("div");
+  modal.id = "delete-team-modal";
+  modal.className = "modal-overlay";
+  modal.dataset.teamId = teamId;
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <h3 class="modal-title">Delete ${escapeHtml(team.name)}?</h3>
+      <p class="modal-body-text">${detail.charAt(0).toUpperCase() + detail.slice(1)}. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="delete-team-cancel" class="toolbar-button" type="button">Cancel</button>
+        <button id="delete-team-confirm" class="toolbar-button modal-submit modal-danger" type="button">Delete team</button>
+      </div>
+    </div>
   `;
+  document.body.appendChild(modal);
+  modal.querySelector("#delete-team-confirm").focus();
+}
 
-  appendPopoverForMeasurement(popover);
-  createIcons({ nameAttr: "data-lucide", attrs: { width: 15, height: 15 } });
-  positionPopover(anchorEl, popover);
-
-  // Close on outside click
-  setTimeout(() => {
-    function closePopover(e) {
-      if (!popover.contains(e.target)) {
-        popover.remove();
-        document.removeEventListener("click", closePopover, true);
-      }
-    }
-    document.addEventListener("click", closePopover, true);
-  }, 0);
-
-  popover.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-menu-action]");
-    if (!btn) return;
-    const action = btn.dataset.menuAction;
-    const tid = btn.dataset.teamId;
-    popover.remove();
-    if (action === "add-person") {
-      openAddPersonModal(tid);
-    } else if (action === "add-team") {
-      addRandomTeamToTeam(tid);
-      notifyStateChange();
-    } else if (action === "view-hierarchy") {
-      openHierarchyModal(tid);
-    } else if (action === "delete") {
-      deleteTeam(tid);
-      notifyStateChange();
-    }
-  });
+function countAllNestedTeams(teamId) {
+  const team = getTeam(teamId);
+  if (!team) return 0;
+  return team.subTeams.reduce((n, sub) => n + 1 + countAllNestedTeams(sub.id), 0);
 }
 
 function openHelpModal() {
@@ -886,7 +860,7 @@ function openHelpModal() {
           <ul>
             <li>Click <strong>Add person</strong> <kbd><i data-lucide="user-plus"></i></kbd> in the toolbar to add someone to the unassigned bar</li>
             <li><strong>Double-click</strong> a person card to edit their details (name, role, level, location, timezone, notes)</li>
-            <li>Right-click or use the card menu to <strong>delete</strong> a person</li>
+            <li>Hover a card and use <kbd><i data-lucide="user-minus"></i></kbd> to take someone off a team (they move to the unassigned bar), or <kbd><i data-lucide="trash-2"></i></kbd> on an unassigned person to <strong>delete</strong> them</li>
             <li>Dashed cards represent <strong>open / requested positions</strong> — unfilled headcount</li>
           </ul>
         </section>
@@ -896,10 +870,11 @@ function openHelpModal() {
           <ul>
             <li>Click <strong>Add team</strong> <kbd><i data-lucide="users"></i></kbd> to create a new root team</li>
             <li><strong>Click a team name</strong> to rename it inline</li>
-            <li>Use the team menu <kbd><i data-lucide="ellipsis"></i></kbd> to delete a team, add a sub-team, or change layout</li>
+            <li>Hover a team for its options: add a person <kbd><i data-lucide="user-plus"></i></kbd>, add a sub-team <kbd><i data-lucide="users"></i></kbd>, stats, collapse, and delete <kbd><i data-lucide="trash-2"></i></kbd></li>
+            <li>Deleting a team moves its people to the unassigned bar; you are asked to confirm unless the team is empty</li>
             <li>Teams can be <strong>nested</strong> — drag a team into another team to create a sub-team</li>
             <li><strong>Collapse</strong> a team to shrink it into a compact facepile view (colored dots)</li>
-            <li>The top slot of each team is the <strong>manager slot</strong> — drop a person there to make them the team manager</li>
+            <li>The first position in each team is the <strong>manager slot</strong> — drop a person there to make them the team manager</li>
           </ul>
         </section>
 
@@ -917,10 +892,10 @@ function openHelpModal() {
         <section class="help-section">
           <h4><i data-lucide="layout-grid"></i> Layout &amp; Zoom</h4>
           <ul>
-            <li>Use the <strong>layout toggle</strong> <kbd><i data-lucide="square-arrow-right"></i></kbd> to switch between horizontal and vertical arrangement</li>
-            <li>Each team also has its own layout toggle in its menu</li>
+            <li>People go down, teams go across: each team lists its people in one column, with its sub-teams side by side to the right</li>
+            <li><strong>Fit to screen</strong> <kbd><i data-lucide="scan"></i></kbd> zooms the whole board into view — that is also as far as you can zoom out</li>
             <li><strong>Zoom</strong> with the <kbd>+</kbd> / <kbd>−</kbd> buttons, or <kbd>Ctrl</kbd> + scroll wheel</li>
-            <li>In horizontal layout, hold <kbd>Shift</kbd> + scroll wheel to <strong>pan horizontally</strong></li>
+            <li>Scroll to move around the board — hold <kbd>Shift</kbd> with a mouse wheel to go sideways</li>
           </ul>
         </section>
 
@@ -1026,6 +1001,10 @@ function openBoardLegend(anchorEl) {
       <div class="legend-item">
         <span class="legend-swatch legend-swatch-ribbon"></span>
         <span>Left ribbon = timezone gap</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch legend-swatch-members"></span>
+        <span>Card stripe = timezone</span>
       </div>
     </div>
     <div class="legend-divider"></div>
@@ -1354,6 +1333,15 @@ export function setupEventListeners() {
       return;
     }
 
+    if (event.target.closest("#delete-team-confirm")) {
+      const modal = document.getElementById("delete-team-modal");
+      const teamId = modal?.dataset.teamId;
+      modal?.remove();
+      if (teamId) deleteTeam(teamId);
+      notifyStateChange();
+      return;
+    }
+
     if (event.target.closest("#delete-all-unassigned-confirm")) {
       document.getElementById("delete-all-unassigned-modal")?.remove();
       deleteAllUnassigned();
@@ -1367,6 +1355,7 @@ export function setupEventListeners() {
       { cancel: "#edit-person-cancel", overlay: "edit-person-modal" },
       { cancel: "#manager-override-cancel", overlay: "manager-override-modal" },
       { cancel: "#delete-all-unassigned-cancel", overlay: "delete-all-unassigned-modal" },
+      { cancel: "#delete-team-cancel", overlay: "delete-team-modal" },
       { cancel: "#team-stats-close", overlay: "team-stats-modal" },
     ];
     for (const { cancel, overlay } of modalDismissRules) {
@@ -1407,27 +1396,25 @@ export function setupEventListeners() {
 
       const actions = {
         "delete-employee": () => deleteEmployee(id),
-        "delete-team": () => deleteTeam(id),
+        "delete-team": () => { requestDeleteTeam(id); return false; },
         "edit-employee": () => { openEditPersonModal(id); return false; },
         "add-team-employee": () => { openAddPersonModal(teamId); return false; },
         "add-root-person": () => { openAddPersonModal(null); return false; },
         "add-root-team": () => addRandomRootTeam(),
         "add-child-team": () => addRandomTeamToTeam(teamId),
-        "open-team-menu": () => { openTeamMenu(button, teamId); return false; },
         "open-sort-modal": () => { openSortModal(); return false; },
         "open-team-stats": () => { openTeamStatsModal(teamId); return false; },
         "toggle-collapse": () => toggleTeamLayout(teamId),
-        "toggle-root-layout": () => {
-          state.rootLayout = oppositeLayout[state.rootLayout];
+        "zoom-fit": () => {
+          fitBoardToScreen();
+          return false;
         },
         "zoom-in": () => {
-          setBoardZoom(boardZoom + BOARD_ZOOM_STEP);
-          syncBoardZoomUI();
+          stepBoardZoom(1);
           return false;
         },
         "zoom-out": () => {
-          setBoardZoom(boardZoom - BOARD_ZOOM_STEP);
-          syncBoardZoomUI();
+          stepBoardZoom(-1);
           return false;
         },
         "zoom-reset": () => {
@@ -1536,6 +1523,8 @@ export function setupEventListeners() {
     if (event.key === "Escape") {
       const deleteAllModal = document.getElementById("delete-all-unassigned-modal");
       if (deleteAllModal) { deleteAllModal.remove(); return; }
+      const deleteTeamModal = document.getElementById("delete-team-modal");
+      if (deleteTeamModal) { deleteTeamModal.remove(); return; }
       const teamStatsModal = document.getElementById("team-stats-modal");
       if (teamStatsModal) { teamStatsModal.remove(); return; }
       const hierarchyModal = document.getElementById("hierarchy-modal");
@@ -1566,21 +1555,6 @@ export function setupEventListeners() {
     document.body.classList.remove("copy-mode");
   });
 
-  let scrollHintTimer = 0;
-  function showScrollHint() {
-    let hint = document.querySelector(".scroll-hint");
-    if (!hint) {
-      hint = document.createElement("div");
-      hint.className = "scroll-hint";
-      hint.innerHTML = `Hold <kbd>Shift</kbd> + scroll to pan horizontally`;
-      document.body.appendChild(hint);
-    }
-    clearTimeout(scrollHintTimer);
-    void hint.offsetWidth;
-    hint.classList.add("is-visible");
-    scrollHintTimer = setTimeout(() => hint.classList.remove("is-visible"), 1800);
-  }
-
   document.addEventListener("wheel", (event) => {
     const shell = event.target instanceof Element
       ? event.target.closest(".page-shell")
@@ -1589,19 +1563,9 @@ export function setupEventListeners() {
 
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
-      const delta = event.deltaY < 0 ? BOARD_ZOOM_STEP : -BOARD_ZOOM_STEP;
-      setBoardZoom(boardZoom + delta);
-      syncBoardZoomUI();
+      stepBoardZoom(event.deltaY < 0 ? 1 : -1);
       return;
     }
 
-    if (shell.dataset.layout === "horizontal" && event.deltaY !== 0 && event.deltaX === 0) {
-      if (event.shiftKey) {
-        event.preventDefault();
-        shell.scrollLeft += event.deltaY;
-      } else {
-        showScrollHint();
-      }
-    }
   }, { passive: false });
 }

@@ -122,14 +122,14 @@ describe("colorForManager", () => {
 
 describe("colorForTimezone", () => {
   it("returns known color for known timezones", () => {
-    assert.equal(colorForTimezone("PST (UTC−8)"), "#dbeafe");
-    assert.equal(colorForTimezone("GMT (UTC+0)"), "#d1fae5");
-    assert.equal(colorForTimezone("JST (UTC+9)"), "#fce7f3");
+    assert.equal(colorForTimezone("PST (UTC−8)"), "#0ea5e9");
+    assert.equal(colorForTimezone("GMT (UTC+0)"), "#10b981");
+    assert.equal(colorForTimezone("JST (UTC+9)"), "#ef4444");
   });
 
   it("returns fallback #e5e7eb for unknown timezone", () => {
-    assert.equal(colorForTimezone("FAKE"), "#e5e7eb");
-    assert.equal(colorForTimezone(""), "#e5e7eb");
+    assert.equal(colorForTimezone("FAKE"), "#9ca3af");
+    assert.equal(colorForTimezone(""), "#9ca3af");
   });
 
   it("covers all entries in timezoneColors", () => {

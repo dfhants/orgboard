@@ -94,10 +94,10 @@ test.describe("Edit Person", () => {
     await expect(modal).toBeVisible();
   });
 
-  test("editing timezone updates card background color", async ({ page }) => {
+  test("editing timezone updates card stripe color", async ({ page }) => {
     const card = page.locator('.person-card[data-id="p2"]');
     const colorBefore = await card.evaluate(
-      (el) => window.getComputedStyle(el).backgroundColor
+      (el) => window.getComputedStyle(el, "::before").borderLeftColor
     );
 
     await card.hover();
@@ -110,7 +110,7 @@ test.describe("Edit Person", () => {
 
     const colorAfter = await page
       .locator('.person-card[data-id="p2"]')
-      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+      .evaluate((el) => window.getComputedStyle(el, "::before").borderLeftColor);
     expect(colorAfter).not.toBe(colorBefore);
   });
 

@@ -20,7 +20,7 @@
   color: var(--text-soft);
   cursor: pointer;
   transition: all var(--transition);
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   font-weight: 500;
 }
 
@@ -52,7 +52,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   color: var(--text-soft);
   margin: 10px 0 4px;
 }
@@ -72,7 +72,7 @@
 .csv-preview-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -100,13 +100,13 @@
 }
 
 .csv-error {
-  color: #ef4444;
-  font-size: 0.8rem;
+  color: var(--danger);
+  font-size: var(--fs-base);
   margin: 8px 0 0;
 }
 
 .csv-step-label {
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-soft);
   margin: 0 0 10px;
@@ -124,7 +124,7 @@
 .csv-mapping-select {
   width: 100%;
   min-width: 80px;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -147,7 +147,7 @@
   align-items: center;
   gap: 6px;
   margin-top: 8px;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
 }
 
@@ -186,11 +186,11 @@
 }
 
 .csv-mode-option strong {
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
 }
 
 .csv-mode-option small {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
   line-height: 1.4;
 }

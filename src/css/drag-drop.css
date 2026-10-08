@@ -1,43 +1,36 @@
 /* ─── Drop zones ─── */
 
 .roster-cards {
-  min-height: 140px; /* base drop-zone height — tall enough to be an obvious drag target */
-  border: 1.5px dashed var(--line-soft);
+  min-height: calc(var(--card-min-h) + 16px);
+  border: 1.5px dashed var(--line);
   border-radius: var(--radius-lg);
-  padding: 10px;
+  padding: 7px;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space);
+  gap: var(--card-gap);
   align-content: flex-start;
-  align-items: flex-start;
-  transition: all var(--transition);
+  align-items: stretch;
+  transition: border-color var(--transition), background var(--transition);
   width: max-content;
 }
 
+/* The board itself: lays out root teams exactly as a team lays out its
+   sub-teams — side by side in one row. */
 .root-dropzone {
-  min-height: 140px;
-  border: 1.5px dashed transparent;
-  border-radius: var(--radius-lg);
-  padding: 0;
   display: flex;
-  gap: var(--space);
-  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
-}
-
-.root-dropzone[data-layout="horizontal"] {
   flex-flow: row nowrap;
-  height: 100%;
-  width: fit-content;
+  align-items: flex-start;
+  gap: var(--team-gap);
+  min-height: 140px;
+  padding: 4px;
+  margin: -4px;
+  border: 1.5px dashed transparent;
+  border-radius: var(--radius-xl);
+  transition: border-color var(--transition), background var(--transition);
 }
 
-.root-dropzone:has(.empty-board) {
-  width: 100%;
-}
-
-.root-dropzone[data-layout="vertical"] {
-  flex-flow: column nowrap;
-  width: 100%;
-  height: fit-content;
+.root-dropzone > .team {
+  flex: 0 0 auto;
 }
 
 .dropzone.is-over,
@@ -46,22 +39,19 @@
 .subteam-slot.is-over {
   border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px rgba(79, 110, 247, 0.1);
 }
 
-.slot.manager-slot.is-over:not(:has(.person-card)),
-.slot.manager-slot.is-over:has(.person-card) {
-  border: 1.5px dashed var(--accent);
-  border-radius: var(--radius-lg);
+.slot.manager-slot.is-over {
+  border-color: var(--accent);
   background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .empty-note {
-  color: var(--text-soft);
-  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
   line-height: 1.3;
   margin: 0;
-  font-style: italic;
 }
 
 .empty-board {
@@ -78,31 +68,23 @@
 }
 
 .empty-board > svg {
-  width: 48px;
-  height: 48px;
-  stroke-width: 1;
-  opacity: 0.3;
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.25;
+  color: var(--text-muted);
 }
 
 .empty-board-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   font-weight: 600;
-  color: var(--text-soft);
+  color: var(--text);
 }
 
 .empty-board-hint {
   margin: 0;
-  font-size: 0.82rem;
-  color: var(--line);
-}
-
-.slot > .empty-note {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 0.65rem;
+  font-size: var(--fs-base);
+  color: var(--text-soft);
 }
 
 .dragging-source {
@@ -117,4 +99,3 @@ body.copy-mode,
 body.copy-mode * {
   cursor: copy !important;
 }
-

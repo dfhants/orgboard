@@ -1,12 +1,5 @@
 import { signal } from "@preact/signals";
 
-// ─── Layout constants ───
-export const oppositeLayout = { horizontal: "vertical", vertical: "horizontal" };
-export const layoutIcons = {
-  horizontal: '<i data-lucide="square-arrow-right"></i>',
-  vertical: '<i data-lucide="square-arrow-down"></i>',
-};
-
 // ─── Random team defaults ───
 export const randomTeamColors = [
   "#a5b4fc",
@@ -31,7 +24,6 @@ export const randomTeamNames = [
 
 // ─── State factories ───
 export const createInitialState = () => ({
-  rootLayout: "horizontal",
   unassignedBarCollapsed: false,
   statsPanelOpen: false,
   checksPanelOpen: false,
@@ -102,7 +94,6 @@ export const createInitialState = () => ({
 });
 
 export const createBlankState = () => ({
-  rootLayout: "horizontal",
   unassignedBarCollapsed: false,
   statsPanelOpen: false,
   checksPanelOpen: false,
@@ -132,8 +123,10 @@ export function setTeamSequence(v) { teamSequence = v; }
 export let isCopyMode = false;
 export function setIsCopyMode(v) { isCopyMode = v; }
 
-export const MIN_BOARD_ZOOM = 0.6;
-export const MAX_BOARD_ZOOM = 1.4;
+// Absolute floor only. The working minimum is whatever fits the whole board
+// on screen (see minBoardZoom in layout.mjs).
+export const MIN_BOARD_ZOOM = 0.05;
+export const MAX_BOARD_ZOOM = 2;
 export const BOARD_ZOOM_STEP = 0.1;
 
 export let boardZoom = 1;

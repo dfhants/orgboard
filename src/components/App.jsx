@@ -7,7 +7,7 @@ import { evaluateAllChecks } from '../checks.mjs';
 import { globalCriteria } from '../state.mjs';
 import { sortAllTeams } from '../operations.mjs';
 import { createIcons } from '../icons.mjs';
-import { tightenLayout, applyBoardZoomToShell, observeShellResize } from '../layout.mjs';
+import { applyBoardZoomToShell, updateBoardScrollFades } from '../layout.mjs';
 import { debouncedSave } from '../scenarios.mjs';
 
 import { LandingPage } from './LandingPage.jsx';
@@ -50,7 +50,7 @@ export function App() {
       if (shell) {
         shell.style.marginRight = "0";
         shell.style.marginLeft = "0";
-        shell.style.height = "calc(100vh - 52px)";
+        shell.style.height = "calc(100vh - 48px)";
       }
     } else {
       // Clear any inline overrides from landing page
@@ -59,11 +59,11 @@ export function App() {
         shell.style.marginRight = "";
         shell.style.marginLeft = "";
         shell.style.height = "";
-        shell.dataset.layout = state.rootLayout;
       }
       applyBoardZoomToShell(boardZoom);
-      tightenLayout();
     }
+
+    updateBoardScrollFades();
 
     // Update scroll indicators for unassigned bar
     if (!isLanding && !state.unassignedBarCollapsed) {
@@ -84,6 +84,19 @@ export function App() {
   useEffect(() => {
     debouncedSave();
   });
+
+  // Keep the board's edge fades in step with scrolling and with the shell's size
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    shell.addEventListener('scroll', updateBoardScrollFades, { passive: true });
+    const observer = new ResizeObserver(updateBoardScrollFades);
+    observer.observe(shell);
+    return () => {
+      shell.removeEventListener('scroll', updateBoardScrollFades);
+      observer.disconnect();
+    };
+  }, []);
 
   // Set up scroll indicator handlers on the roster cards
   useEffect(() => {
@@ -115,7 +128,7 @@ export function App() {
         </nav>
       </header>
 
-      <div class="page-shell" ref={shellRef} data-layout={state.rootLayout}>
+      <div class="page-shell" ref={shellRef}>
         <main class="app-grid">
           {isLanding
             ? <LandingPage />
@@ -123,6 +136,14 @@ export function App() {
         </main>
       </div>
 
+      {!isLanding && (
+        <div class="board-scroll-fades" aria-hidden="true">
+          <span class="board-fade board-fade-left"></span>
+          <span class="board-fade board-fade-right"></span>
+          <span class="board-fade board-fade-top"></span>
+          <span class="board-fade board-fade-bottom"></span>
+        </div>
+      )}
       {!isLanding && <ActionBar />}
       {!isLanding && <UnassignedBar />}
       {!isLanding

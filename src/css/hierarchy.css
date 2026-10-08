@@ -34,7 +34,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.78rem;
+  font-size: var(--fs-base);
 }
 
 .hierarchy-edit-toggle.is-active {
@@ -44,7 +44,7 @@
 }
 
 .hierarchy-edit-banner {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--accent);
   margin: -8px 0 0;
   font-weight: 600;
@@ -80,7 +80,7 @@
 
 .tree-lines path {
   fill: none;
-  stroke: var(--line-soft);
+  stroke: var(--line);
   stroke-width: 1.5;
 }
 
@@ -106,7 +106,7 @@
   align-items: start;
   gap: 6px;
   padding: 4px 8px;
-  min-height: 38px;
+  min-height: 42px;
   border-bottom: 1px solid var(--line-soft);
   cursor: default;
 }
@@ -131,7 +131,7 @@
 }
 
 .tree-leaf-name {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text);
   line-height: 1.15;
@@ -145,7 +145,7 @@
 }
 
 .tree-leaf-role {
-  font-size: 0.58rem;
+  font-size: var(--fs-xs);
   color: var(--text-soft);
   margin-top: 2px;
   line-height: 1.15;
@@ -336,7 +336,7 @@
 }
 
 .tree-node-name {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
   line-height: 1.15;
@@ -346,7 +346,7 @@
 }
 
 .tree-node-role {
-  font-size: 0.62rem;
+  font-size: var(--fs-xs);
   color: var(--text-soft);
   margin-top: 1px;
   line-height: 1.15;
@@ -385,7 +385,7 @@
 }
 
 .tree-node-team {
-  font-size: 0.58rem;
+  font-size: var(--fs-xs);
   color: var(--text-soft);
   margin-top: 2px;
   font-weight: 600;
@@ -434,13 +434,13 @@
   gap: 8px;
   padding: 6px 10px;
   border: none;
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
   transition: all var(--transition);
   font: inherit;
   text-align: left;
-  font-size: 0.78rem;
+  font-size: var(--fs-base);
 }
 
 .tree-popover-item:hover {
@@ -457,5 +457,5 @@
   margin-top: 2px;
   padding-top: 8px;
   color: var(--text-soft);
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
 }

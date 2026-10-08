@@ -454,7 +454,7 @@ test.describe("Hierarchy Tree Modal", () => {
   });
 
   test("no view-hierarchy button directly on team titlebars", async ({ page }) => {
-    // view-hierarchy is only accessible via the team menu popover, not as a direct button
+    // view-hierarchy is only on the action bar, not a per-team button
     const teamButtons = page.locator('.team-titlebar [data-action="view-hierarchy"]');
     await expect(teamButtons).toHaveCount(0);
   });

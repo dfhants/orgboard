@@ -1,170 +1,121 @@
-import { state, boardZoom } from './state.mjs';
+import { boardZoom, setBoardZoom, MIN_BOARD_ZOOM, BOARD_ZOOM_STEP } from './state.mjs';
 
 /**
- * Tighten the layout after rendering.
+ * Board zoom.
  *
- * CSS flex column-wrap (horizontal mode) and row-wrap (vertical mode) cannot
- * auto-size the cross-axis of the container. We measure actual rendered
- * content bottom-up and set explicit heights (horizontal) or widths (vertical)
- * so that containers, teams, and the root dropzone shrink-wrap their children.
- *
- * Must be called after every DOM mutation that changes card counts or layout.
+ * The board's layout is pure CSS flow (see tokens.css) and depends only on
+ * its content. Zoom — a scale transform on .board-zoom-layer, driven by the
+ * --board-zoom custom property — is the only thing that adapts it to the
+ * viewport.
  */
-export function tightenLayout() {
-  const rootDropzone = document.querySelector(".root-dropzone");
-  if (!rootDropzone) return;
-
-  const isHorizontal = state.rootLayout === "horizontal";
-
-  // --- Reset previously set inline sizes (clear both axes to handle layout switches) ---
-  rootDropzone.style.height = "";
-  rootDropzone.style.width = "";
-  for (const team of document.querySelectorAll(".team")) {
-    team.style.height = "";
-    team.style.width = "";
-  }
-  for (const slot of document.querySelectorAll(".member-slot")) {
-    if (slot.dataset.dragFrozen) continue;
-    slot.style.height = "";
-    slot.style.width = "";
-  }
-  for (const subSlot of document.querySelectorAll(".subteam-slot")) {
-    subSlot.style.height = "";
-    subSlot.style.width = "";
-  }
-  for (const entry of document.querySelectorAll(".subteam-slot > .member-entry")) {
-    entry.style.height = "";
-    entry.style.width = "";
-  }
-
-  void document.body.offsetHeight;
-
-  if (isHorizontal) {
-    tightenAxis(rootDropzone, "height", "top", "bottom", "paddingBottom", "borderBottomWidth", "layout-horizontal");
-  } else {
-    tightenAxis(rootDropzone, "width", "left", "right", "paddingRight", "borderRightWidth", "layout-vertical");
-  }
-}
-
-// Backwards-compat alias used by drag-drop.mjs
-export const applyHorizontalPacking = tightenLayout;
-
-function tightenAxis(rootDropzone, sizeProp, startEdge, endEdge, paddingProp, borderProp, layoutClass) {
-  const allTeams = [...document.querySelectorAll(".team")].filter(
-    (t) => t.dataset.view !== "collapsed"
-  );
-  allTeams.sort((a, b) => {
-    const depthOf = (el) => {
-      let d = 0;
-      let p = el.parentElement;
-      while (p) { if (p.classList?.contains("team")) d++; p = p.parentElement; }
-      return d;
-    };
-    return depthOf(b) - depthOf(a);
-  });
-
-  for (const team of allTeams) {
-    const teamBody = team.querySelector(":scope > .team-body");
-    if (!teamBody) continue;
-
-    const slot = teamBody.querySelector(`:scope > .member-slot.${layoutClass}`);
-    if (slot && !slot.dataset.dragFrozen) {
-      const children = slot.querySelectorAll(
-        ":scope > .manager-slot, :scope > .member-entry:not(.dragging-source), :scope > .drag-preview-entry, :scope > .empty-note"
-      );
-      if (children.length > 0) {
-        const slotStart = slot.getBoundingClientRect()[startEdge];
-        const cs = getComputedStyle(slot);
-        const maxEnd = Math.max(
-          ...Array.from(children, (c) => c.getBoundingClientRect()[endEdge])
-        );
-        slot.style[sizeProp] =
-          maxEnd - slotStart + parseFloat(cs[paddingProp]) + parseFloat(cs[borderProp]) + "px";
-      }
-    }
-
-    const subSlot = teamBody.querySelector(":scope > .subteam-slot");
-    if (subSlot && subSlot.children.length > 0) {
-      for (const entry of subSlot.querySelectorAll(":scope > .member-entry:not(.dragging-source)")) {
-        const childTeam = entry.querySelector(":scope > .child-team");
-        if (!childTeam) continue;
-        const innerTeam = childTeam.querySelector(":scope > .team");
-        if (!innerTeam || innerTeam.getBoundingClientRect()[sizeProp] === 0) continue;
-        const entryStart = entry.getBoundingClientRect()[startEdge];
-        const cs = getComputedStyle(entry);
-        const innerEnd = innerTeam.getBoundingClientRect()[endEdge];
-        entry.style[sizeProp] =
-          innerEnd - entryStart + parseFloat(cs[paddingProp]) + parseFloat(cs[borderProp]) + "px";
-      }
-
-      const visibleChildren = [...subSlot.children].filter(
-        (c) => !c.classList.contains("dragging-source") && c.getBoundingClientRect()[sizeProp] > 0
-      );
-      if (visibleChildren.length > 0) {
-        const subStart = subSlot.getBoundingClientRect()[startEdge];
-        const cs = getComputedStyle(subSlot);
-        const maxEnd = Math.max(
-          ...Array.from(visibleChildren, (c) => c.getBoundingClientRect()[endEdge])
-        );
-        subSlot.style[sizeProp] =
-          maxEnd - subStart + parseFloat(cs[paddingProp]) + parseFloat(cs[borderProp]) + "px";
-      }
-    }
-
-    const directChildren = teamBody.querySelectorAll(
-      ":scope > .member-slot, :scope > .subteam-slot"
-    );
-    if (directChildren.length === 0) continue;
-
-    const teamStart = team.getBoundingClientRect()[startEdge];
-    const cs = getComputedStyle(team);
-    const maxEnd = Math.max(
-      ...Array.from(directChildren, (c) => c.getBoundingClientRect()[endEdge])
-    );
-    team.style[sizeProp] =
-      maxEnd - teamStart + parseFloat(cs[paddingProp]) + parseFloat(cs[borderProp]) + "px";
-  }
-
-  const gpChildren = rootDropzone.querySelectorAll(":scope > .team, :scope > .member-entry");
-  if (gpChildren.length === 0) return;
-
-  const gpStart = rootDropzone.getBoundingClientRect()[startEdge];
-  const gpCs = getComputedStyle(rootDropzone);
-  const gpMaxEnd = Math.max(
-    ...Array.from(gpChildren, (c) => c.getBoundingClientRect()[endEdge])
-  );
-  rootDropzone.style[sizeProp] =
-    gpMaxEnd - gpStart + parseFloat(gpCs[paddingProp]) + parseFloat(gpCs[borderProp]) + "px";
-}
 
 export function applyBoardZoomToShell(zoom) {
   const shell = document.querySelector(".page-shell");
   if (!shell) return;
   shell.style.setProperty("--board-zoom", String(zoom));
-  const zoomLayer = document.querySelector(".board-zoom-layer");
-  if (zoomLayer) zoomLayer.style.zoom = String(zoom);
 }
 
-function withUnzoomedLayout(fn) {
-  const zoomLayer = document.querySelector(".board-zoom-layer");
-  if (!zoomLayer) {
-    fn();
-    return;
-  }
-  const prevZoom = zoomLayer.style.zoom || String(boardZoom);
-  zoomLayer.style.zoom = "1";
-  fn();
-  zoomLayer.style.zoom = prevZoom;
+export function syncBoardZoomUI() {
+  applyBoardZoomToShell(boardZoom);
+  const label = document.getElementById("zoom-level-label");
+  if (label) label.textContent = `${Math.round(boardZoom * 100)}%`;
+  updateBoardScrollFades();
 }
 
-let packingObserver = null;
+/**
+ * The zoom at which a board of the given natural (100%) size exactly fits the
+ * available area, in whole percent and never above `max`. Zoom is a plain
+ * scale, so this is simple division.
+ */
+export function computeFitZoom({ boardWidth, boardHeight, availableWidth, availableHeight, min = MIN_BOARD_ZOOM, max = 1 }) {
+  if (!(boardWidth > 0) || !(boardHeight > 0)) return max;
+  const fit = Math.min(availableWidth / boardWidth, availableHeight / boardHeight, max);
+  return Math.max(min, Math.floor(fit * 100) / 100);
+}
 
-export function observeShellResize() {
-  packingObserver?.disconnect();
+/** The zoom at which the whole board is visible without scrolling, or null with no board. */
+function measureFitZoom() {
   const shell = document.querySelector(".page-shell");
-  if (!shell) return;
-  packingObserver = new ResizeObserver(() => {
-    withUnzoomedLayout(() => tightenLayout());
+  const board = shell?.querySelector(".root-dropzone");
+  if (!shell || !board || board.children.length === 0) return null;
+
+  const cs = getComputedStyle(shell);
+  const inset = parseFloat(cs.getPropertyValue("--board-inset")) || 0;
+  const clearance = parseFloat(cs.getPropertyValue("--board-clearance")) || 0;
+  // The board's dashed drop outline sits a few pixels outside the teams
+  const OUTLINE = 6;
+
+  // Measure the teams themselves — the board element stretches to fill the shell.
+  // Rects are on-screen sizes, so divide by the current zoom for natural size.
+  const origin = board.getBoundingClientRect();
+  let right = origin.left;
+  let bottom = origin.top;
+  for (const child of board.children) {
+    const rect = child.getBoundingClientRect();
+    right = Math.max(right, rect.right);
+    bottom = Math.max(bottom, rect.bottom);
+  }
+
+  return computeFitZoom({
+    boardWidth: (right - origin.left) / boardZoom,
+    boardHeight: (bottom - origin.top) / boardZoom,
+    availableWidth: shell.clientWidth - 2 * inset - OUTLINE,
+    availableHeight: shell.clientHeight - inset - clearance - OUTLINE,
   });
-  packingObserver.observe(shell);
+}
+
+/**
+ * The smallest zoom worth having: the one that shows the whole board. There is
+ * nothing more to see by zooming out past it.
+ */
+export function minBoardZoom() {
+  return measureFitZoom() ?? 1;
+}
+
+/**
+ * The next zoom level one step in or out. Levels are whole multiples of
+ * `step`, so from an in-between value (such as a fit zoom of 13%) stepping in
+ * lands on 20%, not 23%. Stepping out never goes below `min`.
+ */
+export function nextZoomLevel(zoom, direction, { step, min }) {
+  const pct = Math.round(zoom * 100);
+  const stepPct = Math.round(step * 100);
+  if (direction > 0) return (Math.floor(pct / stepPct) + 1) * stepPct / 100;
+  const down = (Math.ceil(pct / stepPct) - 1) * stepPct / 100;
+  return Math.min(zoom, Math.max(down, min));
+}
+
+/** Zoom one step in (direction > 0) or out, stopping at the zoom that fits the whole board. */
+export function stepBoardZoom(direction) {
+  setBoardZoom(nextZoomLevel(boardZoom, direction, { step: BOARD_ZOOM_STEP, min: minBoardZoom() }));
+  syncBoardZoomUI();
+}
+
+/** Zoom so the whole board is visible, then scroll back to its top-left. */
+export function fitBoardToScreen() {
+  const fit = measureFitZoom();
+  if (fit == null) return;
+  setBoardZoom(fit);
+  syncBoardZoomUI();
+  document.querySelector(".page-shell")?.scrollTo({ left: 0, top: 0 });
+}
+
+/** Which edges of a scroll container have more content beyond them. */
+export function scrollableEdges({ scrollLeft, scrollTop, scrollWidth, scrollHeight, clientWidth, clientHeight }) {
+  return {
+    left: scrollLeft > 0,
+    right: scrollLeft + clientWidth < scrollWidth - 1,
+    up: scrollTop > 0,
+    down: scrollTop + clientHeight < scrollHeight - 1,
+  };
+}
+
+/** Fade the board out at each edge it can still be scrolled towards. */
+export function updateBoardScrollFades() {
+  const shell = document.querySelector(".page-shell");
+  const fades = document.querySelector(".board-scroll-fades");
+  if (!shell || !fades) return;
+  for (const [edge, on] of Object.entries(scrollableEdges(shell))) {
+    fades.classList.toggle(`can-scroll-${edge}`, on);
+  }
 }

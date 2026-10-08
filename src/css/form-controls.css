@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
+  font-size: var(--fs-base);
   color: var(--text);
   cursor: pointer;
   padding: 4px 0;
@@ -20,7 +20,7 @@
   appearance: none;
   width: 36px;
   height: 20px;
-  background: var(--line-soft);
+  background: var(--line);
   border-radius: 999px;
   position: relative;
   cursor: pointer;
@@ -55,27 +55,26 @@
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  gap: 2px;
+  gap: 3px;
   max-width: 100%;
-  padding: 1px 6px;
+  height: 16px;
+  padding: 0 6px;
   border-radius: 999px;
-  font-size: 0.55rem;
-  font-weight: 700;
+  font-size: var(--fs-xs);
+  font-weight: 600;
   color: #fff;
-  line-height: 1.4;
+  line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .manager-override-pill .lucide {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 /* ─── Manager picker modal ─── */
@@ -95,7 +94,7 @@
   padding: 8px 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--panel);
   cursor: pointer;
   transition: all var(--transition);
   font: inherit;
@@ -115,19 +114,19 @@
 }
 
 .manager-pick-name {
-  font-size: 0.82rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text);
 }
 
 .manager-pick-role {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
   flex: 1;
 }
 
 .manager-pick-tag {
-  font-size: 0.62rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-soft);
   background: var(--panel-muted);

@@ -13,7 +13,7 @@ test.describe("Initial Render", () => {
     await expect(page.locator("#add-person-btn")).toBeVisible();
   });
 
-  test("toolbar logo fills the header height without a shadow", async ({ page }) => {
+  test("toolbar logo is a compact icon without a shadow", async ({ page }) => {
     const styles = await page.evaluate(() => {
       const toolbar = document.querySelector(".app-toolbar");
       const logo = document.querySelector(".toolbar-logo");
@@ -29,7 +29,8 @@ test.describe("Initial Render", () => {
     });
 
     expect(styles).not.toBeNull();
-    expect(styles!.logoHeight).toBeGreaterThanOrEqual(styles!.toolbarHeight - 1);
+    expect(styles!.logoHeight).toBe(28);
+    expect(styles!.toolbarHeight).toBe(48);
     expect(styles!.filter).toBe("none");
   });
 
@@ -236,16 +237,13 @@ test.describe("Initial Render", () => {
     );
   });
 
-  test("person cards have timezone-based background colors", async ({
+  test("person cards have timezone-based stripe colors", async ({
     page,
   }) => {
-    // Ava (PST) and Milo (GMT) should have different background colors
-    const avaColor = await page
-      .locator('.person-card[data-id="p1"]')
-      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
-    const miloColor = await page
-      .locator('.person-card[data-id="p2"]')
-      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+    // Ava (PST) and Milo (GMT) should have different timezone stripes
+    const stripe = (el: Element) => window.getComputedStyle(el, "::before").borderLeftColor;
+    const avaColor = await page.locator('.person-card[data-id="p1"]').evaluate(stripe);
+    const miloColor = await page.locator('.person-card[data-id="p2"]').evaluate(stripe);
 
     // Both should have non-empty background colors
     expect(avaColor).toBeTruthy();
@@ -290,20 +288,26 @@ test.describe("Board Legend", () => {
     await expect(popover).not.toBeVisible();
   });
 
-  test("slot areas have distinct background colors", async ({ page }) => {
+  test("slots carry no chrome; the manager card is marked instead", async ({ page }) => {
     const memberSlotBg = await page
-      .locator(".member-slot")
-      .first()
+      .locator('.team[data-team-id="t1"] > .team-body > .member-slot')
       .evaluate((el) => window.getComputedStyle(el).backgroundColor);
-    const managerSlotBg = await page
-      .locator(".manager-slot")
-      .first()
-      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+    expect(memberSlotBg).toBe("rgba(0, 0, 0, 0)");
 
-    // Both should have non-transparent backgrounds
-    expect(memberSlotBg).not.toBe("rgba(0, 0, 0, 0)");
-    expect(managerSlotBg).not.toBe("rgba(0, 0, 0, 0)");
-    // They should be different colors
-    expect(memberSlotBg).not.toBe(managerSlotBg);
+    const border = (el: Element) => window.getComputedStyle(el).borderTopColor;
+    const managerBorder = await page.locator('.manager-slot .person-card[data-id="p1"]').evaluate(border);
+    const memberBorder = await page.locator('.person-card[data-id="p2"]').evaluate(border);
+    expect(managerBorder).not.toBe(memberBorder);
+
+    // The manager card is filled; members stay white. No crown.
+    const bg = (el: Element) => window.getComputedStyle(el).backgroundColor;
+    const managerBg = await page.locator('.manager-slot .person-card[data-id="p1"]').evaluate(bg);
+    const memberBg = await page.locator('.person-card[data-id="p2"]').evaluate(bg);
+    expect(memberBg).toBe("rgb(255, 255, 255)");
+    expect(managerBg).not.toBe(memberBg);
+    const marker = await page
+      .locator('.manager-slot .person-card[data-id="p1"] .person-name')
+      .evaluate((el) => window.getComputedStyle(el, "::before").content);
+    expect(marker).toBe("none");
   });
 });

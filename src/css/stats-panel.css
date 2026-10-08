@@ -5,11 +5,8 @@
   grid-row: 2 / 4;
   width: 40px;
   z-index: var(--z-panel);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
+  background: var(--panel);
   border-left: 1px solid var(--line-soft);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.04);
   transition: width 300ms cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
@@ -18,7 +15,6 @@
 
 .stats-panel.is-open {
   width: 320px;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
 }
 
 /* Collapsed strip — icon bar */
@@ -43,7 +39,7 @@
 .stats-panel-strip-label {
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.08em;
   margin-top: 8px;
 }
@@ -65,15 +61,15 @@
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  font-size: 0.6rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   border-radius: 999px;
   padding: 0 5px;
   margin-top: 8px;
 }
 .strip-badge-fail {
-  background: #fca5a5;
-  color: #991b1b;
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 /* Panel tabs */
@@ -82,7 +78,7 @@
   gap: 2px;
 }
 .stats-panel-tab {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -126,7 +122,7 @@
 }
 
 .stats-panel-header strong {
-  font-size: 0.82rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -150,7 +146,7 @@
 }
 
 .stats-section-title {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -189,7 +185,7 @@
 
 /* Toggle link inside manager changes */
 .stats-collapsible-toggle {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--accent);
   cursor: pointer;
@@ -252,7 +248,7 @@ summary.stats-section-title {
 }
 
 .stats-team-name {
-  font-size: 0.78rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text);
   flex: 1;
@@ -263,7 +259,7 @@ summary.stats-section-title {
 }
 
 .stats-team-count {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-soft);
   flex: 0 0 auto;
@@ -275,7 +271,7 @@ summary.stats-section-title {
   align-items: center;
   justify-content: space-between;
   padding: 3px 0;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text);
 }
 
@@ -306,14 +302,27 @@ summary.stats-section-title {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 2px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  padding: 2px 8px 2px 6px;
+  border: 1px solid var(--line-soft);
   border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-tz-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tz-color, var(--line));
 }
 
 .stats-tz-badge-count {
-  opacity: 0.7;
+  font-weight: 700;
+  color: var(--text-soft);
 }
 
 /* Nested team indentation */
@@ -348,16 +357,16 @@ summary.stats-section-title {
   align-items: center;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 .checks-summary.all-pass {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 .checks-summary.has-failures {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 .checks-list {
@@ -367,7 +376,7 @@ summary.stats-section-title {
 }
 
 .checks-empty {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
   text-align: center;
   padding: 24px 12px;
@@ -380,10 +389,10 @@ summary.stats-section-title {
   overflow: hidden;
 }
 .check-card.pass {
-  border-left: 3px solid #34d399;
+  border-left: 3px solid var(--success);
 }
 .check-card.fail {
-  border-left: 3px solid #f87171;
+  border-left: 3px solid var(--danger);
 }
 .check-card.disabled {
   border-left: 3px solid var(--line-soft);
@@ -403,8 +412,8 @@ summary.stats-section-title {
   height: 16px;
   margin-top: 1px;
 }
-.check-card.pass .check-status-icon { color: #059669; }
-.check-card.fail .check-status-icon { color: #dc2626; }
+.check-card.pass .check-status-icon { color: var(--success); }
+.check-card.fail .check-status-icon { color: var(--danger); }
 .check-card.disabled .check-status-icon { color: var(--text-soft); }
 
 .check-card-info {
@@ -413,14 +422,14 @@ summary.stats-section-title {
 }
 
 .check-card-name {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
   line-height: 1.3;
 }
 
 .check-card-desc {
-  font-size: 0.65rem;
+  font-size: var(--fs-xs);
   color: var(--text-soft);
   line-height: 1.3;
   margin-top: 2px;
@@ -461,11 +470,11 @@ summary.stats-section-title {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.65rem;
+  font-size: var(--fs-xs);
   line-height: 1.3;
 }
-.check-detail-row.pass { color: #065f46; }
-.check-detail-row.fail { color: #991b1b; }
+.check-detail-row.pass { color: var(--success-text); }
+.check-detail-row.fail { color: var(--danger-text); }
 
 .check-detail-icon {
   width: 12px;
@@ -492,7 +501,7 @@ summary.stats-section-title {
 }
 
 .check-details-toggle {
-  font-size: 0.65rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-soft);
   cursor: pointer;
@@ -538,13 +547,13 @@ summary.stats-section-title {
   margin: 8px 0;
 }
 .modal-fieldset legend {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-soft);
   padding: 0 4px;
 }
 .modal-hint {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
   padding: 8px 0;
 }
@@ -585,7 +594,7 @@ summary.stats-section-title {
 }
 
 .modal-fullscreen-header .modal-title {
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
 }
 
 .modal-fullscreen-footer {
@@ -649,14 +658,14 @@ summary.stats-section-title {
 }
 
 .check-type-card-label {
-  font-size: 0.78rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text);
   line-height: 1.3;
 }
 
 .check-type-card-desc {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   color: var(--text-soft);
   line-height: 1.3;
   margin-top: 1px;
@@ -675,7 +684,7 @@ summary.stats-section-title {
 
 .check-type-scope {
   display: inline-block;
-  font-size: 0.6rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -695,7 +704,7 @@ summary.stats-section-title {
 }
 
 .check-instance-list-title {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -720,7 +729,7 @@ summary.stats-section-title {
 
 .check-instance-empty {
   grid-column: 1 / -1;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
   text-align: center;
   padding: 32px 16px;
@@ -745,7 +754,7 @@ summary.stats-section-title {
 }
 
 .check-instance-label {
-  font-size: 0.78rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text);
   flex: 1;
@@ -787,7 +796,7 @@ summary.stats-section-title {
 
 .config-sentence .config-word {
   color: var(--text-soft);
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   white-space: nowrap;
 }
 
@@ -822,7 +831,7 @@ summary.stats-section-title {
   display: flex;
   flex-direction: column;
   padding: 4px 0;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
 }
 
 .manager-change-name {
@@ -831,7 +840,7 @@ summary.stats-section-title {
 }
 
 .manager-change-detail {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--text-soft);
   padding-left: 8px;

@@ -1,0 +1,27 @@
+/* ─── Tooltip ─── */
+
+.tooltip {
+  position: fixed;
+  z-index: 400;
+  top: 0;
+  left: 0;
+  max-width: 240px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: pre-line; /* some titles carry line breaks */
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 100ms ease;
+}
+
+.tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+}

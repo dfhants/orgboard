@@ -9,7 +9,7 @@ function renderTzBadges(timezones) {
   const sorted = Object.entries(timezones).sort((a, b) => b[1] - a[1]);
   return sorted.map(([tz, count]) => {
     const bg = colorForTimezone(tz);
-    return `<span class="stats-tz-badge" style="background:${bg}"><span>${escapeHtml(tz)}</span> <span class="stats-tz-badge-count">${count}</span></span>`;
+    return `<span class="stats-tz-badge" style="--tz-color:${bg}"><span>${escapeHtml(tz)}</span> <span class="stats-tz-badge-count">${count}</span></span>`;
   }).join("");
 }
 

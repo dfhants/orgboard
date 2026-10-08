@@ -22,11 +22,11 @@ test.describe("Design Tokens", () => {
         radiusXl: s.getPropertyValue("--radius-xl").trim(),
       };
     });
-    expect(tokens.bg).toBe("#f1f3f6");
+    expect(tokens.bg).toBe("#eef0f3");
     expect(tokens.panel).toBe("#fff");
     expect(tokens.accent).toBe("#4f6ef7");
-    expect(tokens.radiusLg).toBe("14px");
-    expect(tokens.radiusXl).toBe("20px");
+    expect(tokens.radiusLg).toBe("8px");
+    expect(tokens.radiusXl).toBe("12px");
   });
 });
 
@@ -39,7 +39,7 @@ test.describe("Person Card", () => {
       const cs = getComputedStyle(el);
       return {
         width: cs.width,
-        height: cs.height,
+        minHeight: cs.minHeight,
         cursor: cs.cursor,
         overflow: cs.overflow,
         display: cs.display,
@@ -47,13 +47,14 @@ test.describe("Person Card", () => {
         borderRadius: cs.borderRadius,
       };
     });
-    expect(styles.width).toBe("120px");
-    expect(styles.height).toBe("120px");
+    expect(styles.width).toBe("140px");
+    expect(styles.minHeight).toBe("82px");
     expect(styles.cursor).toBe("grab");
-    expect(styles.overflow).toBe("hidden");
+    // not clipped: the hover options hang over the top edge
+    expect(styles.overflow).toBe("visible");
     expect(styles.display).toBe("flex");
     expect(styles.flexDirection).toBe("column");
-    expect(styles.borderRadius).toBe("14px");
+    expect(styles.borderRadius).toBe("8px");
   });
 
   test("card text fields use ellipsis overflow", async ({ page }) => {
@@ -84,8 +85,7 @@ test.describe("Person Card", () => {
 
   test("level badge renders inside timezone row", async ({ page }) => {
     // Add a person with a level so the badge appears
-    await page.click('[data-action="open-team-menu"][data-team-id="t1"]');
-    await page.click('.team-menu-item[data-menu-action="add-person"]');
+    await page.click('.team[data-team-id="t1"] > .team-titlebar [data-action="add-team-employee"]');
     await page.fill("#ap-name", "Test Person");
     await page.fill("#ap-role", "Engineer");
     await page.fill("#ap-level", "5");
@@ -102,8 +102,7 @@ test.describe("Person Card", () => {
 
   test("card notes use two-line clamp", async ({ page }) => {
     // Add a person with notes
-    await page.click('[data-action="open-team-menu"][data-team-id="t1"]');
-    await page.click('.team-menu-item[data-menu-action="add-person"]');
+    await page.click('.team[data-team-id="t1"] > .team-titlebar [data-action="add-team-employee"]');
     await page.fill("#ap-name", "Notes Person");
     await page.fill("#ap-role", "Analyst");
     await page.fill("#ap-location", "London");
@@ -133,15 +132,17 @@ test.describe("Person Card", () => {
       const actions = document.querySelector(".card-top-actions")!;
       const btn = document.querySelector(".card-action-button")!;
       const actionsCs = getComputedStyle(actions);
-      const btnCs = getComputedStyle(btn);
+      const btnRect = btn.getBoundingClientRect();
       return {
         zIndex: actionsCs.zIndex,
-        btnBackground: btnCs.backgroundColor,
+        backdrop: actionsCs.backgroundColor,
+        btnSize: Math.round(Math.min(btnRect.width, btnRect.height)),
       };
     });
     expect(Number(styles.zIndex)).toBeGreaterThanOrEqual(1);
-    // Buttons should have a semi-transparent white backdrop
-    expect(styles.btnBackground).toContain("rgba(255, 255, 255");
+    // The action group sits on an opaque white backdrop
+    expect(styles.backdrop).toBe("rgb(255, 255, 255)");
+    expect(styles.btnSize).toBeGreaterThanOrEqual(24);
   });
 
   test("current manager label is not rendered on cards", async ({ page }) => {
@@ -164,10 +165,11 @@ test.describe("Team Panel", () => {
         borderRadius: cs.borderRadius,
       };
     });
-    expect(styles.overflow).toBe("hidden");
+    // not clipped: the hover options straddle the top edge
+    expect(styles.overflow).toBe("visible");
     expect(styles.display).toBe("flex");
     expect(styles.flexDirection).toBe("column");
-    expect(styles.borderRadius).toBe("20px");
+    expect(styles.borderRadius).toBe("12px");
   });
 
   test("team accent stripe is present", async ({ page }) => {
@@ -175,7 +177,7 @@ test.describe("Team Panel", () => {
       const team = document.querySelector('.team[data-team-id="t1"]')!;
       const before = getComputedStyle(team, "::before");
       return {
-        width: before.width,
+        width: before.borderLeftWidth,
         position: before.position,
       };
     });
@@ -190,14 +192,14 @@ test.describe("Team Panel", () => {
     expect(cursor).toBe("grab");
   });
 
-  test("collapsed team has auto min-width", async ({ page }) => {
+  test("collapsed team keeps the same minimum width as any team", async ({ page }) => {
     // Research (t3) is collapsed by default
     const team = page.locator('.team[data-team-id="t3"]');
     await expect(team).toHaveAttribute("data-view", "collapsed");
     const minWidth = await team.evaluate(
       (el) => getComputedStyle(el).minWidth
     );
-    expect(minWidth).toBe("0px");
+    expect(minWidth).toBe("168px");
   });
 
   test("collapsed team slots shrink min dimensions to zero", async ({
@@ -230,10 +232,10 @@ test.describe("Team Panel", () => {
     }
   });
 
-  test("collapsed team is as small as possible in horizontal mode", async ({
+  test("collapsed team is smaller than an expanded team", async ({
     page,
   }) => {
-    // Default layout is horizontal; Research (t3) is collapsed
+    // Research (t3) is collapsed
     const team = page.locator('.team[data-team-id="t3"]');
     await expect(team).toHaveAttribute("data-view", "collapsed");
 
@@ -252,34 +254,9 @@ test.describe("Team Panel", () => {
       .boundingBox();
     expect(expandedBox).toBeTruthy();
     expect(box!.height).toBeLessThan(expandedBox!.height);
-  });
-
-  test("collapsed team is as small as possible in vertical mode", async ({
-    page,
-  }) => {
-    // Switch to vertical layout
-    await page.locator('[data-action="toggle-root-layout"]').click();
-    await page.waitForTimeout(200);
-
-    const team = page.locator('.team[data-team-id="t3"]');
-    await expect(team).toHaveAttribute("data-view", "collapsed");
-
-    const maxWidth = await team.evaluate(
-      (el) => getComputedStyle(el).maxWidth
-    );
-    // Should not stretch to 100% of the shell; should be min-content
-    expect(maxWidth).not.toBe("100%");
-
-    const box = await team.boundingBox();
-    expect(box).toBeTruthy();
-
-    // An expanded team (t1) should be wider than the collapsed team
-    const expandedBox = await page
-      .locator('.team[data-team-id="t1"]')
-      .boundingBox();
-    expect(expandedBox).toBeTruthy();
     expect(box!.width).toBeLessThan(expandedBox!.width);
   });
+
 });
 
 /* ── Slots & dropzones ── */
@@ -304,29 +281,23 @@ test.describe("Slots and Dropzones", () => {
         member: get(memSlot),
       };
     });
-    // Manager slot is an invisible wrapper when occupied (min 0),
-    // but the person-card inside is 120×120 so actual size ≥ 120
-    expect(styles.manager.minWidth).toBe("0px");
-    expect(styles.manager.minHeight).toBe("0px");
-    expect(styles.managerActual.w).toBeGreaterThanOrEqual(120);
-    expect(styles.managerActual.h).toBeGreaterThanOrEqual(120);
-    expect(styles.member.minWidth).toBe("143px");
-    expect(styles.member.minHeight).toBe("143px");
+    // Manager slot is an invisible wrapper when occupied, sized by the
+    // person-card inside it (140 wide, at least 82 tall)
+    expect(styles.managerActual.w).toBe(140);
+    expect(styles.managerActual.h).toBeGreaterThanOrEqual(82);
+    // The member slot has no fixed minimum — it shrink-wraps its cards
+    expect(styles.member.minHeight).toBe("auto");
   });
 
-  test("member slot flex layout", async ({ page }) => {
+  test("member slot is a single flex column", async ({ page }) => {
     const styles = await page.evaluate(() => {
       const slot = document.querySelector(
         '.team[data-team-id="t1"] .member-slot'
       )!;
       const cs = getComputedStyle(slot);
-      return {
-        display: cs.display,
-        gap: cs.gap,
-      };
+      return { display: cs.display, direction: cs.flexDirection, wrap: cs.flexWrap, gap: cs.rowGap };
     });
-    expect(styles.display).toBe("flex");
-    expect(styles.gap).toBe("10px");
+    expect(styles).toEqual({ display: "flex", direction: "column", wrap: "nowrap", gap: "8px" });
   });
 });
 
@@ -619,7 +590,7 @@ test.describe("Empty Note Visibility", () => {
       '.team[data-team-id="t4"] .manager-slot .empty-note'
     );
     await expect(mgrNote).toBeVisible();
-    await expect(mgrNote).toHaveCSS("font-style", "italic");
+    await expect(mgrNote).toHaveText("Drop a manager here");
   });
 
   test("empty note in slot is statically positioned and centered", async ({
@@ -631,9 +602,12 @@ test.describe("Empty Note Visibility", () => {
     await expect(mgrNote).toHaveCSS("position", "static");
     await expect(mgrNote).toHaveCSS("display", "grid");
     await expect(mgrNote).toHaveCSS("place-items", "center");
-    // Sized to match a person-card (120×120)
-    await expect(mgrNote).toHaveCSS("width", "120px");
-    await expect(mgrNote).toHaveCSS("height", "120px");
+    // The empty manager slot is sized to match a person-card
+    const slotBox = await page
+      .locator('.team[data-team-id="t4"] .manager-slot')
+      .boundingBox();
+    expect(Math.round(slotBox!.width)).toBe(140);
+    expect(Math.round(slotBox!.height)).toBeGreaterThanOrEqual(82);
   });
 
   test("empty note in slot has no overflow hidden", async ({ page }) => {

@@ -41,11 +41,18 @@ export function PersonCard({ employeeId, contextTeamId }) {
   const notesHtml = employee.notes ? `<div class="card-notes" title="${escapeHtml(employee.notes)}">${escapeHtml(employee.notes)}</div>` : "";
   const requestedClass = employee.requested ? " card-requested" : "";
 
+  // In a team this only takes the person off the team (they go to Unassigned).
+  // It is destructive only for someone already unassigned, or for a copy.
+  const removesFromTeam = contextTeamId && !employee.copyOf;
+  const deleteButton = removesFromTeam
+    ? `<button class="card-action-button card-delete-button card-remove-button" type="button" data-action="delete-employee" data-id="${employee.id}" title="Remove from team (moves to Unassigned)" aria-label="Remove from team"><i data-lucide="user-minus"></i></button>`
+    : `<button class="card-action-button card-delete-button card-destroy-button" type="button" data-action="delete-employee" data-id="${employee.id}" title="${employee.copyOf ? 'Delete copy' : 'Delete person'}" aria-label="${employee.copyOf ? 'Delete copy' : 'Delete person'}"><i data-lucide="trash-2"></i></button>`;
+
   const html = `
     <div class="card-top-actions">
       ${splitMergeButton}
       ${editButton}
-      <button class="card-action-button card-delete-button" type="button" data-action="delete-employee" data-id="${employee.id}"><i data-lucide="x"></i></button>
+      ${deleteButton}
     </div>
     ${overridePill}
     ${copyBadge}
@@ -62,7 +69,7 @@ export function PersonCard({ employeeId, contextTeamId }) {
       draggable="true"
       data-drag-kind="employee"
       data-id={employee.id}
-      style={`background:${colorForTimezone(employee.timezone)}`}
+      style={`--tz-color:${colorForTimezone(employee.timezone)}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

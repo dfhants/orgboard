@@ -6,9 +6,7 @@
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(8px) saturate(1.4);
-  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  background: rgba(17, 24, 39, 0.42);
   animation: overlay-in 200ms ease;
 }
 
@@ -22,7 +20,7 @@
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
-  padding: 28px;
+  padding: 24px;
   width: 480px;
   max-width: calc(100vw - 40px);
   display: flex;
@@ -38,8 +36,8 @@
 
 .modal-title {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--fs-lg);
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -47,62 +45,78 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 500;
   color: var(--text-soft);
-  letter-spacing: 0.01em;
 }
 
 .modal-input {
   font: inherit;
-  font-size: 0.85rem;
-  padding: 8px 12px;
-  border: 1px solid var(--line-soft);
+  font-size: var(--fs-md);
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--panel);
   color: var(--text);
   outline: none;
-  transition: all var(--transition);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.modal-input::placeholder {
+  color: var(--text-muted);
+}
+
+.modal-input:hover {
+  border-color: var(--text-muted);
 }
 
 .modal-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
-.modal-submit {
-  background: var(--accent) !important;
-  color: #fff !important;
-  border-color: var(--accent) !important;
-  font-weight: 600 !important;
-  box-shadow: 0 1px 3px rgba(79, 110, 247, 0.3) !important;
+.modal-actions .toolbar-button {
+  min-height: 36px;
+  padding: 7px 16px;
+  font-size: var(--fs-md);
 }
 
-.modal-submit:hover {
-  opacity: 0.92;
-  box-shadow: 0 2px 8px rgba(79, 110, 247, 0.35) !important;
+.toolbar-button.modal-submit {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
 }
 
-.modal-danger {
-  background: var(--danger, #e53e3e) !important;
-  border-color: var(--danger, #e53e3e) !important;
-  box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3) !important;
+.toolbar-button.modal-submit svg {
+  color: inherit;
 }
 
-.modal-danger:hover {
-  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.35) !important;
+.toolbar-button.modal-submit:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.toolbar-button.modal-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.toolbar-button.modal-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .modal-body-text {
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text-soft);
   line-height: 1.5;
   margin: 0 0 8px;
@@ -135,7 +149,7 @@
 }
 
 .team-stats-section-title {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -148,7 +162,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
 }
 
 .team-stats-nested-row .stats-team-count {
@@ -174,13 +188,13 @@
   padding: 8px 10px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
-  background: var(--bg);
-  font-size: 0.85rem;
+  background: var(--panel-muted);
+  font-size: var(--fs-md);
 }
 
 .sort-layer-number {
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   width: 18px;
   text-align: center;
@@ -190,11 +204,11 @@
 .sort-layer-key {
   flex: 1;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   padding: 4px 8px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
-  background: var(--bg);
+  background: var(--panel);
   color: var(--text);
   cursor: pointer;
 }
@@ -231,8 +245,8 @@
 }
 
 .sort-layer-remove:hover {
-  background: var(--danger-soft, #fee2e2);
-  color: var(--danger, #dc2626);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .sort-add-layer-btn {
@@ -246,7 +260,7 @@
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-base);
   cursor: pointer;
   transition: all var(--transition);
 }
@@ -260,35 +274,37 @@
 /* ─── Help modal ─── */
 
 .help-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 32px;
+  columns: 2 320px;
+  column-gap: 40px;
+  max-width: 960px;
+  margin: 0 auto;
   padding-bottom: 32px;
 }
 
 .help-section {
   break-inside: avoid;
+  margin-bottom: 24px;
 }
 
 .help-section h4 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: var(--fs-md);
+  font-weight: 600;
   margin: 0 0 8px;
   color: var(--text);
 }
 
 .help-section h4 svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   color: var(--accent);
   flex-shrink: 0;
 }
 
 .help-section p {
-  font-size: 0.85rem;
+  font-size: var(--fs-base);
   color: var(--text-soft);
   margin: 0 0 8px;
   line-height: 1.5;
@@ -301,7 +317,7 @@
 }
 
 .help-section li {
-  font-size: 0.85rem;
+  font-size: var(--fs-base);
   color: var(--text-soft);
   line-height: 1.6;
 }
@@ -322,7 +338,7 @@
   border: 1px solid var(--line-soft);
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-soft);
   vertical-align: middle;

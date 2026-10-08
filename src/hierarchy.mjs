@@ -6,8 +6,8 @@ import { createIcons } from './icons.mjs';
 /* ── Compact tree layout (custom Reingold-Tilford) ── */
 
 const NODE_W = 140;
-const NODE_H = 62;
-const LEAF_H = 38;
+const NODE_H = 68;
+const LEAF_H = 42;
 const H_GAP = 6;
 const V_GAP = 40;
 
@@ -188,7 +188,7 @@ function renderNodeHtml(node, editMode, x, y) {
       const tz = colorForTimezone(emp.timezone);
       const clickAttr = `data-tree-click="manager" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"`;
       const toggleHtml = node.__collapsible
-        ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
+        ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" title="${node.__collapsed ? "Expand" : "Collapse"} branch" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
         : "";
       const movedClass = editMode && node.isOverride ? " tree-node--moved" : "";
       return `
@@ -214,7 +214,7 @@ function renderNodeHtml(node, editMode, x, y) {
     const overrideClass = node.isOverride ? " tree-node-override" : "";
     const clickAttr = `data-tree-click="member" data-employee-id="${emp.id}" data-tree-team-id="${node.teamId}"`;
     const toggleHtml = node.__collapsible
-      ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
+      ? `<button class="tree-node-toggle" type="button" data-tree-toggle="${node.__nodeKey}" title="${node.__collapsed ? "Expand" : "Collapse"} branch" aria-label="${node.__collapsed ? "Expand" : "Collapse"} branch"><i data-lucide="${node.__collapsed ? "chevron-right" : "chevron-down"}"></i></button>`
       : "";
     const movedClass = editMode && node.isOverride ? " tree-node--moved" : "";
     return `

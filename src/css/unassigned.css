@@ -6,49 +6,44 @@
   flex-shrink: 0;
   z-index: var(--z-drawer);
   border-top: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
-  padding: 14px 28px;
-  height: 200px;
-  max-height: 200px;
+  background: var(--panel);
+  padding: 10px var(--gutter) 12px;
+  height: 190px;
+  max-height: 190px;
   overflow: hidden;
-  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms ease, box-shadow 200ms ease;
+  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .unassigned-bar.is-collapsed {
-  max-height: 52px;
+  max-height: 48px;
   overflow: hidden;
-  box-shadow: 0 -1px 8px rgba(0, 0, 0, 0.03);
 }
 
 .unassigned-bar-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   cursor: pointer;
   border-radius: var(--radius);
-  padding: 4px 6px;
-  margin: -4px -6px;
+  padding: 0 6px 0 0;
+  margin: 0 -6px;
   transition: background-color var(--transition);
 }
 
 .unassigned-bar-header:hover {
-  background: var(--accent-soft);
+  background: var(--panel-muted);
 }
 
 .unassigned-bar-header strong {
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-soft);
+  color: var(--text);
 }
 
 .unassigned-count {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 0.7rem;
+  background: var(--panel-muted);
+  color: var(--text-soft);
+  font-size: var(--fs-xs);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -63,12 +58,12 @@
 }
 
 .delete-all-unassigned:hover {
-  color: var(--danger, #e53e3e);
+  color: var(--danger);
 }
 
 .unassigned-bar .roster-cards-wrapper {
   position: relative;
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
 .unassigned-bar .roster-cards-wrapper::before,
@@ -86,13 +81,13 @@
 
 .unassigned-bar .roster-cards-wrapper::before {
   left: 0;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.88), transparent);
+  background: linear-gradient(to right, var(--panel), transparent);
   border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
 .unassigned-bar .roster-cards-wrapper::after {
   right: 0;
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.88), transparent);
+  background: linear-gradient(to left, var(--panel), transparent);
   border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
 }
 
@@ -102,7 +97,9 @@
 }
 
 .unassigned-bar .roster-cards {
-  min-height: 80px; /* shorter than the general drop-zone 140px — the bar is secondary UI */
+  height: 128px;
+  align-items: flex-start;
+  padding-top: 19px; /* room for a card's actions, which hang over its top edge */
   flex-wrap: nowrap;
   overflow: auto hidden;
   width: auto;

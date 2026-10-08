@@ -1,19 +1,9 @@
-import { state, boardZoom, oppositeLayout } from '../state.mjs';
+import { state, boardZoom } from '../state.mjs';
 
 export function ActionBar() {
-  const next = oppositeLayout[state.rootLayout];
-  const layoutIcon = next === "horizontal" ? "square-arrow-right" : "square-arrow-down";
-
   return (
-    <div id="action-bar" class="action-bar">
-      <button
-        class="team-control-button"
-        type="button"
-        title={`Switch to ${next} layout`}
-        aria-label={`Switch to ${next} layout`}
-        data-action="toggle-root-layout"
-      ><i data-lucide={layoutIcon}></i></button>
-
+    <div class="action-bar" id="action-bar">
+      <button class="team-control-button" type="button" data-action="zoom-fit" title="Fit board to screen" aria-label="Fit board to screen"><i data-lucide="scan"></i></button>
       <span class="action-bar-divider"></span>
       <button class="team-control-button" type="button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out"><i data-lucide="minus"></i></button>
       <button class="team-control-button zoom-level-button" type="button" data-action="zoom-reset" title="Reset zoom" aria-label="Reset zoom"><span id="zoom-level-label">{Math.round(boardZoom * 100)}%</span></button>

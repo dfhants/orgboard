@@ -16,7 +16,7 @@ A drag-and-drop team organizer built with [Preact](https://preactjs.com/) + [Sig
 - **Copy mode** — hold `C` while dragging to duplicate instead of move
 - **Inline rename** — click a team name to edit it
 - **Unassigned bar** — collapsible drawer for unassigned employees
-- **Layout modes** — toggle between horizontal and vertical arrangements per team or globally
+- **Column layout** — teams sit side by side at every level, each listing its people in one column; fit-to-screen zooms the whole board into view
 - **Smart drop targeting** — drags anywhere over a team resolve to the nearest valid slot
 - **Scenarios/tabs** — multiple independent org charts stored as scenarios with a tab bar UI
 - **Persistence** — SQLite (sql.js WASM) stored in IndexedDB with debounced auto-save
@@ -100,10 +100,9 @@ src/
   csv-import.mjs          CSV parsing and import logic
   checks.mjs              Pluggable validation engine (11 check types)
   db.mjs                  SQLite persistence via sql.js (WASM) + IndexedDB
-  packing.mjs             Pure function for horizontal column packing
   team-logic.mjs          Team hierarchy operations, nesting, stats
   hierarchy.mjs           Org-chart tree builder
-  layout.mjs              Layout mode toggling
+  layout.mjs              Board zoom and fit-to-screen
   icons.mjs               Lucide icon hydration
   utils.mjs               Colors, timezone math, HTML escaping, hashing
 

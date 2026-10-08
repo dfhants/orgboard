@@ -19,10 +19,10 @@
   width: 100%;
   resize: none;
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 10px 12px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   background: var(--surface);
   color: var(--text);

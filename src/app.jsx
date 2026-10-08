@@ -9,9 +9,9 @@ import {
 } from "./state.mjs";
 import { initializeSequence } from "./utils.mjs";
 import { generateScenarioId, nextScenarioName, restoreScenariosFromDB } from "./scenarios.mjs";
-import { observeShellResize } from "./layout.mjs";
 import { setupDragDropListeners } from "./drag-drop.mjs";
 import { setupEventListeners } from "./events.mjs";
+import { setupTooltips } from "./tooltip.mjs";
 import { App } from "./components/App.jsx";
 
 /* ── Test hook (exposes state + notifyStateChange for fast test setup) ── */
@@ -27,6 +27,7 @@ if (import.meta.env.DEV) {
 /* ── Wire up event listeners ──────────────────────────── */
 setupDragDropListeners();
 setupEventListeners();
+setupTooltips();
 
 /* ── Mount Preact ────────────────────────────────────── */
 const root = document.getElementById("app");
@@ -61,5 +62,4 @@ renderApp();
   setGlobalCriteria(listCriteria());
 
   notifyStateChange();
-  observeShellResize();
 })();

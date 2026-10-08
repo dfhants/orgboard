@@ -7,7 +7,7 @@ import { TeamSection } from './TeamSection.jsx';
 export function Board({ lastCheckResults }) {
   return (
     <div class="board-zoom-layer">
-      <div class="root-dropzone dropzone" data-drop-kind="root" data-layout={state.rootLayout}>
+      <div class="root-dropzone dropzone" data-drop-kind="root">
         {state.rootTeams.length > 0
           ? state.rootTeams.map((teamId) => (
               <TeamSection teamId={teamId} lastCheckResults={lastCheckResults} key={teamId} />

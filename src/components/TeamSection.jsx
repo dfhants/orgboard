@@ -51,19 +51,21 @@ export function TeamSection({ teamId, lastCheckResults, forcedView }) {
       title={ribbonTitle}
     >
       <div class="team-titlebar" data-team-id={team.id}>
+        <div class="team-handle" draggable="true" data-drag-kind="team" data-id={team.id} title="Drag team"><i data-lucide="grip-vertical"></i></div>
         <h2 class="team-name"><TeamName team={team} /></h2>
         <div class="team-toolbar">
           <div class="team-toolbar-left">
-            <div class="team-handle" draggable="true" data-drag-kind="team" data-id={team.id} title="Drag team"><i data-lucide="grip-vertical"></i></div>
-            <button class="team-control-button team-menu-trigger" type="button" data-action="open-team-menu" data-team-id={team.id} title="Team actions" aria-label="Team actions" aria-haspopup="true"><i data-lucide="ellipsis"></i></button>
+            <button class="team-control-button" type="button" data-action="add-team-employee" data-team-id={team.id} title="Add person" aria-label="Add person to team"><i data-lucide="user-plus"></i></button>
+            <button class="team-control-button" type="button" data-action="add-child-team" data-team-id={team.id} title="Add sub-team" aria-label="Add sub-team"><i data-lucide="users"></i></button>
             <button class="team-control-button team-stats-trigger" type="button" data-action="open-team-stats" data-team-id={team.id} title={caption} aria-label={`Team stats: ${caption}`}><i data-lucide="bar-chart-3"></i></button>
-            <button class={`team-control-button team-chevron${chevronClass}`} type="button" data-action="toggle-collapse" data-team-id={team.id} title={isCollapsed ? 'Expand' : 'Collapse'} aria-label={isCollapsed ? 'Expand' : 'Collapse'}><i data-lucide="chevron-right"></i></button>
+            <button class={`team-control-button team-chevron${chevronClass}`} type="button" data-action="toggle-collapse" data-team-id={team.id} title={isCollapsed ? 'Expand' : 'Collapse'} aria-label={isCollapsed ? 'Expand' : 'Collapse'}><i data-lucide="minimize-2" class="team-icon-collapse"></i><i data-lucide="maximize-2" class="team-icon-expand"></i></button>
+            <button class="team-control-button team-delete-button" type="button" data-action="delete-team" data-id={team.id} title="Delete team" aria-label="Delete team"><i data-lucide="trash-2"></i></button>
           </div>
         </div>
       </div>
 
-      <div class={`team-body ${state.rootLayout}`}>
-        <div class={`slot member-slot dropzone layout-${state.rootLayout}`} data-drop-kind="members" data-team-id={team.id}>
+      <div class="team-body">
+        <div class="slot member-slot dropzone" data-drop-kind="members" data-team-id={team.id}>
           <div class="slot manager-slot dropzone" data-drop-kind="manager" data-team-id={team.id}>
             {isCollapsed
               ? <CollapsedManager team={team} />
@@ -123,7 +125,7 @@ function TeamName({ team }) {
   }
 
   return (
-    <span class="team-name-text" onClick={() => setEditing(true)}>
+    <span class="team-name-text" title="Click to rename" onClick={() => setEditing(true)}>
       {team.name}
     </span>
   );

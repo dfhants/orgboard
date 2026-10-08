@@ -1,19 +1,21 @@
 export const timezoneColors = Object.create(null);
-timezoneColors["PST (UTC−8)"] = "#dbeafe";
-timezoneColors["MST (UTC−7)"] = "#bfdbfe";
-timezoneColors["CST (UTC−6)"] = "#c7d2fe";
-timezoneColors["EST (UTC−5)"] = "#e0e7ff";
-timezoneColors["BRT (UTC−3)"] = "#a5b4fc";
-timezoneColors["GMT (UTC+0)"] = "#d1fae5";
-timezoneColors["CET (UTC+1)"] = "#a7f3d0";
-timezoneColors["EAT (UTC+3)"] = "#fef3c7";
-timezoneColors["IST (UTC+5:30)"] = "#fde68a";
-timezoneColors["JST (UTC+9)"] = "#fce7f3";
-timezoneColors["AEST (UTC+10)"] = "#ede9fe";
-timezoneColors["NZST (UTC+12)"] = "#cffafe";
+// Ordered west → east so neighbouring timezones get neighbouring hues:
+// Americas blue→violet, Europe/Africa green→yellow, Asia-Pacific orange→pink.
+timezoneColors["PST (UTC−8)"] = "#0ea5e9";
+timezoneColors["MST (UTC−7)"] = "#3b82f6";
+timezoneColors["CST (UTC−6)"] = "#6366f1";
+timezoneColors["EST (UTC−5)"] = "#8b5cf6";
+timezoneColors["BRT (UTC−3)"] = "#a855f7";
+timezoneColors["GMT (UTC+0)"] = "#10b981";
+timezoneColors["CET (UTC+1)"] = "#84cc16";
+timezoneColors["EAT (UTC+3)"] = "#eab308";
+timezoneColors["IST (UTC+5:30)"] = "#f97316";
+timezoneColors["JST (UTC+9)"] = "#ef4444";
+timezoneColors["AEST (UTC+10)"] = "#ec4899";
+timezoneColors["NZST (UTC+12)"] = "#d946ef";
 
 export function colorForTimezone(tz) {
-  return timezoneColors[tz] ?? "#e5e7eb";
+  return timezoneColors[tz] ?? "#9ca3af";
 }
 
 export const managerPillPalette = [

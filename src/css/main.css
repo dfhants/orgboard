@@ -15,3 +15,4 @@
 @import "stats-panel.css";      /* Stats & checks sidebar panel */
 @import "responsive.css";       /* Default transitions & media queries */
 @import "hierarchy.css";        /* Hierarchy tree modal & org chart */
+@import "tooltip.css";          /* Styled tooltips for titled controls */

@@ -182,10 +182,7 @@ test.describe("Team Expand / Collapse", () => {
       .count();
 
     await page
-      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
-      .click();
-    await page
-      .locator('.team-menu-item[data-menu-action="add-team"]')
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="add-child-team"]')
       .click();
 
     const nestedAfter = await t1
@@ -235,111 +232,158 @@ test.describe("Team Expand / Collapse", () => {
     await expect(team).toHaveAttribute("data-view", "collapsed");
   });
 
-  test("team menu opens popover with all actions", async ({
-    page,
-  }) => {
+  test("team add-person button opens add-person modal for that team", async ({ page }) => {
     await page
-      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
-      .click();
-    const popover = page.locator(".team-menu-popover");
-    await expect(popover).toBeVisible();
-    await expect(
-      popover.locator('[data-menu-action="add-person"]')
-    ).toBeVisible();
-    await expect(
-      popover.locator('[data-menu-action="add-team"]')
-    ).toBeVisible();
-    await expect(
-      popover.locator('[data-menu-action="view-hierarchy"]')
-    ).toBeVisible();
-    await expect(
-      popover.locator('[data-menu-action="delete"]')
-    ).toBeVisible();
-  });
-
-  test("team menu uses clamped anchor positioning", async ({ page }) => {
-    const trigger = page.locator('[data-action="open-team-menu"][data-team-id="t1"]');
-    await trigger.click();
-
-    const placement = await page.evaluate(() => {
-      const button = document.querySelector('[data-action="open-team-menu"][data-team-id="t1"]');
-      const popover = document.querySelector('.team-menu-popover');
-      if (!button || !popover) return null;
-      const buttonRect = button.getBoundingClientRect();
-      const popRect = popover.getBoundingClientRect();
-      const centeredLeft = buttonRect.left + (buttonRect.width - popRect.width) / 2;
-      const expectedLeft = Math.min(Math.max(centeredLeft, 8), window.innerWidth - popRect.width - 8);
-      return {
-        leftDelta: Math.abs(popRect.left - expectedLeft),
-        belowTrigger: popRect.top >= buttonRect.bottom,
-      };
-    });
-
-    expect(placement).not.toBeNull();
-    expect(placement!.leftDelta).toBeLessThanOrEqual(4);
-    expect(placement!.belowTrigger).toBe(true);
-  });
-
-  test("team menu stays inside the viewport near the right edge", async ({ page }) => {
-    await page.setViewportSize({ width: 720, height: 900 });
-
-    const trigger = page.locator('[data-action="open-team-menu"][data-team-id="t2"]');
-    await trigger.click();
-
-    const placement = await page.evaluate(() => {
-      const button = document.querySelector('[data-action="open-team-menu"][data-team-id="t2"]');
-      const popover = document.querySelector('.team-menu-popover');
-      if (!button || !popover) return null;
-      const buttonRect = button.getBoundingClientRect();
-      const popRect = popover.getBoundingClientRect();
-      return {
-        left: popRect.left,
-        right: popRect.right,
-        top: popRect.top,
-        bottom: popRect.bottom,
-        viewportWidth: window.innerWidth,
-        viewportHeight: window.innerHeight,
-        overlapsTriggerVertically: popRect.top < buttonRect.bottom,
-      };
-    });
-
-    expect(placement).not.toBeNull();
-    expect(placement!.left).toBeGreaterThanOrEqual(8);
-    expect(placement!.right).toBeLessThanOrEqual(placement!.viewportWidth - 8);
-    expect(placement!.top).toBeGreaterThanOrEqual(8);
-    expect(placement!.bottom).toBeLessThanOrEqual(placement!.viewportHeight - 8);
-    expect(placement!.overlapsTriggerVertically).toBe(false);
-  });
-
-  test("team menu add-person option opens add-person modal", async ({ page }) => {
-    await page
-      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
-      .click();
-    await page
-      .locator('.team-menu-item[data-menu-action="add-person"]')
+      .locator('.team[data-team-id="t1"] > .team-titlebar [data-action="add-team-employee"]')
       .click();
     await expect(page.locator("#add-person-modal")).toBeVisible();
+    await page.fill("#ap-name", "Direct Add");
+    await page.fill("#ap-role", "Engineer");
+    await page.locator("#add-person-submit").click();
+    await expect(
+      page.locator('.team[data-team-id="t1"] > .team-body > .member-slot .person-name', { hasText: "Direct Add" })
+    ).toHaveCount(1);
   });
 
-  test("team menu closes on outside click", async ({ page }) => {
-    await page
-      .locator('[data-action="open-team-menu"][data-team-id="t1"]')
-      .click();
-    await expect(page.locator(".team-menu-popover")).toBeVisible();
-
-    // Click outside the popover
-    await page.locator(".root-dropzone").click({ position: { x: 5, y: 5 } });
-    await expect(page.locator(".team-menu-popover")).not.toBeVisible();
+  test("card options hang over the card's top edge, clear of the name", async ({ page }) => {
+    await page.locator('.person-card[data-id="p2"]').hover();
+    const pos = await page.evaluate(() => {
+      const card = document.querySelector('.person-card[data-id="p2"]')!;
+      const bar = card.querySelector(".card-top-actions")!.getBoundingClientRect();
+      const name = card.querySelector(".person-name")!.getBoundingClientRect();
+      const box = card.getBoundingClientRect();
+      return { barTop: bar.top, barBottom: bar.bottom, barRight: bar.right, cardTop: box.top, cardRight: box.right, nameTop: name.top };
+    });
+    expect(pos.barTop).toBeLessThan(pos.cardTop);
+    expect(pos.barBottom).toBeGreaterThan(pos.cardTop);
+    expect(pos.barBottom).toBeLessThanOrEqual(pos.nameTop + 1);
+    expect(pos.barRight).toBeLessThanOrEqual(pos.cardRight);
   });
 
-  test("team toolbar has handle, menu trigger, stats, and chevron", async ({ page }) => {
+  test("team options sit above the team's top edge, clear of the name and cards", async ({ page }) => {
+    await hoverTeamBackground(page, "t1");
+    const pos = await page.evaluate(() => {
+      const team = document.querySelector('.team[data-team-id="t1"]')!;
+      const bar = team.querySelector(":scope > .team-titlebar > .team-toolbar")!.getBoundingClientRect();
+      const name = team.querySelector(":scope > .team-titlebar .team-name-text")!.getBoundingClientRect();
+      const card = team.querySelector(".person-card")!.getBoundingClientRect();
+      const box = team.getBoundingClientRect();
+      return { barTop: bar.top, barBottom: bar.bottom, barRight: bar.right, teamTop: box.top, teamRight: box.right, nameTop: name.top, cardTop: card.top };
+    });
+    expect(pos.barTop).toBeLessThan(pos.teamTop);
+    expect(pos.barBottom).toBeGreaterThan(pos.teamTop);
+    expect(pos.barBottom).toBeLessThanOrEqual(pos.nameTop + 1);
+    expect(pos.barBottom).toBeLessThan(pos.cardTop);
+    expect(pos.barRight).toBeLessThanOrEqual(pos.teamRight);
+  });
+
+  /** Hover a team's own background: its bottom-right corner, inside the padding. */
+  async function hoverTeamBackground(page, id: string) {
+    const box = await page.locator(`.team[data-team-id="${id}"]`).boundingBox();
+    await page.mouse.move(box!.x + box!.width - 5, box!.y + box!.height - 5);
+    await page.waitForTimeout(250);
+  }
+  const teamOptions = (page, id: string) => page
+    .locator(`.team[data-team-id="${id}"] > .team-titlebar > .team-toolbar`)
+    .evaluate((el) => getComputedStyle(el).opacity);
+  const cardOptions = (page, id: string) => page
+    .locator(`.person-card[data-id="${id}"] .card-top-actions`)
+    .evaluate((el) => getComputedStyle(el).opacity);
+
+  test("team options show on the team's own background, innermost team only", async ({ page }) => {
+    await page.mouse.move(5, 300);
+    await page.waitForTimeout(250);
+    expect(await teamOptions(page, "t2")).toBe("0");
+    expect(await teamOptions(page, "t4")).toBe("0");
+
+    await hoverTeamBackground(page, "t4");
+    expect(await teamOptions(page, "t4")).toBe("1");
+    expect(await teamOptions(page, "t2")).toBe("0");
+
+    await hoverTeamBackground(page, "t2");
+    expect(await teamOptions(page, "t2")).toBe("1");
+    expect(await teamOptions(page, "t4")).toBe("0");
+  });
+
+  test("hovering a person shows only that card's options, not the team's", async ({ page }) => {
+    await page.locator('.person-card[data-id="p2"]').hover();
+    await page.waitForTimeout(250);
+    expect(await cardOptions(page, "p2")).toBe("1");
+    expect(await teamOptions(page, "t1")).toBe("0");
+
+    // And a person in a nested team shows neither team's options
+    await page.locator('.person-card[data-id="p8"]').hover();
+    await page.waitForTimeout(250);
+    expect(await cardOptions(page, "p8")).toBe("1");
+    expect(await teamOptions(page, "t4")).toBe("0");
+    expect(await teamOptions(page, "t2")).toBe("0");
+  });
+
+  test("hovering the team name or drag handle does not show the options", async ({ page }) => {
+    await hoverTeamBackground(page, "t1");
+    expect(await teamOptions(page, "t1")).toBe("1");
+
+    const name = await page.locator('.team[data-team-id="t1"] > .team-titlebar .team-name-text').boundingBox();
+    await page.mouse.move(name!.x + 10, name!.y + name!.height - 3);
+    await page.waitForTimeout(250);
+    expect(await teamOptions(page, "t1")).toBe("0");
+
+    const handle = await page.locator('.team[data-team-id="t1"] > .team-titlebar > .team-handle').boundingBox();
+    await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
+    await page.waitForTimeout(250);
+    expect(await teamOptions(page, "t1")).toBe("0");
+  });
+
+  test("options stay open while the pointer is on them", async ({ page }) => {
+    await hoverTeamBackground(page, "t1");
+    await page.locator('.team[data-team-id="t1"] > .team-titlebar [data-action="open-team-stats"]').hover();
+    await page.waitForTimeout(250);
+    expect(await teamOptions(page, "t1")).toBe("1");
+  });
+
+  test("options close after collapsing a team and moving the pointer away", async ({ page }) => {
+    const toolbar = page.locator('.team[data-team-id="t1"] > .team-titlebar > .team-toolbar');
+    await hoverTeamBackground(page, "t1");
+    await toolbar.locator('[data-action="toggle-collapse"]').click();
+    await expect(page.locator('.team[data-team-id="t1"]')).toHaveAttribute("data-view", "collapsed");
+
+    await page.mouse.move(900, 500);
+    await page.waitForTimeout(250);
+    expect(await toolbar.evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
+  });
+
+  test("options show for keyboard focus", async ({ page }) => {
+    const toolbar = page.locator('.team[data-team-id="t1"] > .team-titlebar > .team-toolbar');
+    await page.mouse.move(900, 500);
+    await toolbar.locator('[data-action="toggle-collapse"]').focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.waitForTimeout(250);
+    expect(await toolbar.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+  });
+
+  test("collapse button shows the icon for the action on offer", async ({ page }) => {
+    const shown = (id: string) => page.evaluate((id) => {
+      const btn = document.querySelector(`.team[data-team-id="${id}"] > .team-titlebar [data-action="toggle-collapse"]`)!;
+      return [...btn.querySelectorAll("svg")]
+        .filter((svg) => getComputedStyle(svg).display !== "none")
+        .map((svg) => svg.getAttribute("data-lucide"));
+    }, id);
+    expect(await shown("t1")).toEqual(["minimize-2"]); // expanded → offers collapse
+    expect(await shown("t3")).toEqual(["maximize-2"]); // collapsed → offers expand
+  });
+
+  test("team toolbar has add person, add sub-team, stats, collapse and delete", async ({ page }) => {
     const team = page.locator('.team[data-team-id="t1"]');
     const toolbar = team.locator("> .team-titlebar > .team-toolbar");
     const toolbarLeft = toolbar.locator("> .team-toolbar-left");
-    await expect(toolbarLeft.locator(".team-handle")).toBeVisible();
-    await expect(
-      toolbarLeft.locator('[data-action="open-team-menu"]')
-    ).toBeVisible();
+    // The drag handle leads the title bar, before the team name
+    await expect(team.locator("> .team-titlebar > .team-handle")).toBeVisible();
+    await expect(toolbarLeft.locator("button")).toHaveCount(5);
+    await expect(toolbarLeft.locator('[data-action="add-team-employee"]')).toBeVisible();
+    await expect(toolbarLeft.locator('[data-action="add-child-team"]')).toBeVisible();
+    await expect(toolbarLeft.locator('[data-action="view-hierarchy"]')).toHaveCount(0);
+    await expect(toolbarLeft.locator('[data-action="open-team-menu"]')).toHaveCount(0);
+    await expect(toolbarLeft.locator('[data-action="delete-team"]')).toBeVisible();
     await expect(
       toolbarLeft.locator('[data-action="open-team-stats"]')
     ).toBeVisible();

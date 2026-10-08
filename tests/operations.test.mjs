@@ -766,6 +766,49 @@ describe("deleteTeam", () => {
     deleteTeam("bogus");
     // no error thrown
   });
+
+  it("moves the team's manager and members to unassigned", () => {
+    const teamId = addRandomRootTeam();
+    state.employees.a = makeEmployee("a");
+    state.employees.b = makeEmployee("b");
+    state.teams[teamId].manager = "a";
+    state.teams[teamId].members.push({ id: "b" });
+    deleteTeam(teamId);
+    assert.deepEqual([...state.unassignedEmployees].sort(), ["a", "b"]);
+    assert.ok(state.employees.a && state.employees.b);
+  });
+
+  it("moves people from deleted sub-teams to unassigned too", () => {
+    const parentId = addRandomRootTeam();
+    addRandomTeamToTeam(parentId);
+    const childId = state.teams[parentId].subTeams[0].id;
+    state.employees.c = makeEmployee("c");
+    state.teams[childId].members.push({ id: "c" });
+    deleteTeam(parentId);
+    assert.deepEqual(state.unassignedEmployees, ["c"]);
+  });
+
+  it("discards copies instead of moving them to unassigned", () => {
+    const teamId = addRandomRootTeam();
+    state.employees.a = makeEmployee("a");
+    state.employees.a2 = { ...makeEmployee("a2"), copyOf: "a" };
+    state.unassignedEmployees.push("a");
+    state.teams[teamId].members.push({ id: "a2" });
+    deleteTeam(teamId);
+    assert.ok(!state.employees.a2);
+    assert.deepEqual(state.unassignedEmployees, ["a"]);
+  });
+
+  it("leaves people alone who are still in another team", () => {
+    const keepId = addRandomRootTeam();
+    const goId = addRandomRootTeam();
+    state.employees.a = makeEmployee("a");
+    state.teams[keepId].members.push({ id: "a" });
+    state.teams[goId].members.push({ id: "a" });
+    deleteTeam(goId);
+    assert.deepEqual(state.unassignedEmployees, []);
+    assert.equal(state.teams[keepId].members.length, 1);
+  });
 });
 
 // ─── toggleTeamLayout ────────────────────────────────────────────────

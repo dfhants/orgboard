@@ -53,7 +53,7 @@ test.describe("Timezone Spread Ribbon", () => {
   test("ribbon pseudo-element uses --ribbon-color", async ({ page }) => {
     const ribbonBg = await page
       .locator('.team[data-team-id="t2"]')
-      .evaluate((el) => getComputedStyle(el, "::before").background);
+      .evaluate((el) => getComputedStyle(el, "::before").borderLeftColor);
     // Should contain the amber color
     expect(ribbonBg).toContain("rgb(251, 191, 36)"); // #fbbf24
   });

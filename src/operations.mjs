@@ -222,16 +222,41 @@ export function deleteAllUnassigned() {
   cleanupManagerOverrides(state);
 }
 
+/**
+ * Delete a team and all its sub-teams. The people in them are not deleted:
+ * anyone left without a team moves to Unassigned (copies are discarded, as
+ * when a copy is removed from a team).
+ */
 export function deleteTeam(teamId) {
-  const team = getTeam(teamId);
-  if (!team) {
+  if (!getTeam(teamId)) {
     return;
   }
 
-  for (const sub of [...team.subTeams]) {
-    deleteTeam(sub.id);
-  }
+  const displaced = new Set(collectAllEmployeesInTeam(state.teams, teamId));
+  removeTeamTree(teamId);
 
+  const stillPlaced = new Set(state.unassignedEmployees);
+  for (const team of Object.values(state.teams)) {
+    if (team.manager) stillPlaced.add(team.manager);
+    for (const member of team.members) stillPlaced.add(member.id);
+  }
+  for (const id of displaced) {
+    if (stillPlaced.has(id) || !state.employees[id]) continue;
+    if (state.employees[id].copyOf) {
+      delete state.employees[id];
+    } else {
+      state.unassignedEmployees.push(id);
+    }
+  }
+  cleanupManagerOverrides(state);
+}
+
+function removeTeamTree(teamId) {
+  const team = getTeam(teamId);
+  if (!team) return;
+  for (const sub of [...team.subTeams]) {
+    removeTeamTree(sub.id);
+  }
   removeTeamFromCurrentLocation(teamId);
   delete state.teams[teamId];
 }
